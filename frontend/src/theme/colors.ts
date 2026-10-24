@@ -1,74 +1,76 @@
-// Centralized Theme Color System for Seedha Properties
+// Centralized Theme Color System for Seedha Properties (NoBroker Palette)
 // Palette definition:
-// Primary: #2E3A2F (Dark Forest / Olive Green)
-// Secondary: #687F5B (Sage Green)
-// Tertiary: #D9C9B2 (Warm Beige / Tan)
-// Accent: #C96F4F (Terracotta / Coral Orange)
-// Background: #F8F6EE (Soft Off-White Canvas)
+// Primary: #009587 (NoBroker Teal / Jade)
+// PrimaryDark: #004953 (NoBroker Deep Petrol / Dark Teal)
+// Secondary: #1F5A60 (NoBroker Slate Cyan)
+// Accent: #FD3752 (NoBroker Iconic Red / Coral CTA)
+// Background: #F7F9FA (NoBroker Clean Light Canvas)
+// Surface: #FFFFFF (Crisp White Card)
+// Text: #222222 (Deep Charcoal) / #555555 / #888888
 
 export const colors = {
-  // Core Brand Palette
-  primary: '#2E3A2F',
-  secondary: '#687F5B',
-  tertiary: '#D9C9B2',
-  accent: '#C96F4F',
-  background: '#F8F6EE',
+  // Core Brand Palette (NoBroker Style)
+  primary: '#009587',          // NoBroker Signature Teal
+  secondary: '#1F5A60',        // Deep Slate Teal
+  tertiary: '#E2E8F0',         // Subtle Border Gray
+  accent: '#FD3752',           // NoBroker Signature Coral Red (CTA, Alerts)
+  background: '#F7F9FA',       // Clean, high-readability backdrop
 
   // Derived Variations & Soft Background Tints
-  primaryDark: '#1E271F',
-  primaryLight: '#3D4D3E',
-  primaryBg: 'rgba(46, 58, 47, 0.08)',
+  primaryDark: '#004953',      // Dark teal for contrast headers/footers
+  primaryLight: '#26A69A',     // Vibrant mint/teal
+  primaryBg: 'rgba(0, 149, 135, 0.08)', // Soft teal wash for chips & cards
 
-  secondaryLight: '#7E9670',
-  secondaryDark: '#526547',
-  secondaryBg: 'rgba(104, 127, 91, 0.12)',
+  secondaryLight: '#3A7D84',
+  secondaryDark: '#00353C',
+  secondaryBg: 'rgba(31, 90, 96, 0.08)',
 
-  tertiaryLight: '#ECE4D8',
-  tertiaryDark: '#B8A48B',
-  tertiaryBg: 'rgba(217, 201, 178, 0.3)',
+  tertiaryLight: '#F1F5F9',
+  tertiaryDark: '#94A3B8',
+  tertiaryBg: 'rgba(226, 232, 240, 0.4)',
 
-  accentLight: '#F5EBE6',
-  accentDark: '#A85234',
-  accentBg: 'rgba(201, 111, 79, 0.12)',
+  accentLight: '#FFEBEF',      // Soft red/pink tint for badges & favorites
+  accentDark: '#E2233E',       // Deeper red for active/pressed states
+  accentBg: 'rgba(253, 55, 82, 0.08)',
 
   // Surfaces & Cards
-  surface: '#FFFFFF',
-  surfaceSoft: '#FAF8F3',
+  surface: '#FFFFFF',          // Pure clean card surface
+  surfaceSoft: '#F8FAFC',
 
   // Borders & Dividers
-  border: '#D9C9B2',
-  borderLight: '#EBE4D8',
-  divider: '#E5DEC9',
+  border: '#E2E8F0',           // Modern subtle border
+  borderLight: '#EDF2F7',      // Ultra light divider
+  divider: '#E2E8F0',
 
   // Text Colors
-  textPrimary: '#2E3A2F',
-  textSecondary: '#5C665D',
-  textMuted: '#8A948B',
-  textLight: '#F8F6EE',
+  textPrimary: '#222222',      // Crisp dark text for optimal readability
+  textSecondary: '#555555',    // Secondary body & descriptions
+  textMuted: '#888888',        // Form hints, icons, timestamps
+  textLight: '#F7F9FA',
   textWhite: '#FFFFFF',
-  textAccent: '#C96F4F',
-  textSecondaryColor: '#687F5B',
+  textAccent: '#FD3752',       // Red highlights
+  textSecondaryColor: '#009587', // Teal link/highlights
 
   // Status & Badges
-  success: '#687F5B',
-  successBg: '#EFF3EC',
-  danger: '#C96F4F',
-  dangerBg: '#FCEFEA',
-  warning: '#D99B26',
-  warningBg: '#FEF9EE',
-  info: '#2E3A2F',
-  infoBg: '#EAECE9',
+  success: '#009587',          // Teal verified check / success
+  successBg: '#E6F7F5',
+  danger: '#FD3752',           // Coral Red for danger / cancellations
+  dangerBg: '#FFEBEF',
+  warning: '#FF9F00',          // Amber/Gold for ratings and reviews
+  warningBg: '#FFF8E1',
+  info: '#004953',
+  infoBg: '#E0F2F1',
 
   // Overlay tokens (refined for clear image visibility & readability)
-  overlaySubtle: 'rgba(46, 58, 47, 0.25)',
-  overlayLight: 'rgba(46, 58, 47, 0.35)',
-  overlayMedium: 'rgba(46, 58, 47, 0.45)',
-  overlayDark: 'rgba(46, 58, 47, 0.55)',
-  backdropOverlay: 'rgba(46, 58, 47, 0.40)',
-  modalOverlay: 'rgba(0, 0, 0, 0.35)',
+  overlaySubtle: 'rgba(0, 73, 83, 0.20)',
+  overlayLight: 'rgba(0, 73, 83, 0.35)',
+  overlayMedium: 'rgba(0, 73, 83, 0.50)',
+  overlayDark: 'rgba(0, 35, 40, 0.65)',
+  backdropOverlay: 'rgba(0, 0, 0, 0.45)',
+  modalOverlay: 'rgba(0, 0, 0, 0.50)',
 
   // Shadow Colors & Constants
-  shadowColor: '#2E3A2F',
+  shadowColor: '#004953',
 
   // Typography Standard Sizes
   fontSizeXs: 11,
@@ -93,7 +95,7 @@ export const colors = {
   fontWeightExtraBold: '800',
 
   // Dark Canvas (For splash or dark highlights)
-  darkBg: '#2E3A2F',
+  darkBg: '#004953',
 };
 
 export default colors;

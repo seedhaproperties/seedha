@@ -41,7 +41,7 @@ export default function PropertyCard({ property, compact = false, horizontal = f
               <Text style={styles.horizontalTitle} numberOfLines={1}>
                 {property.title}
               </Text>
-              {property.verified && <ShieldCheck size={14} color={colors.secondary} style={styles.verifiedIcon} />}
+              {property.verified && <ShieldCheck size={14} color={colors.primary} style={styles.verifiedIcon} />}
             </View>
             <View style={styles.locationRow}>
               <MapPin size={11} color={colors.textMuted} strokeWidth={2} />
@@ -99,7 +99,7 @@ export default function PropertyCard({ property, compact = false, horizontal = f
         </TouchableOpacity>
         {property.verified && (
           <View style={styles.verifiedBadge}>
-            <ShieldCheck size={11} color={colors.secondary} />
+            <ShieldCheck size={11} color={colors.primary} />
             <Text style={styles.verifiedText}>Verified</Text>
           </View>
         )}
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     fontFamily: colors.fontFamily,
     fontSize: 10,
     fontWeight: '600',
-    color: colors.secondary,
+    color: colors.primary,
     marginLeft: 3,
   },
   cardContent: {

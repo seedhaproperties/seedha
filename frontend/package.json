@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~57.0.17",
     "@expo/vector-icons": "^15.0.2",
     "expo": "^57.0.25",
     "expo-asset": "~57.0.18",
