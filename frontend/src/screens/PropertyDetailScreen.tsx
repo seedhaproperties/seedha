@@ -21,6 +21,7 @@ import {
   Waves,
   Shield,
   BarChart3,
+  UserCheck,
 } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import type { Property } from '../types';
@@ -214,6 +215,40 @@ export default function PropertyDetailScreen() {
                 <Phone size={18} color={colors.textWhite} />
               </TouchableOpacity>
             </View>
+
+            {/* Diagram 1 Flow B: Show Owner Background Details & Decision Branch */}
+            {property.listingType === 'rent' && (
+              <View style={styles.ownerBgBox}>
+                <View style={styles.ownerBgHeader}>
+                  <ShieldCheck size={20} color={colors.primary} />
+                  <View style={styles.ownerBgTitleCol}>
+                    <Text style={styles.ownerBgTitle}>Verify Owner Background Details</Text>
+                    <Text style={styles.ownerBgSub}>
+                      Sub-Registrar title verification, EC 30-year check & society clearance
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.ownerBgButtonsRow}>
+                  <TouchableOpacity
+                    onPress={() => push({ name: 'ownerVerification', params: { property } })}
+                    style={styles.ownerBgActionBtn}
+                    activeOpacity={0.85}
+                  >
+                    <UserCheck size={14} color={colors.textWhite} />
+                    <Text style={styles.ownerBgActionBtnText}>Get Report (₹499)</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => push({ name: 'bookVisit', params: { property } })}
+                    style={styles.ownerBgSkipBtn}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.ownerBgSkipBtnText}>Skip Report</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -601,5 +636,66 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textWhite,
     marginLeft: 8,
+  },
+  ownerBgBox: {
+    marginTop: 14,
+    backgroundColor: colors.primaryBg,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  ownerBgHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  ownerBgTitleCol: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  ownerBgTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  ownerBgSub: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  ownerBgButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ownerBgActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flex: 1,
+  },
+  ownerBgActionBtnText: {
+    color: colors.textWhite,
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+  ownerBgSkipBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  ownerBgSkipBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
 });

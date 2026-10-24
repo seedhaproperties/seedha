@@ -79,7 +79,10 @@ export type ScreenName =
   | 'filters'
   | 'postProperty'
   | 'compare'
-  | 'savedProperties';
+  | 'savedProperties'
+  | 'ownerVerification'
+  | 'adminPortal'
+  | 'visitRating';
 
 export interface ScreenState {
   name: ScreenName;

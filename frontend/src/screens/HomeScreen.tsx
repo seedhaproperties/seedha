@@ -24,9 +24,11 @@ import {
   Building2,
   HousePlus,
   ShieldCheck,
-  Briefcase,
   FileSignature,
   Search,
+  ShieldAlert,
+  FileText,
+  UserCheck,
 } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import { properties } from '../data/properties';
@@ -326,6 +328,66 @@ export default function HomeScreen() {
       <View style={styles.sectionPadding}>
         <Text style={styles.groupSectionTitle}>More Services</Text>
         <View style={styles.moreServicesGrid}>
+          {/* Property Management (Flow D) */}
+          <TouchableOpacity
+            onPress={() => push({ name: 'propertyManagement' })}
+            style={styles.moreServiceCard}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.moreServiceIconBox, { backgroundColor: colors.primaryBg }]}>
+              <ShieldCheck size={18} color={colors.primary} strokeWidth={2.1} />
+            </View>
+            <View style={styles.moreServiceTextCol}>
+              <Text style={styles.moreServiceTitle}>Property Management</Text>
+              <Text style={styles.moreServiceSub}>Upload flat details & direct to admin</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Rental Agreements (Flow F) */}
+          <TouchableOpacity
+            onPress={() => push({ name: 'rentalAgreement' })}
+            style={styles.moreServiceCard}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.moreServiceIconBox, { backgroundColor: colors.secondaryBg }]}>
+              <FileText size={18} color={colors.secondary} strokeWidth={2.1} />
+            </View>
+            <View style={styles.moreServiceTextCol}>
+              <Text style={styles.moreServiceTitle}>Rental Agreements</Text>
+              <Text style={styles.moreServiceSub}>Preview & order e-stamped agreement</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Home Loans (Flow E) */}
+          <TouchableOpacity
+            onPress={() => push({ name: 'homeLoan' })}
+            style={styles.moreServiceCard}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.moreServiceIconBox, { backgroundColor: colors.tertiaryBg }]}>
+              <Landmark size={18} color={colors.primary} strokeWidth={2.1} />
+            </View>
+            <View style={styles.moreServiceTextCol}>
+              <Text style={styles.moreServiceTitle}>Home Loans</Text>
+              <Text style={styles.moreServiceSub}>EMI calc, compare banks & assist</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Verify Owner Background (Flow G & B) */}
+          <TouchableOpacity
+            onPress={() => push({ name: 'ownerVerification' })}
+            style={styles.moreServiceCard}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.moreServiceIconBox, { backgroundColor: colors.primaryBg }]}>
+              <UserCheck size={18} color={colors.primary} strokeWidth={2.1} />
+            </View>
+            <View style={styles.moreServiceTextCol}>
+              <Text style={styles.moreServiceTitle}>Owner Verification</Text>
+              <Text style={styles.moreServiceSub}>Title check, EC & verified report</Text>
+            </View>
+          </TouchableOpacity>
+
           {/* Post Property */}
           <TouchableOpacity
             onPress={() => setTab('post')}
@@ -341,48 +403,18 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Property Management */}
+          {/* Admin Operations Desk (Section 2) */}
           <TouchableOpacity
-            onPress={() => push({ name: 'rentalAgreement' })}
-            style={styles.moreServiceCard}
+            onPress={() => push({ name: 'adminPortal' })}
+            style={[styles.moreServiceCard, { borderColor: colors.primary, borderWidth: 1 }]}
             activeOpacity={0.85}
           >
-            <View style={[styles.moreServiceIconBox, { backgroundColor: colors.secondaryBg }]}>
-              <ShieldCheck size={18} color={colors.secondary} strokeWidth={2.1} />
+            <View style={[styles.moreServiceIconBox, { backgroundColor: colors.primary }]}>
+              <ShieldAlert size={18} color={colors.textWhite} strokeWidth={2.1} />
             </View>
             <View style={styles.moreServiceTextCol}>
-              <Text style={styles.moreServiceTitle}>Property Management</Text>
-              <Text style={styles.moreServiceSub}>Manage tenants, rent & repairs</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Home Loans */}
-          <TouchableOpacity
-            onPress={() => push({ name: 'homeLoan' })}
-            style={styles.moreServiceCard}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.moreServiceIconBox, { backgroundColor: colors.tertiaryBg }]}>
-              <Landmark size={18} color={colors.primary} strokeWidth={2.1} />
-            </View>
-            <View style={styles.moreServiceTextCol}>
-              <Text style={styles.moreServiceTitle}>Home Loans</Text>
-              <Text style={styles.moreServiceSub}>Explore financing options</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Ventures */}
-          <TouchableOpacity
-            onPress={() => setTab('explore')}
-            style={styles.moreServiceCard}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.moreServiceIconBox, { backgroundColor: colors.primaryBg }]}>
-              <Briefcase size={18} color={colors.primary} strokeWidth={2.1} />
-            </View>
-            <View style={styles.moreServiceTextCol}>
-              <Text style={styles.moreServiceTitle}>Ventures</Text>
-              <Text style={styles.moreServiceSub}>Explore investment opportunities</Text>
+              <Text style={[styles.moreServiceTitle, { color: colors.primary }]}>Admin Operations</Text>
+              <Text style={styles.moreServiceSub}>Section 2 review & verify queues</Text>
             </View>
           </TouchableOpacity>
         </View>

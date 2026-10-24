@@ -1,0 +1,248 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  OWNER
+  ADMIN
+  FIELD_AGENT
+}
+
+enum ListingType {
+  BUY
+  RENT
+  COMMERCIAL
+}
+
+enum PropertyStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  VERIFICATION_IN_PROGRESS
+  APPROVED
+  PUBLISHED
+  REJECTED
+  NEEDS_CORRECTION
+}
+
+enum RequestStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  LOCATION_MATCHED
+  LOCATION_REJECTED
+  CONTACTED
+  COMPLETED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  phone        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  properties         Property[]
+  siteVisits         SiteVisit[]
+  managementRequests PropertyManagementRequest[]
+  loanRequests       HomeLoanRequest[]
+  rentalAgreements   RentalAgreementOrder[]
+  backgroundChecks   OwnerBackgroundCheck[]
+  refreshTokens      RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Property {
+  id              String         @id @default(uuid())
+  title           String
+  description     String
+  listingType     ListingType
+  propertyType    String
+  status          PropertyStatus @default(SUBMITTED)
+  price           Float
+  priceLabel      String
+  location        String
+  city            String
+  area            Float
+  bedrooms        Int            @default(0)
+  bathrooms       Int            @default(0)
+  furnishing      String         @default("unfurnished")
+  parking         Boolean        @default(false)
+  deposit         Float?
+  maintenance     Float?
+  facing          String?
+  floor           String?
+  totalFloors     Int?
+  images          String[]       @default([])
+  amenities       String[]       @default([])
+  verified        Boolean        @default(false)
+  featured        Boolean        @default(false)
+  
+  ownerId         String?
+  owner           User?          @relation(fields: [ownerId], references: [id])
+  ownerName       String
+  ownerPhone      String
+  
+  rejectionReason String?
+  fieldAgentName  String?
+  fieldNotes      String?
+  verifiedAt      DateTime?
+  publishedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  siteVisits      SiteVisit[]
+}
+
+model SiteVisit {
+  id            String    @id @default(uuid())
+  propertyId    String
+  property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id])
+  date          String
+  timeSlot      String
+  status        String    @default("REQUESTED")
+  userName      String
+  userPhone     String
+  userEmail     String?
+  notes         String?
+  rating        Int?
+  ratingComment String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([propertyId, userPhone, date, timeSlot], name: "unique_visit_slot")
+}
+
+model PropertyManagementRequest {
+  id                 String   @id @default(uuid())
+  ownerId            String?
+  owner              User?    @relation(fields: [ownerId], references: [id])
+  ownerName          String
+  ownerPhone         String
+  ownerEmail         String?
+  flatDetails        String
+  address            String
+  city               String
+  locality           String
+  serviceRequested   String
+  status             String   @default("SUBMITTED")
+  locationMatched    Boolean  @default(false)
+  rejectionMessage   String?
+  assignedTeamMember String?
+  contactNotes       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model HomeLoanRequest {
+  id             String   @id @default(uuid())
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id])
+  userName       String
+  userPhone      String
+  userEmail      String?
+  loanType       String
+  propertyCost   Float
+  loanAmount     Float
+  tenureYears    Int
+  monthlyIncome  Float
+  existingEmi    Float    @default(0)
+  calculatedEmi  Float
+  selectedBank   String?
+  status         String   @default("REQUESTED")
+  assignedStaff  String?
+  contactNotes   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model RentalAgreementOrder {
+  id                 String   @id @default(uuid())
+  userId             String?
+  user               User?    @relation(fields: [userId], references: [id])
+  landlordName       String
+  landlordPhone      String
+  landlordEmail      String?
+  landlordAddress    String
+  tenantName         String
+  tenantPhone        String
+  tenantEmail        String?
+  tenantAddress      String
+  propertyAddress    String
+  monthlyRent        Float
+  securityDeposit    Float
+  leaseTermMonths    Int
+  agreementStartDate String
+  status             String   @default("SUBMITTED")
+  paymentAmount      Float    @default(999)
+  paymentTxnId       String?
+  documentUrl        String?
+  preparedByStaff    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model OwnerBackgroundCheck {
+  id                     String   @id @default(uuid())
+  userId                 String?
+  user                   User?    @relation(fields: [userId], references: [id])
+  flatNumber             String
+  buildingName           String
+  propertyAddress        String
+  city                   String
+  ownerName              String
+  ownerPhone             String
+  status                 String   @default("SUBMITTED")
+  paymentAmount          Float    @default(499)
+  paymentTxnId           String?
+  ownershipVerified      Boolean  @default(false)
+  legalDisputeClear      Boolean  @default(false)
+  taxReceiptsVerified    Boolean  @default(false)
+  societyDuesClear       Boolean  @default(false)
+  reportSummary          String?
+  reportPdfUrl           String?
+  digitalSentAt          DateTime?
+  fieldAgentNotes        String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model ServiceableLocation {
+  id        String   @id @default(uuid())
+  city      String
+  locality  String
+  pincode   String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  entityType String
+  entityId   String
+  actorId    String?
+  actorRole  String?
+  details    String?
+  createdAt  DateTime @default(now())
+}

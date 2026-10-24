@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { ChevronLeft, Calendar, Clock, MapPin, CheckCircle2, CalendarPlus, Navigation } from 'lucide-react-native';
+import { ChevronLeft, Calendar, Clock, MapPin, CheckCircle2, CalendarPlus, Navigation, Star } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import type { Property } from '../types';
 import colors from '../theme/colors';
@@ -36,11 +36,12 @@ export default function BookVisitScreen() {
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rating, setRating] = useState<number>(0);
   const dates = getDates();
 
   const handleConfirm = () => {
     setLoading(true);
-    setTimeout(() => { setLoading(false); setStep('success'); }, 1200);
+    setTimeout(() => { setLoading(false); setStep('success'); }, 800);
   };
 
   if (step === 'success') {
@@ -75,6 +76,33 @@ export default function BookVisitScreen() {
               <Text style={styles.visitTimeText}>{selectedTime}</Text>
             </View>
           </View>
+        </View>
+
+        {/* Diagram 1: Optional Rating outcome after Book Visiting */}
+        <View style={styles.ratingCard}>
+          <Text style={styles.ratingTitle}>Rate Your Experience (Optional)</Text>
+          <Text style={styles.ratingSubtitle}>How easy was it to schedule your site visit?</Text>
+          <View style={styles.ratingStarsRow}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity
+                key={star}
+                onPress={() => setRating(star)}
+                style={styles.starTouch}
+                activeOpacity={0.7}
+              >
+                <Star
+                  size={26}
+                  fill={star <= rating ? colors.warning : 'transparent'}
+                  color={star <= rating ? colors.warning : colors.textMuted}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+          {rating > 0 && (
+            <Text style={styles.ratingFeedbackText}>
+              Thank you for rating {rating} / 5! Your feedback helps us improve.
+            </Text>
+          )}
         </View>
 
         <TouchableOpacity onPress={pop} style={styles.backButton} activeOpacity={0.8}>
@@ -423,5 +451,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.textWhite,
+  },
+  ratingCard: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  ratingTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  ratingSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 12,
+  },
+  ratingStarsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  starTouch: {
+    padding: 4,
+  },
+  ratingFeedbackText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+    marginTop: 4,
   },
 });

@@ -10,6 +10,7 @@ import {
   Bell,
   CreditCard,
   Shield,
+  ShieldCheck,
   Lock,
   HelpCircle,
   LogOut,
@@ -30,6 +31,14 @@ const menuSections = [
       { icon: FileText, label: 'My Agreements', badge: null, screen: 'rentalAgreement' },
       { icon: Landmark, label: 'My Loans', badge: null, screen: 'homeLoan' },
       { icon: Building2, label: 'My Properties', badge: '3', screen: 'myProperty' },
+    ],
+  },
+  {
+    title: 'Admin & Operations (Section 2)',
+    items: [
+      { icon: Shield, label: 'Admin Review Queues (7 Workflows)', badge: '7', screen: 'adminPortal' },
+      { icon: ShieldCheck, label: 'Verify Owner Background', badge: null, screen: 'ownerVerification' },
+      { icon: Building2, label: 'Property Management', badge: null, screen: 'propertyManagement' },
     ],
   },
   {
