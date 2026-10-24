@@ -1,9 +1,14 @@
-// API Client for Seedha Properties Backend (NestJS @ http://localhost:4000/api/v1)
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+
+const debuggerHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const host = debuggerHost || '192.168.29.234';
 
 const API_BASE =
   process.env.EXPO_PUBLIC_API_URL ||
-  (Platform.OS === 'android' ? 'http://10.0.2.2:4000/api/v1' : 'http://localhost:4000/api/v1');
+  (Platform.OS === 'web'
+    ? 'http://localhost:4000/api/v1'
+    : `http://${host}:4000/api/v1`);
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${path}`;

@@ -1,6 +1,14 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { Heart, MapPin, BedDouble, Bath, Square, ShieldCheck } from 'lucide-react-native';
+import React, { useRef } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Platform,
+} from 'react-native';
+import { Heart, MapPin, BedDouble, Bath, Square, ShieldCheck, Sparkles } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import type { Property } from '../types';
 import colors from '../theme/colors';
@@ -22,118 +30,187 @@ export default function PropertyCard({ property, compact = false, horizontal = f
   const saved = savedIds.has(property.id);
   const badge = getBadge(property.listingType);
 
+  // Micro-animations: Card scale & Heart pop
+  const cardScale = useRef(new Animated.Value(1)).current;
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const isNative = Platform.OS !== 'web';
+
+  const handlePressIn = () => {
+    Animated.spring(cardScale, {
+      toValue: 0.98,
+      useNativeDriver: isNative,
+      speed: 20,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(cardScale, {
+      toValue: 1,
+      friction: 4,
+      tension: 40,
+      useNativeDriver: isNative,
+    }).start();
+  };
+
+  const handleHeartPress = () => {
+    // Spring pop animation
+    Animated.sequence([
+      Animated.timing(heartScale, {
+        toValue: 1.35,
+        duration: 120,
+        useNativeDriver: isNative,
+      }),
+      Animated.spring(heartScale, {
+        toValue: 1,
+        friction: 3,
+        tension: 40,
+        useNativeDriver: isNative,
+      }),
+    ]).start();
+
+    toggleSaved(property.id);
+  };
+
   if (horizontal) {
     return (
+      <Animated.View style={{ transform: [{ scale: cardScale }] }}>
+        <TouchableOpacity
+          onPress={() => push({ name: 'propertyDetail', params: { property } })}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={styles.horizontalCard}
+          activeOpacity={0.92}
+        >
+          <View style={styles.horizontalImageContainer}>
+            <Image source={{ uri: property.image }} style={styles.horizontalImage} />
+            <View style={[styles.badge, { backgroundColor: badge.bg, top: 8, left: 8 }]}>
+              <Text style={styles.badgeText}>{badge.label}</Text>
+            </View>
+          </View>
+          <View style={styles.horizontalContent}>
+            <View>
+              <View style={styles.titleRow}>
+                <Text style={styles.horizontalTitle} numberOfLines={1}>
+                  {property.title}
+                </Text>
+                {property.verified && (
+                  <View style={styles.goldMiniBadge}>
+                    <ShieldCheck size={12} color={colors.gold} strokeWidth={2.4} />
+                  </View>
+                )}
+              </View>
+              <View style={styles.locationRow}>
+                <MapPin size={11} color={colors.textMuted} strokeWidth={2} />
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {property.location}
+                </Text>
+              </View>
+              <Text style={styles.priceText}>{property.priceLabel}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              {property.bedrooms > 0 && (
+                <View style={styles.metaItem}>
+                  <BedDouble size={11} strokeWidth={1.5} color={colors.textSecondary} />
+                  <Text style={styles.metaText}>{property.bedrooms} Bed</Text>
+                </View>
+              )}
+              <View style={styles.metaItem}>
+                <Bath size={11} strokeWidth={1.5} color={colors.textSecondary} />
+                <Text style={styles.metaText}>{property.bathrooms} Bath</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Square size={11} strokeWidth={1.5} color={colors.textSecondary} />
+                <Text style={styles.metaText}>{property.area} sq.ft</Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  const imgHeight = compact ? 130 : 180;
+
+  return (
+    <Animated.View style={{ transform: [{ scale: cardScale }] }}>
       <TouchableOpacity
         onPress={() => push({ name: 'propertyDetail', params: { property } })}
-        style={styles.horizontalCard}
-        activeOpacity={0.8}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={styles.verticalCard}
+        activeOpacity={0.92}
       >
-        <View style={styles.horizontalImageContainer}>
-          <Image source={{ uri: property.image }} style={styles.horizontalImage} />
-          <View style={[styles.badge, { backgroundColor: badge.bg, top: 8, left: 8 }]}>
+        <View style={[styles.imageContainer, { height: imgHeight }]}>
+          <Image source={{ uri: property.image }} style={styles.verticalImage} />
+          
+          {/* Listing Type Badge */}
+          <View style={[styles.badge, { backgroundColor: badge.bg, top: 10, left: 10 }]}>
             <Text style={styles.badgeText}>{badge.label}</Text>
           </View>
+
+          {/* Animated Heart Button */}
+          <Animated.View style={[styles.heartButtonWrapper, { transform: [{ scale: heartScale }] }]}>
+            <TouchableOpacity
+              onPress={handleHeartPress}
+              style={styles.heartButton}
+              activeOpacity={0.8}
+            >
+              <Heart
+                size={16}
+                fill={saved ? colors.accent : 'transparent'}
+                color={saved ? colors.accent : colors.textMuted}
+                strokeWidth={2.2}
+              />
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Luxury Gold Verified Tag */}
+          {property.verified && (
+            <View style={styles.verifiedBadge}>
+              <Sparkles size={10} color={colors.gold} strokeWidth={2.4} style={{ marginRight: 3 }} />
+              <ShieldCheck size={11} color={colors.gold} strokeWidth={2.2} />
+              <Text style={styles.verifiedText}>Verified Title</Text>
+            </View>
+          )}
         </View>
-        <View style={styles.horizontalContent}>
-          <View>
-            <View style={styles.titleRow}>
-              <Text style={styles.horizontalTitle} numberOfLines={1}>
-                {property.title}
-              </Text>
-              {property.verified && <ShieldCheck size={14} color={colors.primary} style={styles.verifiedIcon} />}
-            </View>
-            <View style={styles.locationRow}>
-              <MapPin size={11} color={colors.textMuted} strokeWidth={2} />
-              <Text style={styles.locationText} numberOfLines={1}>
-                {property.location}
-              </Text>
-            </View>
-            <Text style={styles.priceText}>{property.priceLabel}</Text>
+
+        <View style={styles.cardContent}>
+          <Text style={styles.verticalTitle} numberOfLines={1}>
+            {property.title}
+          </Text>
+          <View style={styles.locationRow}>
+            <MapPin size={11} color={colors.textMuted} strokeWidth={2} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {property.location}
+            </Text>
           </View>
-          <View style={styles.metaRow}>
+          
+          <View style={styles.priceRow}>
+            <Text style={styles.verticalPrice}>{property.priceLabel}</Text>
+            <View style={styles.verifiedPill}>
+              <Text style={styles.verifiedPillText}>Direct Owner</Text>
+            </View>
+          </View>
+
+          <View style={styles.cardFooter}>
             {property.bedrooms > 0 && (
               <View style={styles.metaItem}>
-                <BedDouble size={11} strokeWidth={1.5} color={colors.textMuted} />
+                <BedDouble size={11} strokeWidth={1.8} color={colors.textSecondary} />
                 <Text style={styles.metaText}>{property.bedrooms} Bed</Text>
               </View>
             )}
             <View style={styles.metaItem}>
-              <Bath size={11} strokeWidth={1.5} color={colors.textMuted} />
+              <Bath size={11} strokeWidth={1.8} color={colors.textSecondary} />
               <Text style={styles.metaText}>{property.bathrooms} Bath</Text>
             </View>
             <View style={styles.metaItem}>
-              <Square size={11} strokeWidth={1.5} color={colors.textMuted} />
+              <Square size={11} strokeWidth={1.8} color={colors.textSecondary} />
               <Text style={styles.metaText}>{property.area} sq.ft</Text>
             </View>
           </View>
         </View>
       </TouchableOpacity>
-    );
-  }
-
-  const imgHeight = compact ? 130 : 175;
-
-  return (
-    <TouchableOpacity
-      onPress={() => push({ name: 'propertyDetail', params: { property } })}
-      style={styles.verticalCard}
-      activeOpacity={0.8}
-    >
-      <View style={[styles.imageContainer, { height: imgHeight }]}>
-        <Image source={{ uri: property.image }} style={styles.verticalImage} />
-        <View style={[styles.badge, { backgroundColor: badge.bg, top: 10, left: 10 }]}>
-          <Text style={styles.badgeText}>{badge.label}</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => toggleSaved(property.id)}
-          style={styles.heartButton}
-          activeOpacity={0.7}
-        >
-          <Heart
-            size={15}
-            fill={saved ? colors.accent : 'transparent'}
-            color={saved ? colors.accent : colors.textMuted}
-            strokeWidth={2}
-          />
-        </TouchableOpacity>
-        {property.verified && (
-          <View style={styles.verifiedBadge}>
-            <ShieldCheck size={11} color={colors.primary} />
-            <Text style={styles.verifiedText}>Verified</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.cardContent}>
-        <Text style={styles.verticalTitle} numberOfLines={1}>
-          {property.title}
-        </Text>
-        <View style={styles.locationRow}>
-          <MapPin size={11} color={colors.textMuted} strokeWidth={2} />
-          <Text style={styles.locationText} numberOfLines={1}>
-            {property.location}
-          </Text>
-        </View>
-        <Text style={styles.verticalPrice}>{property.priceLabel}</Text>
-        <View style={styles.cardFooter}>
-          {property.bedrooms > 0 && (
-            <View style={styles.metaItem}>
-              <BedDouble size={11} strokeWidth={1.5} color={colors.textMuted} />
-              <Text style={styles.metaText}>{property.bedrooms} Bed</Text>
-            </View>
-          )}
-          <View style={styles.metaItem}>
-            <Bath size={11} strokeWidth={1.5} color={colors.textMuted} />
-            <Text style={styles.metaText}>{property.bathrooms} Bath</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Square size={11} strokeWidth={1.5} color={colors.textMuted} />
-            <Text style={styles.metaText}>{property.area} sq.ft</Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -143,18 +220,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: colors.primary,
+    shadowColor: colors.shadowColor,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: colors.tertiary,
+    borderColor: colors.borderLight,
   },
   horizontalImageContainer: {
-    width: 115,
-    height: 115,
+    width: 120,
+    height: 120,
     position: 'relative',
   },
   horizontalImage: {
@@ -176,11 +253,16 @@ const styles = StyleSheet.create({
     fontFamily: colors.fontFamily,
     flex: 1,
     fontSize: 15,
-    fontWeight: '600',
-    color: colors.primary,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
-  verifiedIcon: {
-    marginLeft: 4,
+  goldMiniBadge: {
+    backgroundColor: colors.goldBg,
+    padding: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.borderGold,
+    marginLeft: 6,
   },
   locationRow: {
     flexDirection: 'row',
@@ -190,15 +272,15 @@ const styles = StyleSheet.create({
   locationText: {
     fontFamily: colors.fontFamily,
     fontSize: 12,
-    fontWeight: '400',
+    fontWeight: '500',
     color: colors.textSecondary,
-    marginLeft: 3,
+    marginLeft: 4,
     flex: 1,
   },
   priceText: {
     fontFamily: colors.fontFamily,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     color: colors.primary,
     marginTop: 4,
   },
@@ -206,49 +288,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
+    gap: 6,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
-    marginRight: 6,
     borderWidth: 1,
-    borderColor: colors.tertiaryLight,
+    borderColor: colors.borderLight,
   },
   metaText: {
     fontFamily: colors.fontFamily,
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
     color: colors.textSecondary,
-    marginLeft: 3,
+    marginLeft: 4,
   },
   badge: {
     position: 'absolute',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   badgeText: {
     fontFamily: colors.fontFamily,
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textWhite,
+    letterSpacing: 0.3,
   },
   verticalCard: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: 22,
     overflow: 'hidden',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
+    shadowColor: colors.shadowColor,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     elevation: 4,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.tertiary,
+    borderColor: colors.borderLight,
   },
   imageContainer: {
     position: 'relative',
@@ -259,43 +347,48 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  heartButton: {
+  heartButtonWrapper: {
     position: 'absolute',
     top: 10,
     right: 10,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    zIndex: 10,
+  },
+  heartButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowColor: colors.shadowColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
     elevation: 3,
   },
   verifiedBadge: {
     position: 'absolute',
     bottom: 10,
-    right: 10,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 14,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: colors.borderGold,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
     elevation: 2,
   },
   verifiedText: {
     fontFamily: colors.fontFamily,
     fontSize: 10,
-    fontWeight: '600',
-    color: colors.primary,
+    fontWeight: '700',
+    color: colors.goldDark,
     marginLeft: 3,
   },
   cardContent: {
@@ -304,15 +397,32 @@ const styles = StyleSheet.create({
   verticalTitle: {
     fontFamily: colors.fontFamily,
     fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
   },
   verticalPrice: {
     fontFamily: colors.fontFamily,
-    fontSize: 17,
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  verifiedPill: {
+    backgroundColor: colors.primaryBg,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  verifiedPillText: {
+    fontFamily: colors.fontFamily,
+    fontSize: 10,
     fontWeight: '700',
     color: colors.primary,
-    marginTop: 4,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -320,6 +430,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: colors.tertiaryLight,
+    borderTopColor: colors.borderLight,
+    gap: 6,
   },
 });

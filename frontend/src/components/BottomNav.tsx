@@ -1,96 +1,75 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Home, Compass, Plus, CreditCard, UserRound } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { Home, Compass, Plus, CreditCard, UserRound, Sparkles } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import colors from '../theme/colors';
 
 export default function BottomNav() {
   const { activeTab, setTab } = useApp();
 
-  const getTabColor = (tab: string) => (activeTab === tab ? colors.primary : colors.textMuted);
+  const tabs = [
+    { key: 'home', label: 'Home', Icon: Home },
+    { key: 'explore', label: 'Explore', Icon: Compass },
+    { key: 'post', label: 'Post', Icon: Plus, isSpecial: true },
+    { key: 'payments', label: 'Payments', Icon: CreditCard },
+    { key: 'profile', label: 'Profile', Icon: UserRound },
+  ];
 
   return (
     <View style={styles.container}>
       <View style={styles.navRow}>
-        {/* Home */}
-        <TouchableOpacity
-          onPress={() => setTab('home')}
-          style={styles.tabButton}
-          activeOpacity={0.7}
-        >
-          <Home
-            size={22}
-            color={getTabColor('home')}
-            strokeWidth={activeTab === 'home' ? 2.4 : 1.8}
-          />
-          <Text style={[styles.tabLabel, { color: getTabColor('home') }]}>
-            Home
-          </Text>
-          {activeTab === 'home' && <View style={styles.activeDot} />}
-        </TouchableOpacity>
+        {tabs.map(item => {
+          const isActive = activeTab === item.key;
 
-        {/* Explore */}
-        <TouchableOpacity
-          onPress={() => setTab('explore')}
-          style={styles.tabButton}
-          activeOpacity={0.7}
-        >
-          <Compass
-            size={22}
-            color={getTabColor('explore')}
-            strokeWidth={activeTab === 'explore' ? 2.4 : 1.8}
-          />
-          <Text style={[styles.tabLabel, { color: getTabColor('explore') }]}>
-            Explore
-          </Text>
-          {activeTab === 'explore' && <View style={styles.activeDot} />}
-        </TouchableOpacity>
+          if (item.isSpecial) {
+            return (
+              <TouchableOpacity
+                key={item.key}
+                onPress={() => setTab('post')}
+                style={styles.postTabContainer}
+                activeOpacity={0.85}
+              >
+                <View style={styles.postButton}>
+                  <Plus size={22} color={colors.textWhite} strokeWidth={2.8} />
+                </View>
+                <Text style={styles.postLabel}>Post</Text>
+              </TouchableOpacity>
+            );
+          }
 
-        {/* Post Button */}
-        <TouchableOpacity
-          onPress={() => setTab('post')}
-          style={styles.postTabContainer}
-          activeOpacity={0.8}
-        >
-          <View style={styles.postButton}>
-            <Plus size={24} color={colors.textWhite} strokeWidth={2.5} />
-          </View>
-          <Text style={styles.postLabel}>Post</Text>
-        </TouchableOpacity>
+          const IconComponent = item.Icon;
+          const activeColor = colors.primary;
+          const inactiveColor = colors.textMuted;
 
-        {/* Payments */}
-        <TouchableOpacity
-          onPress={() => setTab('payments')}
-          style={styles.tabButton}
-          activeOpacity={0.7}
-        >
-          <CreditCard
-            size={22}
-            color={getTabColor('payments')}
-            strokeWidth={activeTab === 'payments' ? 2.4 : 1.8}
-          />
-          <Text style={[styles.tabLabel, { color: getTabColor('payments') }]}>
-            Payments
-          </Text>
-          {activeTab === 'payments' && <View style={styles.activeDot} />}
-        </TouchableOpacity>
-
-        {/* Profile */}
-        <TouchableOpacity
-          onPress={() => setTab('profile')}
-          style={styles.tabButton}
-          activeOpacity={0.7}
-        >
-          <UserRound
-            size={22}
-            color={getTabColor('profile')}
-            strokeWidth={activeTab === 'profile' ? 2.4 : 1.8}
-          />
-          <Text style={[styles.tabLabel, { color: getTabColor('profile') }]}>
-            Profile
-          </Text>
-          {activeTab === 'profile' && <View style={styles.activeDot} />}
-        </TouchableOpacity>
+          return (
+            <TouchableOpacity
+              key={item.key}
+              onPress={() => setTab(item.key as any)}
+              style={styles.tabButton}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconWrapper, isActive && styles.activeIconWrapper]}>
+                <IconComponent
+                  size={20}
+                  color={isActive ? activeColor : inactiveColor}
+                  strokeWidth={isActive ? 2.4 : 1.9}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  {
+                    color: isActive ? activeColor : inactiveColor,
+                    fontWeight: isActive ? '700' : '500',
+                  },
+                ]}
+              >
+                {item.label}
+              </Text>
+              {isActive && <View style={styles.activePillIndicator} />}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -101,18 +80,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
-    paddingBottom: 6,
-    paddingTop: 4,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+    paddingTop: 6,
     shadowColor: colors.shadowColor,
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 10,
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 12,
   },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 56,
+    height: 54,
   },
   tabButton: {
     flex: 1,
@@ -121,16 +100,23 @@ const styles = StyleSheet.create({
     height: '100%',
     position: 'relative',
   },
+  iconWrapper: {
+    padding: 3,
+    borderRadius: 12,
+  },
+  activeIconWrapper: {
+    backgroundColor: colors.primaryBg,
+  },
   tabLabel: {
     fontFamily: colors.fontFamily,
     fontSize: 11,
-    fontWeight: '500',
-    marginTop: 3,
+    marginTop: 2,
+    letterSpacing: 0.1,
   },
-  activeDot: {
+  activePillIndicator: {
     position: 'absolute',
-    top: 2,
-    width: 20,
+    top: -6,
+    width: 24,
     height: 3,
     borderRadius: 2,
     backgroundColor: colors.primary,
@@ -140,7 +126,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    marginTop: -14,
+    marginTop: -16,
   },
   postButton: {
     width: 48,
@@ -152,15 +138,15 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.surface,
     shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
   },
   postLabel: {
     fontFamily: colors.fontFamily,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.accent,
     marginTop: 2,
   },

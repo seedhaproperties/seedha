@@ -1,76 +1,77 @@
-// Centralized Theme Color System for Seedha Properties (NoBroker Palette)
-// Palette definition:
-// Primary: #009587 (NoBroker Teal / Jade)
-// PrimaryDark: #004953 (NoBroker Deep Petrol / Dark Teal)
-// Secondary: #1F5A60 (NoBroker Slate Cyan)
-// Accent: #FD3752 (NoBroker Iconic Red / Coral CTA)
-// Background: #F7F9FA (NoBroker Clean Light Canvas)
-// Surface: #FFFFFF (Crisp White Card)
-// Text: #222222 (Deep Charcoal) / #555555 / #888888
+// Centralized Ultra-Premium Luxury Theme Color System for Seedha Properties
+// Designed for a high-end real-estate architectural aesthetic (Deep Petrol Teal + Champagne Gold + Rose Coral)
 
 export const colors = {
-  // Core Brand Palette (NoBroker Style)
-  primary: '#009587',          // NoBroker Signature Teal
-  secondary: '#1F5A60',        // Deep Slate Teal
-  tertiary: '#E2E8F0',         // Subtle Border Gray
-  accent: '#FD3752',           // NoBroker Signature Coral Red (CTA, Alerts)
-  background: '#F7F9FA',       // Clean, high-readability backdrop
+  // Core Brand Luxury Palette
+  primary: '#005E63',          // Signature Deep Petrol Teal (Trust, Luxury, Stability)
+  primaryDark: '#072E32',      // Obsidian Petrol for high-contrast luxury headers
+  primaryLight: '#008E96',     // Vibrant Emerald Teal for subtle glows and highlights
+  primaryBg: 'rgba(0, 94, 99, 0.08)', // Soft wash for luxury badge containers
 
-  // Derived Variations & Soft Background Tints
-  primaryDark: '#004953',      // Dark teal for contrast headers/footers
-  primaryLight: '#26A69A',     // Vibrant mint/teal
-  primaryBg: 'rgba(0, 149, 135, 0.08)', // Soft teal wash for chips & cards
+  secondary: '#1A4D53',        // Deep Regal Slate Teal
+  secondaryLight: '#2B7077',
+  secondaryDark: '#0A2528',
+  secondaryBg: 'rgba(26, 77, 83, 0.08)',
 
-  secondaryLight: '#3A7D84',
-  secondaryDark: '#00353C',
-  secondaryBg: 'rgba(31, 90, 96, 0.08)',
+  // Luxury Gold / Champagne Accents (For Verified, Premium, Ratings, Exclusive Badges)
+  gold: '#B8860B',             // Rich Champagne Gold
+  goldLight: '#D4AF37',        // Metallic Luminous Gold
+  goldDark: '#8C6608',
+  goldBg: 'rgba(184, 134, 11, 0.12)',
 
-  tertiaryLight: '#F1F5F9',
-  tertiaryDark: '#94A3B8',
-  tertiaryBg: 'rgba(226, 232, 240, 0.4)',
+  // Tertiary & Neutral Accents
+  tertiary: '#E2E8F0',         // Soft slate border
+  tertiaryLight: '#F1F5F9',    // Light pill background
+  tertiaryBg: 'rgba(0, 94, 99, 0.05)', // Gentle teal tint
+  tertiaryDark: '#CBD5E1',
 
-  accentLight: '#FFEBEF',      // Soft red/pink tint for badges & favorites
-  accentDark: '#E2233E',       // Deeper red for active/pressed states
-  accentBg: 'rgba(253, 55, 82, 0.08)',
+  // Signature Coral Accent (For high-conversion CTAs, Hearts, Favorites, Alerts)
+  accent: '#FF385C',           // Iconic Luxury Rose Red
+  accentLight: '#FFE8EC',      // Soft blushing rose tint
+  accentDark: '#E01E44',
+  accentBg: 'rgba(255, 56, 92, 0.08)',
 
-  // Surfaces & Cards
-  surface: '#FFFFFF',          // Pure clean card surface
-  surfaceSoft: '#F8FAFC',
+  // Canvas & Surfaces (Architectural Studio Neutral)
+  background: '#F6F8FA',       // Premium matte canvas
+  surface: '#FFFFFF',          // Pure crisp white card
+  surfaceSoft: '#F9FAFC',      // Subtle offset for secondary blocks
 
-  // Borders & Dividers
-  border: '#E2E8F0',           // Modern subtle border
+  // Borders & Dividers (Ultra-fine, razor-sharp styling)
+  border: '#E2E8F0',           // Modern architectural border
   borderLight: '#EDF2F7',      // Ultra light divider
+  borderGold: 'rgba(184, 134, 11, 0.35)', // Gold luxury highlight border
   divider: '#E2E8F0',
 
-  // Text Colors
-  textPrimary: '#222222',      // Crisp dark text for optimal readability
-  textSecondary: '#555555',    // Secondary body & descriptions
-  textMuted: '#888888',        // Form hints, icons, timestamps
-  textLight: '#F7F9FA',
+  // Typography Palette (Crisp High-Contrast Legibility)
+  textPrimary: '#0F172A',      // Obsidian Slate (Jet Black)
+  textSecondary: '#475569',    // Refined Slate Body Text
+  textMuted: '#94A3B8',        // Cashmere Muted for captions & icons
+  textLight: '#F8FAFC',
   textWhite: '#FFFFFF',
-  textAccent: '#FD3752',       // Red highlights
-  textSecondaryColor: '#009587', // Teal link/highlights
+  textAccent: '#FF385C',
+  textSecondaryColor: '#005E63',
+  textGold: '#B8860B',
 
   // Status & Badges
-  success: '#009587',          // Teal verified check / success
-  successBg: '#E6F7F5',
-  danger: '#FD3752',           // Coral Red for danger / cancellations
-  dangerBg: '#FFEBEF',
-  warning: '#FF9F00',          // Amber/Gold for ratings and reviews
-  warningBg: '#FFF8E1',
-  info: '#004953',
-  infoBg: '#E0F2F1',
+  success: '#008774',          // Luxury Mint Green
+  successBg: '#E6F8F4',
+  danger: '#FF385C',           // Coral Red
+  dangerBg: '#FFE8EC',
+  warning: '#F59E0B',          // Warm Amber Star Rating
+  warningBg: '#FEF3C7',
+  info: '#005E63',
+  infoBg: '#E0F4F5',
 
-  // Overlay tokens (refined for clear image visibility & readability)
-  overlaySubtle: 'rgba(0, 73, 83, 0.20)',
-  overlayLight: 'rgba(0, 73, 83, 0.35)',
-  overlayMedium: 'rgba(0, 73, 83, 0.50)',
-  overlayDark: 'rgba(0, 35, 40, 0.65)',
-  backdropOverlay: 'rgba(0, 0, 0, 0.45)',
-  modalOverlay: 'rgba(0, 0, 0, 0.50)',
+  // Overlays & Depth
+  overlaySubtle: 'rgba(7, 46, 50, 0.20)',
+  overlayLight: 'rgba(7, 46, 50, 0.35)',
+  overlayMedium: 'rgba(7, 46, 50, 0.55)',
+  overlayDark: 'rgba(5, 30, 33, 0.75)',
+  backdropOverlay: 'rgba(15, 23, 42, 0.50)',
+  modalOverlay: 'rgba(15, 23, 42, 0.60)',
 
-  // Shadow Colors & Constants
-  shadowColor: '#004953',
+  // Shadow Colors & Elevations
+  shadowColor: '#072E32',
 
   // Typography Standard Sizes
   fontSizeXs: 11,
@@ -80,12 +81,12 @@ export const colors = {
   fontSizeXl: 24,
 
   // Uniform Corner Radius Tokens
-  radiusSm: 8,      // Small tags, badges, chips
-  radiusMd: 12,     // Inputs, buttons, small cards
-  radiusLg: 16,     // Large cards, modals, containers
-  radiusPill: 24,   // Segment controls, pill buttons
+  radiusSm: 8,
+  radiusMd: 12,
+  radiusLg: 16,
+  radiusPill: 24,
 
-  // Typography Tokens & Font Family
+  // Typography
   fontFamily: 'Plus Jakarta Sans',
   fontFamilyStack: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   fontWeightRegular: '400',
@@ -94,8 +95,8 @@ export const colors = {
   fontWeightBold: '700',
   fontWeightExtraBold: '800',
 
-  // Dark Canvas (For splash or dark highlights)
-  darkBg: '#004953',
+  // Dark Canvas
+  darkBg: '#072E32',
 };
 
 export default colors;
