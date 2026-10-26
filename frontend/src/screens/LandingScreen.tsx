@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native';
 import {
   ArrowRight,
   Briefcase,
@@ -135,6 +135,7 @@ const services: ServiceItem[] = [
 export default function LandingScreen() {
   const { setTab, push } = useApp();
   const enterApp = () => setTab('home');
+  const isNative = Platform.OS !== 'web';
 
   const [activeSlide, setActiveSlide] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -162,17 +163,17 @@ export default function LandingScreen() {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 350,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
       Animated.timing(slideAnim, {
         toValue: -30,
         duration: 350,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
       Animated.timing(imageScaleAnim, {
         toValue: 1.08,
         duration: 350,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
     ]).start(() => {
       // Set new slide and reset position to entry right
@@ -185,17 +186,17 @@ export default function LandingScreen() {
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 500,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }),
         Animated.timing(slideAnim, {
           toValue: 0,
           duration: 500,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }),
         Animated.timing(imageScaleAnim, {
           toValue: 1,
           duration: 500,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }),
       ]).start();
     });

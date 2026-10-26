@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native';
 import { useApp } from '../context/AppContext';
 import colors from '../theme/colors';
 
 export default function SplashScreen() {
   const { push } = useApp();
+  const isNative = Platform.OS !== 'web';
 
   const logoScale = useRef(new Animated.Value(0.7)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -18,19 +19,19 @@ export default function SplashScreen() {
       Animated.timing(logoOpacity, {
         toValue: 1,
         duration: 800,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
       Animated.spring(logoScale, {
         toValue: 1,
         friction: 6,
         tension: 40,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
       Animated.timing(textOpacity, {
         toValue: 1,
         duration: 1000,
         delay: 300,
-        useNativeDriver: true,
+        useNativeDriver: isNative,
       }),
     ]).start();
 
@@ -42,12 +43,12 @@ export default function SplashScreen() {
             toValue: 1.15,
             duration: 1800,
             easing: Easing.out(Easing.ease),
-            useNativeDriver: true,
+            useNativeDriver: isNative,
           }),
           Animated.timing(ringOpacity, {
             toValue: 0.7,
             duration: 1800,
-            useNativeDriver: true,
+            useNativeDriver: isNative,
           }),
         ]),
         Animated.parallel([
@@ -55,12 +56,12 @@ export default function SplashScreen() {
             toValue: 0.95,
             duration: 1800,
             easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
+            useNativeDriver: isNative,
           }),
           Animated.timing(ringOpacity, {
             toValue: 0.3,
             duration: 1800,
-            useNativeDriver: true,
+            useNativeDriver: isNative,
           }),
         ]),
       ])
