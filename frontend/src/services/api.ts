@@ -10,11 +10,37 @@ const API_BASE =
     ? 'http://localhost:4000/api/v1'
     : `http://${host}:4000/api/v1`);
 
+let currentAuthToken: string | null = null;
+
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    currentAuthToken = window.localStorage.getItem('seedha_auth_token');
+  } catch {}
+}
+
+export function setAuthToken(token: string | null) {
+  currentAuthToken = token;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      if (token) {
+        window.localStorage.setItem('seedha_auth_token', token);
+      } else {
+        window.localStorage.removeItem('seedha_auth_token');
+      }
+    } catch {}
+  }
+}
+
+export function getAuthToken(): string | null {
+  return currentAuthToken;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${path}`;
-  const headers = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers || {}),
+    ...(currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {}),
+    ...((options.headers as Record<string, string>) || {}),
   };
 
   try {
@@ -33,16 +59,32 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   // ── Authentication ──
   auth: {
-    login: (identifier: string, password: string) =>
-      request<any>('/auth/login', {
+    login: async (identifier: string, password: string) => {
+      const data = await request<any>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ identifier, password }),
-      }),
-    register: (payload: any) =>
-      request<any>('/auth/register', {
+      });
+      if (data?.accessToken) {
+        setAuthToken(data.accessToken);
+      }
+      return data;
+    },
+    register: async (payload: any) => {
+      const data = await request<any>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(payload),
-      }),
+      });
+      if (data?.accessToken) {
+        setAuthToken(data.accessToken);
+      }
+      return data;
+    },
+    me: () => request<any>('/auth/me'),
+    logout: () => {
+      setAuthToken(null);
+    },
+    setToken: setAuthToken,
+    getToken: getAuthToken,
   },
 
   // ── Properties (Buy, Rent, Commercial) ──

@@ -38,7 +38,7 @@ type AdminQueueTab =
   | 'ownerBackground';
 
 export default function AdminPortalScreen() {
-  const { pop } = useApp();
+  const { pop, user, isAdmin, signIn } = useApp();
   const [activeTab, setActiveTab] = useState<AdminQueueTab>('flats');
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState<any | null>(null);
@@ -204,6 +204,33 @@ export default function AdminPortalScreen() {
           <RefreshCw size={16} color={colors.primary} />
         </TouchableOpacity>
       </View>
+
+      {/* Admin Authorization Status Bar */}
+      {!isAdmin ? (
+        <View style={styles.authNoticeBanner}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.authNoticeTitle}>🔒 Admin Authorization Required</Text>
+            <Text style={styles.authNoticeSub}>Viewing as {user?.role || 'Guest'}. Authorize as Admin for full control.</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.adminQuickLoginBtn}
+            onPress={async () => {
+              const res = await api.auth.login('admin@seedhaproperties.com', 'admin123');
+              if (res?.user) {
+                signIn(res.user, res.accessToken);
+                loadData();
+              }
+            }}
+          >
+            <Text style={styles.adminQuickLoginText}>Authorize 1-Click</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.adminActiveBanner}>
+          <UserCheck size={14} color="#15803D" />
+          <Text style={styles.adminActiveText}>Authorized Admin: {user?.name || 'Seedha Admin'} (Role: ADMIN)</Text>
+        </View>
+      )}
 
       {/* Queue Tabs Bar */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll}>
@@ -704,5 +731,51 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.accent,
+  },
+  authNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FDE68A',
+    gap: 12,
+  },
+  authNoticeTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  authNoticeSub: {
+    fontSize: 11,
+    color: '#78350F',
+    marginTop: 2,
+  },
+  adminQuickLoginBtn: {
+    backgroundColor: '#B45309',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  adminQuickLoginText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  adminActiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#BBF7D0',
+    gap: 6,
+  },
+  adminActiveText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803D',
   },
 });

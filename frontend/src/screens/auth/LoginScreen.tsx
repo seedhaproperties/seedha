@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { User, KeyRound, ArrowRight, CheckSquare, Square } from 'lucide-react-native';
+import { User, KeyRound, ArrowRight, CheckSquare, Square, ShieldCheck, AlertCircle } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 import SeedhaLogo from '../../components/SeedhaLogo';
 import colors from '../../theme/colors';
 
@@ -12,17 +13,40 @@ export default function LoginScreen() {
   const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
   const [keepSignedIn, setKeepSignedIn] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isValid = identity.trim().length > 0 && password.length >= 4;
 
-  const handleLogin = () => {
-    if (!isValid) return;
-    const namePart = identity.includes('@') ? identity.split('@')[0] : 'User';
-    signIn({
-      name: namePart.charAt(0).toUpperCase() + namePart.slice(1),
-      phone: identity,
-      email: identity.includes('@') ? identity : undefined,
-    });
+  const handleLogin = async () => {
+    if (!isValid || isLoading) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await api.auth.login(identity.trim(), password);
+      if (response && response.user) {
+        signIn(response.user, response.accessToken);
+      } else {
+        throw new Error('Invalid response received from server');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setErrorMessage(err.message || 'Invalid credentials or unable to reach backend server');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fillQuickDemo = (type: 'admin' | 'user') => {
+    setErrorMessage(null);
+    if (type === 'admin') {
+      setIdentity('admin@seedhaproperties.com');
+      setPassword('admin123');
+    } else {
+      setIdentity('rahul@example.com');
+      setPassword('password123');
+    }
   };
 
   const handleTabChange = (mode: 'login' | 'signup') => {
@@ -43,7 +67,31 @@ export default function LoginScreen() {
         {/* Title Section */}
         <Text style={styles.welcomeTag}>Welcome back</Text>
         <Text style={styles.mainTitle}>Sign in to Seedha</Text>
-        <Text style={styles.subTitle}>Continue your property journey from where you left off.</Text>
+        <Text style={styles.subTitle}>Continue your property journey with verified security & real-time authorization.</Text>
+
+        {/* Quick Demo 1-Click Fillers */}
+        <View style={styles.quickFillContainer}>
+          <Text style={styles.quickFillLabel}>⚡ Quick Test Logins:</Text>
+          <View style={styles.quickFillRow}>
+            <TouchableOpacity
+              style={[styles.quickBadge, styles.adminBadge]}
+              onPress={() => fillQuickDemo('admin')}
+              activeOpacity={0.8}
+            >
+              <ShieldCheck size={14} color="#B45309" />
+              <Text style={styles.adminBadgeText}>Admin (Full Queues)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.quickBadge, styles.userBadge]}
+              onPress={() => fillQuickDemo('user')}
+              activeOpacity={0.8}
+            >
+              <User size={14} color={colors.primary} />
+              <Text style={styles.userBadgeText}>Customer (Rahul)</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Log in / Sign up Segment Switcher */}
         <View style={styles.segmentContainer}>
@@ -63,13 +111,21 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Error Alert Banner */}
+        {errorMessage ? (
+          <View style={styles.errorAlert}>
+            <AlertCircle size={16} color={colors.danger} />
+            <Text style={styles.errorAlertText}>{errorMessage}</Text>
+          </View>
+        ) : null}
+
         {/* Email or Mobile Number Input */}
         <Text style={styles.inputLabel}>Email or mobile number</Text>
         <View style={styles.inputRow}>
           <User size={18} color={colors.textMuted} style={styles.inputIcon} />
           <TextInput
             style={styles.textInput}
-            placeholder="rahul@example.com"
+            placeholder="admin@seedhaproperties.com"
             placeholderTextColor={colors.textMuted}
             value={identity}
             onChangeText={setIdentity}
@@ -83,7 +139,7 @@ export default function LoginScreen() {
           <KeyRound size={18} color={colors.textMuted} style={styles.inputIcon} />
           <TextInput
             style={styles.textInput}
-            placeholder="Enter your password"
+            placeholder="admin123"
             placeholderTextColor={colors.textMuted}
             secureTextEntry
             value={password}
@@ -114,12 +170,18 @@ export default function LoginScreen() {
         {/* Main CTA */}
         <TouchableOpacity
           onPress={handleLogin}
-          disabled={!isValid}
-          style={[styles.loginButton, !isValid && styles.disabledButton]}
+          disabled={!isValid || isLoading}
+          style={[styles.loginButton, (!isValid || isLoading) && styles.disabledButton]}
           activeOpacity={0.9}
         >
-          <Text style={styles.loginButtonText}>Log in securely</Text>
-          <ArrowRight size={18} color={colors.textWhite} style={styles.ctaIcon} />
+          {isLoading ? (
+            <ActivityIndicator size="small" color={colors.textWhite} />
+          ) : (
+            <>
+              <Text style={styles.loginButtonText}>Log in securely</Text>
+              <ArrowRight size={18} color={colors.textWhite} style={styles.ctaIcon} />
+            </>
+          )}
         </TouchableOpacity>
 
         {/* Divider */}
@@ -382,5 +444,71 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: colors.primary,
+  },
+  quickFillContainer: {
+    backgroundColor: colors.surfaceSoft,
+    padding: 12,
+    borderRadius: colors.radiusMd,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickFillLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  quickFillRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickBadge: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: colors.radiusSm,
+    gap: 6,
+  },
+  adminBadge: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  adminBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  userBadge: {
+    backgroundColor: colors.primaryBg,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  userBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  errorAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.dangerBg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: colors.radiusMd,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+    gap: 8,
+  },
+  errorAlertText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.danger,
+    fontWeight: '500',
   },
 });

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { User, Mail, Phone, KeyRound, ArrowRight, CheckSquare, Square } from 'lucide-react-native';
+import { User, Mail, Phone, KeyRound, ArrowRight, CheckSquare, Square, AlertCircle } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 import SeedhaLogo from '../../components/SeedhaLogo';
 import colors from '../../theme/colors';
 
@@ -14,16 +15,40 @@ export default function SignUpScreen() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const isValid = fullName.trim().length > 0 && phone.replace(/\D/g, '').length === 10 && password.length >= 4 && agreeTerms;
+  const cleanPhone = phone.replace(/\D/g, '');
+  const isValid = fullName.trim().length > 0 && cleanPhone.length === 10 && password.length >= 4 && agreeTerms;
 
-  const handleSignUp = () => {
-    if (!isValid) return;
-    signIn({
-      name: fullName.trim(),
-      phone: phone.trim(),
-      email: email.trim() || undefined,
-    });
+  const handleSignUp = async () => {
+    if (!isValid || isLoading) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    const formattedPhone = cleanPhone.startsWith('+91') ? cleanPhone : `+91${cleanPhone}`;
+    const userEmail = email.trim() || `user_${cleanPhone}@seedhaproperties.com`;
+
+    try {
+      const response = await api.auth.register({
+        name: fullName.trim(),
+        email: userEmail,
+        phone: formattedPhone,
+        password: password,
+        role: 'USER',
+      });
+
+      if (response && response.user) {
+        signIn(response.user, response.accessToken);
+      } else {
+        throw new Error('Registration failed. Please try again.');
+      }
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      setErrorMessage(err.message || 'Unable to register account. User may already exist.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleTabChange = (mode: 'login' | 'signup') => {
@@ -63,6 +88,14 @@ export default function SignUpScreen() {
             <Text style={[styles.segmentText, activeSegment === 'signup' && styles.segmentTextActive]}>Sign up</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Error Alert Banner */}
+        {errorMessage ? (
+          <View style={styles.errorAlert}>
+            <AlertCircle size={16} color={colors.danger} />
+            <Text style={styles.errorAlertText}>{errorMessage}</Text>
+          </View>
+        ) : null}
 
         {/* Full Name Input */}
         <Text style={styles.inputLabel}>Full Name</Text>
@@ -140,12 +173,18 @@ export default function SignUpScreen() {
         {/* Main CTA */}
         <TouchableOpacity
           onPress={handleSignUp}
-          disabled={!isValid}
-          style={[styles.signUpButton, !isValid && styles.disabledButton]}
+          disabled={!isValid || isLoading}
+          style={[styles.signUpButton, (!isValid || isLoading) && styles.disabledButton]}
           activeOpacity={0.9}
         >
-          <Text style={styles.signUpButtonText}>Create Account</Text>
-          <ArrowRight size={18} color={colors.textWhite} style={styles.ctaIcon} />
+          {isLoading ? (
+            <ActivityIndicator size="small" color={colors.textWhite} />
+          ) : (
+            <>
+              <Text style={styles.signUpButtonText}>Create Account</Text>
+              <ArrowRight size={18} color={colors.textWhite} style={styles.ctaIcon} />
+            </>
+          )}
         </TouchableOpacity>
 
         {/* Divider */}
@@ -417,5 +456,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: colors.primary,
+  },
+  errorAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.dangerBg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: colors.radiusMd,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+    gap: 8,
+  },
+  errorAlertText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.danger,
+    fontWeight: '500',
   },
 });

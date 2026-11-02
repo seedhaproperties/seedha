@@ -2,44 +2,44 @@
 // Designed for a high-end real-estate architectural aesthetic (Deep Petrol Teal + Champagne Gold + Rose Coral)
 
 export const colors = {
-  // Core Brand Luxury Palette
-  primary: '#005E63',          // Signature Deep Petrol Teal (Trust, Luxury, Stability)
-  primaryDark: '#072E32',      // Obsidian Petrol for high-contrast luxury headers
-  primaryLight: '#008E96',     // Vibrant Emerald Teal for subtle glows and highlights
-  primaryBg: 'rgba(0, 94, 99, 0.08)', // Soft wash for luxury badge containers
+  // Core Brand Palette - Vibrant Royal Sapphire & Midnight Obsidian
+  primary: '#1E40AF',          // Vibrant Royal Sapphire (Trust, Prestige, Ultra-modern)
+  primaryDark: '#0F172A',      // Midnight Obsidian Slate for headers & dark surfaces
+  primaryLight: '#3B82F6',     // Bright Electric Azure for active tabs & glows
+  primaryBg: 'rgba(30, 64, 175, 0.08)', // Soft azure wash for badge containers
 
-  secondary: '#1A4D53',        // Deep Regal Slate Teal
-  secondaryLight: '#2B7077',
-  secondaryDark: '#0A2528',
-  secondaryBg: 'rgba(26, 77, 83, 0.08)',
+  secondary: '#0F766E',        // Deep Emerald Jade
+  secondaryLight: '#14B8A6',   // Bright Mint
+  secondaryDark: '#134E4A',
+  secondaryBg: 'rgba(15, 118, 110, 0.08)',
 
-  // Luxury Gold / Champagne Accents (For Verified, Premium, Ratings, Exclusive Badges)
-  gold: '#B8860B',             // Rich Champagne Gold
-  goldLight: '#D4AF37',        // Metallic Luminous Gold
-  goldDark: '#8C6608',
-  goldBg: 'rgba(184, 134, 11, 0.12)',
+  // Luxury Gold / Champagne Accents (Verified, Premium, Ratings, Exclusive Badges)
+  gold: '#D97706',             // Radiant Amber Gold
+  goldLight: '#F59E0B',        // Metallic Luminous Gold
+  goldDark: '#B45309',
+  goldBg: 'rgba(245, 158, 11, 0.12)',
 
   // Tertiary & Neutral Accents
-  tertiary: '#E2E8F0',         // Soft slate border
-  tertiaryLight: '#F1F5F9',    // Light pill background
-  tertiaryBg: 'rgba(0, 94, 99, 0.05)', // Gentle teal tint
+  tertiary: '#E2E8F0',         // Crisp modern border
+  tertiaryLight: '#F8FAFC',    // Light background
+  tertiaryBg: 'rgba(241, 245, 249, 0.8)',
   tertiaryDark: '#CBD5E1',
 
   // Signature Coral Accent (For high-conversion CTAs, Hearts, Favorites, Alerts)
-  accent: '#FF385C',           // Iconic Luxury Rose Red
+  accent: '#FF385C',           // Iconic Luxury Rose Coral
   accentLight: '#FFE8EC',      // Soft blushing rose tint
   accentDark: '#E01E44',
   accentBg: 'rgba(255, 56, 92, 0.08)',
 
   // Canvas & Surfaces (Architectural Studio Neutral)
-  background: '#F6F8FA',       // Premium matte canvas
+  background: '#F8FAFC',       // Bright crisp modern canvas
   surface: '#FFFFFF',          // Pure crisp white card
-  surfaceSoft: '#F9FAFC',      // Subtle offset for secondary blocks
+  surfaceSoft: '#F1F5F9',      // Subtle offset for secondary blocks
 
-  // Borders & Dividers (Ultra-fine, razor-sharp styling)
-  border: '#E2E8F0',           // Modern architectural border
-  borderLight: '#EDF2F7',      // Ultra light divider
-  borderGold: 'rgba(184, 134, 11, 0.35)', // Gold luxury highlight border
+  // Borders & Dividers
+  border: '#E2E8F0',           // Modern razor-sharp border
+  borderLight: '#F1F5F9',      // Ultra light divider
+  borderGold: 'rgba(245, 158, 11, 0.40)', // Gold luxury highlight border
   divider: '#E2E8F0',
 
   // Typography Palette (Crisp High-Contrast Legibility)
@@ -49,29 +49,29 @@ export const colors = {
   textLight: '#F8FAFC',
   textWhite: '#FFFFFF',
   textAccent: '#FF385C',
-  textSecondaryColor: '#005E63',
-  textGold: '#B8860B',
+  textSecondaryColor: '#1E40AF',
+  textGold: '#D97706',
 
   // Status & Badges
-  success: '#008774',          // Luxury Mint Green
-  successBg: '#E6F8F4',
-  danger: '#FF385C',           // Coral Red
-  dangerBg: '#FFE8EC',
+  success: '#10B981',          // Modern Mint Green
+  successBg: '#ECFDF5',
+  danger: '#EF4444',           // Coral Red
+  dangerBg: '#FEF2F2',
   warning: '#F59E0B',          // Warm Amber Star Rating
   warningBg: '#FEF3C7',
-  info: '#005E63',
-  infoBg: '#E0F4F5',
+  info: '#2563EB',
+  infoBg: '#EFF6FF',
 
   // Overlays & Depth
-  overlaySubtle: 'rgba(7, 46, 50, 0.20)',
-  overlayLight: 'rgba(7, 46, 50, 0.35)',
-  overlayMedium: 'rgba(7, 46, 50, 0.55)',
-  overlayDark: 'rgba(5, 30, 33, 0.75)',
+  overlaySubtle: 'rgba(15, 23, 42, 0.15)',
+  overlayLight: 'rgba(15, 23, 42, 0.35)',
+  overlayMedium: 'rgba(15, 23, 42, 0.55)',
+  overlayDark: 'rgba(15, 23, 42, 0.75)',
   backdropOverlay: 'rgba(15, 23, 42, 0.50)',
   modalOverlay: 'rgba(15, 23, 42, 0.60)',
 
   // Shadow Colors & Elevations
-  shadowColor: '#072E32',
+  shadowColor: '#0F172A',
 
   // Typography Standard Sizes
   fontSizeXs: 11,
@@ -96,7 +96,7 @@ export const colors = {
   fontWeightExtraBold: '800',
 
   // Dark Canvas
-  darkBg: '#072E32',
+  darkBg: '#0F172A',
 };
 
 export default colors;

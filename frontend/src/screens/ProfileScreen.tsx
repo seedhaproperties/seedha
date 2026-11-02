@@ -59,20 +59,36 @@ const menuSections = [
 ];
 
 export default function ProfileScreen() {
-  const { push } = useApp();
+  const { push, user, isAdmin, signOut, isAuthenticated } = useApp();
+
+  const displayName = user?.name || 'Guest User';
+  const displayPhone = user?.phone || '+91 98765 43210';
+  const displayEmail = user?.email || (isAuthenticated ? 'user@seedhaproperties.com' : 'Not signed in');
+  const roleLabel = user?.role || (isAuthenticated ? 'USER' : 'GUEST');
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
         <View style={styles.headerPadding}>
-          <Text style={styles.pageTitle}>Profile</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.pageTitle}>Profile</Text>
+            {isAdmin ? (
+              <View style={styles.adminHeaderBadge}>
+                <ShieldCheck size={14} color="#B45309" />
+                <Text style={styles.adminHeaderBadgeText}>ADMIN ACTIVE</Text>
+              </View>
+            ) : null}
+          </View>
 
           {/* Profile Card */}
           <View style={styles.profileCard}>
             <View style={styles.userRow}>
               <View style={styles.avatarWrapper}>
                 <Image
-                  source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&auto=format' }}
+                  source={{ uri: isAdmin
+                    ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&auto=format'
+                    : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&auto=format'
+                  }}
                   style={styles.avatarImage}
                 />
                 <TouchableOpacity style={styles.cameraCircle}>
@@ -82,10 +98,12 @@ export default function ProfileScreen() {
               <View style={styles.userInfoCol}>
                 <View style={styles.nameRow}>
                   <View>
-                    <Text style={styles.userName}>Rahul Sharma</Text>
+                    <Text style={styles.userName}>{displayName}</Text>
                     <View style={styles.verifiedRow}>
-                      <View style={styles.greenDot} />
-                      <Text style={styles.verifiedText}>Verified Account</Text>
+                      <View style={[styles.greenDot, isAdmin && { backgroundColor: colors.gold }]} />
+                      <Text style={[styles.verifiedText, isAdmin && { color: colors.gold }]}>
+                        {isAdmin ? 'System Administrator' : 'Verified Customer'} ({roleLabel})
+                      </Text>
                     </View>
                   </View>
                   <TouchableOpacity style={styles.editButton}>
@@ -95,12 +113,38 @@ export default function ProfileScreen() {
 
                 <View style={styles.contactRow}>
                   <Phone size={11} color={colors.textMuted} />
-                  <Text style={styles.contactText}>+91 98765 43210</Text>
+                  <Text style={styles.contactText}>{displayPhone}</Text>
                 </View>
                 <View style={[styles.contactRow, { marginTop: 2 }]}>
                   <Mail size={11} color={colors.textMuted} />
-                  <Text style={styles.contactText}>rahul@email.com</Text>
+                  <Text style={styles.contactText}>{displayEmail}</Text>
                 </View>
+              </View>
+            </View>
+
+            {/* Quick Login / Role Switcher for Testing */}
+            <View style={styles.roleSwitchCard}>
+              <Text style={styles.roleSwitchTitle}>Role & Auth Status: <Text style={{ color: colors.primary, fontWeight: '700' }}>{roleLabel}</Text></Text>
+              <View style={styles.roleSwitchActions}>
+                <TouchableOpacity
+                  style={[styles.roleChip, isAdmin && styles.roleChipActive]}
+                  onPress={() => push({ name: 'login' })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.roleChipText, isAdmin && styles.roleChipTextActive]}>
+                    {isAdmin ? '✓ Admin Mode' : 'Switch / Login as Admin'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.roleChip, !isAdmin && isAuthenticated && styles.roleChipActive]}
+                  onPress={() => push({ name: 'login' })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.roleChipText, !isAdmin && isAuthenticated && styles.roleChipTextActive]}>
+                    {!isAdmin && isAuthenticated ? '✓ User Mode' : 'Login as User'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -133,12 +177,14 @@ export default function ProfileScreen() {
                     style={styles.menuRow}
                     activeOpacity={0.8}
                   >
-                    <View style={styles.menuIconCircle}>
-                      <Icon size={17} color={colors.secondary} />
+                    <View style={[styles.menuIconCircle, screen === 'adminPortal' && { backgroundColor: '#FEF3C7' }]}>
+                      <Icon size={17} color={screen === 'adminPortal' ? '#B45309' : colors.secondary} />
                     </View>
-                    <Text style={styles.menuText}>{label}</Text>
+                    <Text style={[styles.menuText, screen === 'adminPortal' && { fontWeight: '700', color: colors.primary }]}>
+                      {label}
+                    </Text>
                     {badge ? (
-                      <View style={styles.badgeCircle}>
+                      <View style={[styles.badgeCircle, screen === 'adminPortal' && { backgroundColor: '#F59E0B' }]}>
                         <Text style={styles.badgeText}>{badge}</Text>
                       </View>
                     ) : null}
@@ -149,11 +195,17 @@ export default function ProfileScreen() {
             </View>
           ))}
 
-          <TouchableOpacity style={styles.logoutButton} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={() => signOut()}
+            activeOpacity={0.8}
+          >
             <View style={styles.logoutIconBox}>
               <LogOut size={17} color={colors.accent} />
             </View>
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.logoutText}>
+              {isAuthenticated ? 'Logout' : 'Sign In / Register'}
+            </Text>
           </TouchableOpacity>
 
           <Text style={styles.versionText}>Seedha Properties v1.0.0 · Made with ❤️ in India</Text>
@@ -372,5 +424,68 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     marginTop: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  adminHeaderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: colors.radiusSm,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    gap: 4,
+  },
+  adminHeaderBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#92400E',
+    letterSpacing: 0.5,
+  },
+  roleSwitchCard: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: colors.radiusMd,
+    padding: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  roleSwitchTitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  roleSwitchActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  roleChip: {
+    flex: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: colors.radiusSm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  roleChipActive: {
+    backgroundColor: colors.primaryBg,
+    borderColor: colors.primary,
+  },
+  roleChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  roleChipTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
 });

@@ -12,13 +12,15 @@ let PrismaService = PrismaService_1 = class PrismaService extends PrismaClient {
     isConnected = false;
     async onModuleInit() {
         try {
-            await this.$connect();
+            const connectPromise = this.$connect();
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('PostgreSQL connection timeout (1500ms)')), 1500));
+            await Promise.race([connectPromise, timeoutPromise]);
             this.isConnected = true;
             this.logger.log('Successfully connected to PostgreSQL via Prisma');
         }
         catch (error) {
             this.isConnected = false;
-            this.logger.warn(`PostgreSQL not reachable directly at DATABASE_URL (${error.message}). Local mock storage will be utilized where applicable so services remain fully functional.`);
+            this.logger.warn(`PostgreSQL not reachable directly at DATABASE_URL (${error.message}). Local persistent storage will be utilized so services remain fully functional.`);
         }
     }
     async onModuleDestroy() {
