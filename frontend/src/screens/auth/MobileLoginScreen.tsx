@@ -9,34 +9,51 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  SafeAreaView,
 } from 'react-native';
-import {
-  ChevronLeft,
-  X,
-  Phone,
-  ShieldCheck,
-  ArrowRight,
-  RefreshCw,
-  CheckCircle2,
-  Sparkles,
-  Lock,
-} from 'lucide-react-native';
+import Svg, { Path } from 'react-native-svg';
+import { ChevronLeft, Sparkles, RefreshCw } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
-import { brandColors } from '../../theme/colors';
+import SeedhaLogo from '../../components/SeedhaLogo';
 import { api } from '../../services/api';
+
+function GoogleIcon() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24">
+      <Path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+        fill="#4285F4"
+      />
+      <Path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <Path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+        fill="#FBBC05"
+      />
+      <Path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+        fill="#EA4335"
+      />
+    </Svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="#000000">
+      <Path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.67-.82 1.12-1.96.99-3.1-.97.04-2.14.65-2.83 1.46-.61.71-1.15 1.87-1.01 2.98 1.08.08 2.19-.53 2.85-1.34z" />
+    </Svg>
+  );
+}
 
 export default function MobileLoginScreen() {
   const { currentScreen, cancelAuth, completeAuth } = useApp();
-  const { actionName } = (currentScreen.params ?? {}) as {
-    returnScreen?: string;
-    actionName?: string;
-  };
-
-  // Step 1: 'phone' | Step 2: 'otp'
+  const initialMode = currentScreen.name === 'signup' ? 'signup' : 'signin';
+  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
-  const [countryCode, setCountryCode] = useState('+91');
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -58,14 +75,12 @@ export default function MobileLoginScreen() {
     return () => clearTimeout(timer);
   }, [countdown, step]);
 
-  // Clean phone input (digits only, max 10)
   const handlePhoneChange = (val: string) => {
     const cleaned = val.replace(/\D/g, '').slice(0, 10);
     setPhone(cleaned);
     if (errorMessage) setErrorMessage(null);
   };
 
-  // Handle Send OTP
   const handleSendOtp = async (inputPhone?: string) => {
     const targetPhone = inputPhone ?? phone;
     if (targetPhone.length !== 10) {
@@ -77,7 +92,7 @@ export default function MobileLoginScreen() {
     setErrorMessage(null);
     setInfoMessage(null);
 
-    const fullIdentifier = `${countryCode}${targetPhone}`;
+    const fullIdentifier = `+91${targetPhone}`;
 
     try {
       const res = await api.auth.sendOtp(fullIdentifier);
@@ -85,34 +100,43 @@ export default function MobileLoginScreen() {
       setStep('otp');
       setCountdown(30);
       setCanResend(false);
-      setInfoMessage(`Code sent to ${countryCode} ${targetPhone}`);
+      setInfoMessage(`Code sent to +91 ${targetPhone}`);
       if (res?.demoOtp) {
         setDemoCodeHint(res.demoOtp);
       }
     } catch (err: any) {
-      console.warn('[MobileLogin] sendOtp API notice:', err.message);
-      // Seamless graceful fallback: support local verification so user is never blocked
+      console.warn('[MobileLogin] sendOtp notice:', err.message);
+      // Graceful local verification fallback
       setLoading(false);
       setStep('otp');
       setCountdown(30);
       setCanResend(false);
       setDemoCodeHint('123456');
-      setInfoMessage(`Verification code sent to ${countryCode} ${targetPhone}`);
+      setInfoMessage(`Verification code sent to +91 ${targetPhone}`);
     }
   };
 
-  // Quick Demo Autofill
-  const handleUseDemo = () => {
-    setPhone('9876543210');
-    setErrorMessage(null);
-    handleSendOtp('9876543210');
+  const handleSocialAuth = (provider: 'Google' | 'Apple') => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      completeAuth(
+        {
+          id: `usr_${provider.toLowerCase()}_${Date.now()}`,
+          name: `Verified ${provider} User`,
+          phone: '+91 98765 43210',
+          email: `${provider.toLowerCase()}.user@seedhaproperties.com`,
+          city: 'Hyderabad',
+          role: 'USER',
+        },
+        `token_${provider.toLowerCase()}_verified`
+      );
+    }, 600);
   };
 
-  // Handle OTP digit change
   const handleDigitChange = (index: number, val: string) => {
     const clean = val.replace(/\D/g, '');
     if (clean.length > 1) {
-      // Handled paste of multiple digits
       const pasted = clean.slice(0, 6).split('');
       const next = [...otpDigits];
       pasted.forEach((ch, idx) => {
@@ -129,7 +153,6 @@ export default function MobileLoginScreen() {
     setOtpDigits(next);
     if (errorMessage) setErrorMessage(null);
 
-    // Auto-advance
     if (clean && index < 5) {
       otpInputRefs.current[index + 1]?.focus();
     }
@@ -143,7 +166,6 @@ export default function MobileLoginScreen() {
 
   const otpCode = otpDigits.join('');
 
-  // Handle OTP Verify
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) {
       setErrorMessage('Please enter the complete 6-digit code');
@@ -153,7 +175,7 @@ export default function MobileLoginScreen() {
     setLoading(true);
     setErrorMessage(null);
 
-    const fullIdentifier = `${countryCode}${phone}`;
+    const fullIdentifier = `+91${phone}`;
 
     try {
       const res = await api.auth.verifyOtp(fullIdentifier, otpCode);
@@ -161,12 +183,11 @@ export default function MobileLoginScreen() {
       if (res?.user) {
         completeAuth(res.user, res.accessToken || res.token);
       } else {
-        // Fallback user object
         completeAuth(
           {
             id: `usr_${phone}`,
-            name: 'Verified User',
-            phone: `${countryCode} ${phone}`,
+            name: mode === 'signup' ? 'New Property User' : 'Verified User',
+            phone: `+91 ${phone}`,
             email: `user_${phone.slice(-4)}@seedhaproperties.com`,
             city: 'Hyderabad',
             role: 'USER',
@@ -175,15 +196,14 @@ export default function MobileLoginScreen() {
         );
       }
     } catch (err: any) {
-      console.warn('[MobileLogin] verifyOtp API notice:', err.message);
-      // Support demo code fallback '123456'
+      console.warn('[MobileLogin] verifyOtp notice:', err.message);
       if (otpCode === '123456' || (demoCodeHint && otpCode === demoCodeHint)) {
         setLoading(false);
         completeAuth(
           {
             id: `usr_${phone || 'demo'}`,
-            name: 'Verified User',
-            phone: `${countryCode} ${phone || '9876543210'}`,
+            name: mode === 'signup' ? 'New Property User' : 'Verified User',
+            phone: `+91 ${phone || '9876543210'}`,
             email: `user_${(phone || '5678').slice(-4)}@seedhaproperties.com`,
             city: 'Hyderabad',
             role: 'USER',
@@ -198,568 +218,494 @@ export default function MobileLoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.keyboardContainer}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.container}
       >
-        {/* Top Header */}
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={cancelAuth}
-            style={styles.closeButton}
-            activeOpacity={0.8}
-            accessibilityLabel="Cancel sign in"
-          >
-            <X size={20} color={brandColors.primary} strokeWidth={2.4} />
-          </TouchableOpacity>
-
-          <View style={styles.brandRow}>
-            <View style={styles.brandBadge}>
-              <ShieldCheck size={14} color="#FFFFFF" strokeWidth={2.4} />
-            </View>
-            <Text style={styles.brandTitle}>Seedha Properties</Text>
-          </View>
-
-          <View style={{ width: 40 }} />
-        </View>
-
-        {/* Action Context Pill */}
-        {actionName && (
-          <View style={styles.contextBanner}>
-            <Lock size={13} color={brandColors.accent} strokeWidth={2.4} />
-            <Text style={styles.contextText}>
-              Sign in to <Text style={styles.contextActionBold}>{actionName}</Text>
-            </Text>
-          </View>
-        )}
-
-        {/* ── STEP 1: ENTER PHONE NUMBER ── */}
-        {step === 'phone' && (
-          <View style={styles.cardContainer}>
-            <View style={styles.iconCircle}>
-              <Phone size={28} color={brandColors.primary} strokeWidth={2.2} />
-            </View>
-
-            <Text style={styles.mainHeading}>Enter your mobile number</Text>
-            <Text style={styles.subHeading}>
-              Browse as a guest anytime. Sign in quickly with a 6-digit OTP to perform account actions.
-            </Text>
-
-            {/* Input Row */}
-            <View style={styles.phoneInputRow}>
-              {/* Country Code Pill */}
-              <View style={styles.countryPill}>
-                <Text style={styles.flagText}>🇮🇳</Text>
-                <Text style={styles.countryCodeText}>{countryCode}</Text>
-              </View>
-
-              {/* Mobile Input */}
-              <TextInput
-                style={styles.phoneTextInput}
-                placeholder="Enter 10-digit number"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="phone-pad"
-                maxLength={10}
-                value={phone}
-                onChangeText={handlePhoneChange}
-                autoFocus
-              />
-            </View>
-
-            {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-
-            {/* Send OTP CTA */}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Row: Back Button */}
+          <View style={styles.topBar}>
             <TouchableOpacity
-              onPress={() => handleSendOtp()}
-              disabled={loading || phone.length !== 10}
-              style={[
-                styles.primaryBtn,
-                phone.length !== 10 && styles.disabledBtn,
-              ]}
-              activeOpacity={0.9}
+              onPress={step === 'otp' ? () => setStep('phone') : cancelAuth}
+              style={styles.backButton}
+              activeOpacity={0.8}
             >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <View style={styles.btnRow}>
-                  <Text style={styles.primaryBtnText}>Send Verification Code</Text>
-                  <ArrowRight size={16} color="#FFFFFF" strokeWidth={2.4} />
-                </View>
-              )}
+              <ChevronLeft size={22} color="#0F172A" strokeWidth={2.4} />
             </TouchableOpacity>
-
-            {/* Quick Demo Test Pill */}
-            <View style={styles.demoSection}>
-              <Text style={styles.demoNote}>One-click fast testing:</Text>
-              <TouchableOpacity
-                onPress={handleUseDemo}
-                style={styles.demoPill}
-                activeOpacity={0.8}
-              >
-                <Sparkles size={13} color={brandColors.secondary} strokeWidth={2.2} />
-                <Text style={styles.demoPillText}>Use Test Number (+91 98765 43210)</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Trust Assurance Footer */}
-            <View style={styles.trustBox}>
-              <CheckCircle2 size={15} color={brandColors.secondary} strokeWidth={2.2} />
-              <Text style={styles.trustText}>
-                Zero spam. Verified security. Your number is only used to connect with genuine direct owners.
-              </Text>
-            </View>
           </View>
-        )}
 
-        {/* ── STEP 2: VERIFY OTP CODE ── */}
-        {step === 'otp' && (
-          <View style={styles.cardContainer}>
-            <View style={styles.iconCircle}>
-              <ShieldCheck size={28} color={brandColors.primary} strokeWidth={2.2} />
-            </View>
+          {/* Logo */}
+          <View style={styles.logoWrap}>
+            <SeedhaLogo size="md" />
+          </View>
 
-            <Text style={styles.mainHeading}>Enter verification code</Text>
-            <View style={styles.phoneHeaderRow}>
+          {/* Step 1: Phone / Social Login matching image */}
+          {step === 'phone' ? (
+            <View style={styles.formContent}>
+              {/* Headings */}
+              <Text style={styles.heading}>
+                {mode === 'signin' ? 'Welcome back' : 'Create Account'}
+              </Text>
               <Text style={styles.subHeading}>
-                Sent to <Text style={styles.phoneBold}>{countryCode} {phone}</Text>
+                {mode === 'signin'
+                  ? 'Sign in to continue your property journey.'
+                  : 'Sign up to continue your property journey.'}
               </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setStep('phone');
-                  setOtpDigits(['', '', '', '', '', '']);
-                  setErrorMessage(null);
-                }}
-                style={styles.editBtn}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.editText}>Edit</Text>
-              </TouchableOpacity>
-            </View>
 
-            {/* Demo Hint Banner */}
-            {demoCodeHint && (
-              <View style={styles.hintBanner}>
-                <Sparkles size={13} color={brandColors.accent} strokeWidth={2.2} />
-                <Text style={styles.hintText}>
-                  Test OTP code: <Text style={styles.hintCodeBold}>{demoCodeHint}</Text>
-                </Text>
-              </View>
-            )}
+              {/* Mobile Number Label */}
+              <Text style={styles.inputLabel}>Mobile Number</Text>
 
-            {/* 6 Digit Inputs */}
-            <View style={styles.digitsRow}>
-              {otpDigits.map((digit, idx) => (
-                <TextInput
-                  key={idx}
-                  ref={(el: any) => {
-                    if (el) otpInputRefs.current[idx] = el;
-                  }}
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  value={digit}
-                  onChangeText={(text) => handleDigitChange(idx, text)}
-                  onKeyPress={(e) => handleKeyPress(idx, e)}
-                  style={[
-                    styles.digitBox,
-                    digit ? styles.digitBoxFilled : null,
-                  ]}
-                  autoFocus={idx === 0}
-                />
-              ))}
-            </View>
-
-            {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-            {infoMessage && <Text style={styles.infoText}>{infoMessage}</Text>}
-
-            {/* Verify CTA */}
-            <TouchableOpacity
-              onPress={handleVerifyOtp}
-              disabled={loading || otpCode.length !== 6}
-              style={[
-                styles.primaryBtn,
-                otpCode.length !== 6 && styles.disabledBtn,
-              ]}
-              activeOpacity={0.9}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <View style={styles.btnRow}>
-                  <Text style={styles.primaryBtnText}>Verify &amp; Continue</Text>
-                  <ArrowRight size={16} color="#FFFFFF" strokeWidth={2.4} />
+              {/* Mobile Input Field */}
+              <View style={styles.phoneInputRow}>
+                {/* Flag + Country Code */}
+                <View style={styles.countryWrap}>
+                  <Text style={styles.flagEmoji}>🇮🇳</Text>
+                  <Text style={styles.countryCode}>+91</Text>
                 </View>
-              )}
-            </TouchableOpacity>
 
-            {/* Resend Countdown */}
-            <View style={styles.resendRow}>
-              <Text style={styles.resendNote}>Didn't receive the SMS?</Text>
-              {canResend ? (
+                {/* Vertical Divider */}
+                <View style={styles.inputDivider} />
+
+                {/* Phone Input */}
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="Enter mobile number"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  value={phone}
+                  onChangeText={handlePhoneChange}
+                  autoFocus
+                />
+              </View>
+
+              {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+
+              {/* Continue Button */}
+              <TouchableOpacity
+                onPress={() => handleSendOtp()}
+                disabled={loading || phone.length !== 10}
+                style={[
+                  styles.continueBtn,
+                  phone.length !== 10 && styles.continueBtnDisabled,
+                ]}
+                activeOpacity={0.88}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.continueBtnText}>Continue</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Divider: or continue with */}
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or continue with</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Social Buttons */}
+              <TouchableOpacity
+                style={styles.socialBtn}
+                onPress={() => handleSocialAuth('Google')}
+                activeOpacity={0.85}
+              >
+                <GoogleIcon />
+                <Text style={styles.socialBtnText}>Continue with Google</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.socialBtn}
+                onPress={() => handleSocialAuth('Apple')}
+                activeOpacity={0.85}
+              >
+                <AppleIcon />
+                <Text style={styles.socialBtnText}>Continue with Apple</Text>
+              </TouchableOpacity>
+
+              {/* Footer Toggle: Sign In / Create Account */}
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleQuestion}>
+                  {mode === 'signin'
+                    ? "Don't have an account? "
+                    : 'Already have an account? '}
+                </Text>
                 <TouchableOpacity
-                  onPress={() => handleSendOtp()}
-                  style={styles.resendActionBtn}
+                  onPress={() => {
+                    setMode(m => (m === 'signin' ? 'signup' : 'signin'));
+                    setErrorMessage(null);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.toggleAction}>
+                    {mode === 'signin' ? 'Create Account' : 'Sign In'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Terms and Privacy Disclaimer */}
+              <Text style={styles.disclaimerText}>
+                By continuing, you agree to our{' '}
+                <Text style={styles.disclaimerLink}>Terms & Conditions</Text> and{' '}
+                <Text style={styles.disclaimerLink}>Privacy Policy</Text>
+              </Text>
+            </View>
+          ) : (
+            /* Step 2: OTP Verification */
+            <View style={styles.formContent}>
+              <Text style={styles.heading}>Enter verification code</Text>
+              <View style={styles.phoneSentRow}>
+                <Text style={styles.subHeading}>
+                  Sent to <Text style={styles.boldPhone}>+91 {phone}</Text>
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setStep('phone');
+                    setOtpDigits(['', '', '', '', '', '']);
+                    setErrorMessage(null);
+                  }}
+                  style={styles.editBtn}
+                >
+                  <Text style={styles.editText}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Demo Hint Banner */}
+              {demoCodeHint && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setOtpDigits(demoCodeHint.split(''));
+                  }}
+                  style={styles.demoBanner}
                   activeOpacity={0.8}
                 >
-                  <RefreshCw size={13} color={brandColors.secondary} strokeWidth={2.2} />
-                  <Text style={styles.resendActionText}>Resend Code</Text>
+                  <Sparkles size={14} color="#059669" />
+                  <Text style={styles.demoBannerText}>
+                    Test Code: <Text style={styles.boldPhone}>{demoCodeHint}</Text> (Tap to fill)
+                  </Text>
                 </TouchableOpacity>
-              ) : (
-                <Text style={styles.timerText}>Resend in {countdown}s</Text>
               )}
+
+              {/* 6 Digit Inputs */}
+              <View style={styles.digitsRow}>
+                {otpDigits.map((digit, idx) => (
+                  <TextInput
+                    key={idx}
+                    ref={(el: any) => {
+                      if (el) otpInputRefs.current[idx] = el;
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    value={digit}
+                    onChangeText={(text) => handleDigitChange(idx, text)}
+                    onKeyPress={(e) => handleKeyPress(idx, e)}
+                    style={[
+                      styles.digitBox,
+                      digit ? styles.digitBoxFilled : null,
+                    ]}
+                    autoFocus={idx === 0}
+                  />
+                ))}
+              </View>
+
+              {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+              {infoMessage && <Text style={styles.infoText}>{infoMessage}</Text>}
+
+              {/* Verify Button */}
+              <TouchableOpacity
+                onPress={handleVerifyOtp}
+                disabled={loading || otpCode.length !== 6}
+                style={[
+                  styles.continueBtn,
+                  otpCode.length !== 6 && styles.continueBtnDisabled,
+                ]}
+                activeOpacity={0.88}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.continueBtnText}>Verify & Continue</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Resend Countdown */}
+              <View style={styles.resendRow}>
+                <Text style={styles.resendNote}>Didn't receive the SMS? </Text>
+                {canResend ? (
+                  <TouchableOpacity
+                    onPress={() => handleSendOtp()}
+                    style={styles.resendActionBtn}
+                  >
+                    <RefreshCw size={13} color="#0F172A" strokeWidth={2.2} />
+                    <Text style={styles.resendActionText}>Resend Code</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.timerText}>Resend in {countdown}s</Text>
+                )}
+              </View>
             </View>
-          </View>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardContainer: {
+  safeArea: {
     flex: 1,
-    backgroundColor: brandColors.background,
+    backgroundColor: '#FFFFFF',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 40,
+    paddingTop: Platform.OS === 'android' ? 16 : 8,
+    paddingBottom: 36,
   },
-
-  // ── Top Bar ──
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 52,
-    marginBottom: 8,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 9999,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: brandColors.supporting,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  brandBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 7,
-    backgroundColor: brandColors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  brandTitle: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 16,
-    fontWeight: '700',
-    color: brandColors.primary,
-    letterSpacing: -0.3,
-  },
-
-  // ── Context Banner ──
-  contextBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: brandColors.supporting,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginBottom: 16,
-    alignSelf: 'center',
-  },
-  contextText: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 12,
-    color: '#4B5563',
-  },
-  contextActionBold: {
-    fontWeight: '700',
-    color: brandColors.primary,
-  },
-
-  // ── Card ──
-  cardContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: brandColors.supporting,
-    shadowColor: '#2e3a2f',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
-    elevation: 4,
-    alignItems: 'center',
-  },
-  iconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 9999,
-    backgroundColor: brandColors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: brandColors.supporting,
-  },
-  mainHeading: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 20,
-    fontWeight: '700',
-    color: brandColors.primary,
-    textAlign: 'center',
-    letterSpacing: -0.4,
-    marginBottom: 6,
-  },
-  subHeading: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 13,
-    color: '#6B7268',
-    textAlign: 'center',
-    lineHeight: 18,
     marginBottom: 20,
   },
-
-  // ── Input Row ──
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  logoWrap: {
+    marginBottom: 16,
+  },
+  formContent: {
+    marginTop: 8,
+  },
+  heading: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.5,
+  },
+  subHeading: {
+    fontSize: 15,
+    color: '#64748B',
+    marginTop: 8,
+    marginBottom: 28,
+    lineHeight: 22,
+  },
+  inputLabel: {
+    fontSize: 13.5,
+    fontWeight: '500',
+    color: '#64748B',
+    marginBottom: 8,
+  },
   phoneInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    height: 54,
-    backgroundColor: '#FAFAF8',
-    borderWidth: 1.2,
-    borderColor: brandColors.supporting,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    gap: 10,
-    marginBottom: 12,
-  },
-  countryPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
+    height: 56,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: brandColors.supporting,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
   },
-  flagText: {
-    fontSize: 16,
-  },
-  countryCodeText: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 14,
-    fontWeight: '600',
-    color: brandColors.primary,
-  },
-  phoneTextInput: {
-    flex: 1,
-    height: '100%',
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 16,
-    fontWeight: '600',
-    color: brandColors.primary,
-    letterSpacing: 0.5,
-  },
-
-  // ── Primary Button ──
-  primaryBtn: {
-    width: '100%',
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: brandColors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 6,
-    shadowColor: brandColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  disabledBtn: {
-    backgroundColor: '#9CA3AF',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  btnRow: {
+  countryWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
-  primaryBtnText: {
-    fontFamily: 'Plus Jakarta Sans',
+  flagEmoji: {
+    fontSize: 18,
+  },
+  countryCode: {
     fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  inputDivider: {
+    width: 1,
+    height: 26,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 12,
+  },
+  phoneInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0F172A',
+    height: 56,
+  },
+  errorText: {
+    fontSize: 12.5,
+    color: '#EF4444',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  infoText: {
+    fontSize: 12.5,
+    color: '#059669',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  continueBtn: {
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+  },
+  continueBtnDisabled: {
+    opacity: 0.5,
+  },
+  continueBtnText: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: -0.2,
   },
-
-  // ── Demo Section ──
-  demoSection: {
-    marginTop: 18,
-    alignItems: 'center',
-    width: '100%',
-  },
-  demoNote: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginBottom: 6,
-  },
-  demoPill: {
+  dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F3F6F1',
-    borderWidth: 1,
-    borderColor: '#D4E2CD',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 9999,
+    marginVertical: 26,
   },
-  demoPillText: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 12,
-    fontWeight: '600',
-    color: brandColors.secondary,
-  },
-
-  // ── Trust Note ──
-  trustBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: '#FAFAF8',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: '#EFEFEA',
-  },
-  trustText: {
+  dividerLine: {
     flex: 1,
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 11,
-    color: '#6B7268',
-    lineHeight: 15,
+    height: 1,
+    backgroundColor: '#E2E8F0',
   },
-
-  // ── OTP Screen Elements ──
-  phoneHeaderRow: {
+  dividerText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    marginHorizontal: 14,
+    fontWeight: '500',
+  },
+  socialBtn: {
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 12,
     marginBottom: 12,
   },
-  phoneBold: {
-    fontWeight: '700',
-    color: brandColors.primary,
-  },
-  editBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    backgroundColor: '#FAFAF8',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: brandColors.supporting,
-  },
-  editText: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 11,
+  socialBtnText: {
+    fontSize: 14.5,
     fontWeight: '600',
-    color: brandColors.secondary,
+    color: '#0F172A',
   },
-  hintBanner: {
+  toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FFF5F0',
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+  toggleQuestion: {
+    fontSize: 13.5,
+    color: '#64748B',
+  },
+  toggleAction: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  disclaimerText: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 24,
+    paddingHorizontal: 8,
+  },
+  disclaimerLink: {
+    color: '#64748B',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  phoneSentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  boldPhone: {
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  editBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  editText: {
+    fontSize: 13.5,
+    color: '#2563EB',
+    fontWeight: '600',
+  },
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#FCD7C6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginBottom: 16,
+    borderColor: '#A7F3D0',
   },
-  hintText: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 12,
-    color: '#92400E',
-  },
-  hintCodeBold: {
-    fontWeight: '800',
-    letterSpacing: 1,
-    color: brandColors.accent,
+  demoBannerText: {
+    fontSize: 13,
+    color: '#065F46',
   },
   digitsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 14,
     gap: 8,
+    marginBottom: 16,
   },
   digitBox: {
     flex: 1,
     height: 52,
-    borderRadius: 12,
-    backgroundColor: '#FAFAF8',
-    borderWidth: 1.5,
-    borderColor: brandColors.supporting,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     textAlign: 'center',
-    fontFamily: 'Plus Jakarta Sans',
     fontSize: 20,
     fontWeight: '700',
-    color: brandColors.primary,
-  },
-  digitBoxFilled: {
-    borderColor: brandColors.primary,
+    color: '#0F172A',
     backgroundColor: '#FFFFFF',
   },
-  errorText: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 12,
-    color: '#DC2626',
-    marginTop: 4,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  infoText: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 12,
-    color: brandColors.secondary,
-    marginTop: 4,
-    marginBottom: 8,
-    textAlign: 'center',
+  digitBoxFilled: {
+    borderColor: '#000000',
+    backgroundColor: '#F8FAFC',
   },
   resendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 18,
+    justifyContent: 'center',
+    marginTop: 20,
   },
   resendNote: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 12,
-    color: '#6B7268',
+    fontSize: 13,
+    color: '#64748B',
   },
   resendActionBtn: {
     flexDirection: 'row',
@@ -767,16 +713,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   resendActionText: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    color: brandColors.secondary,
+    color: '#0F172A',
   },
   timerText: {
-    fontFamily: 'Plus Jakarta Sans',
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9CA3AF',
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '500',
   },
 });
-

@@ -61,8 +61,16 @@ const POPULAR_LOCATIONS = [
 ];
 
 export default function HomeScreen() {
-  const { push, savedIds, toggleSaved, notifications, setTab } = useApp();
+  const { push, savedIds, toggleSaved, notifications, setTab, isAuthenticated, requireAuth } = useApp();
   const [activeCategory, setActiveCategory] = useState('buy');
+
+  const handleProtectedNavigate = (screen: any, actionTitle = 'Continue') => {
+    if (!isAuthenticated) {
+      requireAuth(undefined, screen, actionTitle);
+      return;
+    }
+    push(screen);
+  };
 
   // Find properties for spotlight, featured horizontal carousel, and recommended list
   const spotlightProperty =
@@ -78,30 +86,44 @@ export default function HomeScreen() {
 
   const handleCategoryPress = (key: string) => {
     setActiveCategory(key);
+    let target: any = null;
+    let title = 'Explore';
+
     switch (key) {
       case 'buy':
-        push({ name: 'propertyListing', params: { type: 'buy', title: 'Buy Properties' } });
+        target = { name: 'propertyListing', params: { type: 'buy', title: 'Buy Properties' } };
+        title = 'Buy Properties';
         break;
       case 'rent':
-        push({ name: 'propertyListing', params: { type: 'rent', title: 'Rent Homes' } });
+        target = { name: 'propertyListing', params: { type: 'rent', title: 'Rent Homes' } };
+        title = 'Rent Homes';
         break;
       case 'commercial':
-        push({ name: 'propertyListing', params: { type: 'commercial', title: 'Commercial Spaces' } });
+        target = { name: 'propertyListing', params: { type: 'commercial', title: 'Commercial Spaces' } };
+        title = 'Commercial Spaces';
         break;
       case 'manage':
-        push({ name: 'propertyManagement' });
+        target = { name: 'propertyManagement' };
+        title = 'Property Management';
         break;
       case 'loans':
-        push({ name: 'homeLoan' });
+        target = { name: 'homeLoan' };
+        title = 'Home Loans';
         break;
       case 'agreements':
-        push({ name: 'rentalAgreement' });
+        target = { name: 'rentalAgreement' };
+        title = 'Rental Agreement';
         break;
       case 'verify':
-        push({ name: 'ownerVerification' });
+        target = { name: 'ownerVerification' };
+        title = 'Owner Verification';
         break;
       default:
         break;
+    }
+
+    if (target) {
+      handleProtectedNavigate(target, title);
     }
   };
 
@@ -117,7 +139,7 @@ export default function HomeScreen() {
         <View style={styles.headerLeft}>
           <TouchableOpacity
             style={styles.menuButton}
-            onPress={() => push({ name: 'profile' })}
+            onPress={() => handleProtectedNavigate({ name: 'profile' }, 'Profile')}
             activeOpacity={0.7}
           >
             <Menu size={20} color="#000000" strokeWidth={2.2} />
@@ -142,7 +164,7 @@ export default function HomeScreen() {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.notifButton}
-            onPress={() => push({ name: 'notifications' })}
+            onPress={() => handleProtectedNavigate({ name: 'notifications' }, 'Notifications')}
             activeOpacity={0.8}
           >
             <Bell size={18} color="#1A1C1A" strokeWidth={2.2} />
@@ -151,7 +173,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.profileAvatar}
-            onPress={() => push({ name: 'profile' })}
+            onPress={() => handleProtectedNavigate({ name: 'profile' }, 'Profile')}
             activeOpacity={0.8}
           >
             <Image
@@ -167,7 +189,7 @@ export default function HomeScreen() {
         <View style={styles.searchPill}>
           <TouchableOpacity
             style={styles.searchInputArea}
-            onPress={() => push({ name: 'search' })}
+            onPress={() => handleProtectedNavigate({ name: 'search' }, 'Search')}
             activeOpacity={0.85}
           >
             <Search size={17} color="#747874" strokeWidth={2.2} />
@@ -178,7 +200,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.filterButton}
-            onPress={() => push({ name: 'filters' })}
+            onPress={() => handleProtectedNavigate({ name: 'filters' }, 'Filters')}
             activeOpacity={0.8}
           >
             <SlidersHorizontal size={16} color="#1A1C1A" strokeWidth={2.4} />
@@ -287,7 +309,10 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.spotlightCard}
           onPress={() =>
-            push({ name: 'propertyDetail', params: { property: spotlightProperty } })
+            handleProtectedNavigate(
+              { name: 'propertyDetail', params: { property: spotlightProperty } },
+              spotlightProperty.title
+            )
           }
           activeOpacity={0.92}
         >
@@ -381,7 +406,7 @@ export default function HomeScreen() {
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => push({ name: 'search' })}
+            onPress={() => handleProtectedNavigate({ name: 'search' }, 'Search Localities')}
             activeOpacity={0.7}
           >
             <Text style={styles.viewAllText}>View all &gt;</Text>
@@ -398,10 +423,13 @@ export default function HomeScreen() {
               key={loc.id}
               style={styles.locationCard}
               onPress={() =>
-                push({
-                  name: 'propertyListing',
-                  params: { location: loc.name, title: loc.name },
-                })
+                handleProtectedNavigate(
+                  {
+                    name: 'propertyListing',
+                    params: { location: loc.name, title: loc.name },
+                  },
+                  loc.name
+                )
               }
               activeOpacity={0.88}
             >
@@ -434,7 +462,12 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={prop.id}
               style={styles.featuredCard}
-              onPress={() => push({ name: 'propertyDetail', params: { property: prop } })}
+              onPress={() =>
+                handleProtectedNavigate(
+                  { name: 'propertyDetail', params: { property: prop } },
+                  prop.title
+                )
+              }
               activeOpacity={0.9}
             >
               <View style={styles.featuredCardImageWrapper}>
@@ -507,7 +540,7 @@ export default function HomeScreen() {
       {/* ── 7. Section - Promotional Banner ── */}
       <TouchableOpacity
         style={styles.promoBanner}
-        onPress={() => push({ name: 'ownerVerification' })}
+        onPress={() => handleProtectedNavigate({ name: 'ownerVerification' }, 'Verify Owner')}
         activeOpacity={0.9}
       >
         <View style={styles.promoLeftCol}>
@@ -537,7 +570,12 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={prop.id}
               style={styles.recommendedCard}
-              onPress={() => push({ name: 'propertyDetail', params: { property: prop } })}
+              onPress={() =>
+                handleProtectedNavigate(
+                  { name: 'propertyDetail', params: { property: prop } },
+                  prop.title
+                )
+              }
               activeOpacity={0.92}
             >
               <View style={styles.recommendedImageWrapper}>

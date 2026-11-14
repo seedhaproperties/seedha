@@ -54,9 +54,9 @@ function ScreenRouter() {
       case 'splash': return <SplashScreen />;
       // Auth flow
       case 'onboarding': return <OnboardingScreen />;
-      case 'login': return <LoginScreen />;
+      case 'login': return <MobileLoginScreen />;
       case 'mobileLogin': return <MobileLoginScreen />;
-      case 'signup': return <SignUpScreen />;
+      case 'signup': return <MobileLoginScreen />;
       case 'otp': return <OTPScreen />;
       case 'profileSetup': return <ProfileSetupScreen />;
       case 'propertyIntent': return <PropertyIntentScreen />;

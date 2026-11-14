@@ -15,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import SeedhaLogo from '../components/SeedhaLogo';
 import { useApp } from '../context/AppContext';
+import type { ScreenState } from '../types';
 import colors from '../theme/colors';
 
 const HERO_IMAGE =
@@ -133,9 +134,23 @@ const services: ServiceItem[] = [
 ];
 
 export default function LandingScreen() {
-  const { setTab, push } = useApp();
-  const enterApp = () => setTab('home');
+  const { setTab, push, isAuthenticated, requireAuth } = useApp();
+  const enterApp = () => {
+    if (!isAuthenticated) {
+      requireAuth(undefined, { name: 'home' }, 'Explore Properties');
+      return;
+    }
+    setTab('home');
+  };
   const isNative = Platform.OS !== 'web';
+
+  const handleNavigate = (screen: ScreenState, actionName: string) => {
+    if (!isAuthenticated) {
+      requireAuth(undefined, screen, actionName);
+      return;
+    }
+    push(screen);
+  };
 
   const [activeSlide, setActiveSlide] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -222,23 +237,55 @@ export default function LandingScreen() {
   const currentHero = heroSlides[activeSlide];
 
   const handleCtaAction = (actionType: string, isAlt = false) => {
+    let target: ScreenState = { name: 'home' };
+    let title = 'Explore';
+
     if (actionType === 'search') {
-      if (isAlt) push({ name: 'propertyListing', params: { type: 'rent', title: 'Rent Homes' } });
-      else push({ name: 'propertyListing', params: { type: 'buy', title: 'Buy Properties' } });
+      if (isAlt) {
+        target = { name: 'propertyListing', params: { type: 'rent', title: 'Rent Homes' } };
+        title = 'Rent Homes';
+      } else {
+        target = { name: 'propertyListing', params: { type: 'buy', title: 'Buy Properties' } };
+        title = 'Buy Properties';
+      }
     } else if (actionType === 'post') {
-      setTab('post');
+      target = { name: 'postProperty' };
+      title = 'Post Property';
     } else if (actionType === 'care' || actionType === 'agreements') {
-      push({ name: 'rentalAgreement' });
+      target = { name: 'rentalAgreement' };
+      title = 'Rental Agreement';
     } else if (actionType === 'loan') {
-      push({ name: 'homeLoan' });
+      target = { name: 'homeLoan' };
+      title = 'Home Loan';
     } else if (actionType === 'ventures') {
-      setTab('explore');
-    } else {
-      enterApp();
+      target = { name: 'explore' };
+      title = 'Ventures & Land';
     }
+
+    if (!isAuthenticated) {
+      requireAuth(undefined, target, title);
+      return;
+    }
+
+    if (actionType === 'post') setTab('post');
+    else if (actionType === 'ventures') setTab('explore');
+    else if (target.name === 'home') enterApp();
+    else push(target);
   };
 
   const handleServiceClick = (item: ServiceItem) => {
+    let target: ScreenState = { name: 'home' };
+    if (item.screen) {
+      target = { name: item.screen as any, params: item.params };
+    } else if (item.isTab) {
+      target = { name: item.isTab as any };
+    }
+
+    if (!isAuthenticated) {
+      requireAuth(undefined, target, item.label);
+      return;
+    }
+
     if (item.isTab) {
       setTab(item.isTab);
     } else if (item.screen) {
@@ -380,7 +427,7 @@ export default function LandingScreen() {
                 <View style={styles.cardIconBox}>
                   <House size={19} color={colors.textWhite} />
                 </View>
-                <TouchableOpacity onPress={() => push({ name: 'propertyListing', params: { type: 'buy', title: 'Buy Properties' } })}>
+                <TouchableOpacity onPress={() => handleNavigate({ name: 'propertyListing', params: { type: 'buy', title: 'Buy Properties' } }, 'Buy Properties')}>
                   <ArrowRight size={16} color="rgba(255,255,255,0.8)" />
                 </TouchableOpacity>
               </View>
@@ -390,7 +437,7 @@ export default function LandingScreen() {
               {/* Sub-Options Pills: Buy | Rent | Commercial in horizontal row */}
               <View style={styles.subOptionsContainerHorizontal}>
                 <TouchableOpacity
-                  onPress={() => push({ name: 'propertyListing', params: { type: 'buy', title: 'Buy Properties' } })}
+                  onPress={() => handleNavigate({ name: 'propertyListing', params: { type: 'buy', title: 'Buy Properties' } }, 'Buy Properties')}
                   style={styles.subOptionPillFlex}
                   activeOpacity={0.85}
                 >
@@ -399,7 +446,7 @@ export default function LandingScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => push({ name: 'propertyListing', params: { type: 'rent', title: 'Rent Homes' } })}
+                  onPress={() => handleNavigate({ name: 'propertyListing', params: { type: 'rent', title: 'Rent Homes' } }, 'Rent Homes')}
                   style={styles.subOptionPillFlex}
                   activeOpacity={0.85}
                 >
@@ -408,7 +455,7 @@ export default function LandingScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => push({ name: 'propertyListing', params: { type: 'commercial', title: 'Commercial Spaces' } })}
+                  onPress={() => handleNavigate({ name: 'propertyListing', params: { type: 'commercial', title: 'Commercial Spaces' } }, 'Commercial Spaces')}
                   style={styles.subOptionPillFlex}
                   activeOpacity={0.85}
                 >
