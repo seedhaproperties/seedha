@@ -114,7 +114,7 @@ export class AuthService {
   }
 
   async sendOtp(identifier: string) {
-    const trimmed = identifier.trim();
+    const trimmed = (identifier || '').trim();
     if (!trimmed) {
       throw new BadRequestException('Email or phone number is required');
     }
@@ -144,7 +144,7 @@ export class AuthService {
   }
 
   async verifyOtp(identifier: string, code: string) {
-    const trimmed = identifier.trim().toLowerCase();
+    const trimmed = (identifier || '').trim().toLowerCase();
     const entry = this.otpStore.get(trimmed);
 
     const isDemoCode = code === '123456';

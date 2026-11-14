@@ -1421,586 +1421,422 @@ export default function RentalAgreementScreen() {
           </View>
         )}
 
-        {/* Step 3: Parties (Landlord & Tenant Details) */}
-        {step === 'parties' && (
-          <View style={styles.contractContentPadding}>
-            {/* Card 1: Landlord details */}
-            <View style={styles.contractCard}>
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.cardIconBox}>
-                  <User size={20} color="#111827" strokeWidth={2} />
-                </View>
-                <View style={styles.cardHeaderTextCol}>
-                  <Text style={styles.cardMainTitle}>Landlord details</Text>
-                  <Text style={styles.cardSubtitle}>Property owner contact and identification</Text>
-                </View>
-              </View>
-              {/* Step 3: Parties (Landlord & Tenant Details Matching media_1794639492928_b8797c38.png) */}
-              {step === 'parties' && (() => {
-                const isLandlord = activePartyTab === 'landlord';
-                const currentList = isLandlord ? landlords : tenants;
-                const currentIndex = isLandlord ? activeLandlordIndex : activeTenantIndex;
-                const person = currentList[currentIndex] || currentList[0];
-                const personNumber = currentIndex + 1;
-                const roleLabel = isLandlord ? 'Landlord' : 'Tenant';
+        {/* Step 3: Parties (Landlord & Tenant Details Matching media_1794639492928_b8797c38.png) */}
+        {step === 'parties' && (() => {
+          const isLandlord = activePartyTab === 'landlord';
+          const currentList = isLandlord ? landlords : tenants;
+          const currentIndex = isLandlord ? activeLandlordIndex : activeTenantIndex;
+          const person = currentList[currentIndex] || currentList[0];
+          const personNumber = currentIndex + 1;
+          const roleLabel = isLandlord ? 'Landlord' : 'Tenant';
 
-                {/* Full name */ }
-                <View style={styles.contractField}>
-                  <Text style={styles.contractFieldLabel}>Owner full name *</Text>
-                  <TextInput
-                    style={styles.contractInput}
-                    value={ownerName}
-                    onChangeText={setOwnerName}
-                    placeholder="e.g. Rajeshwar Rao"
-                    placeholderTextColor="#9CA3AF"
+          return (
+            <View style={styles.contractContentPadding}>
+              {/* Landlord / Tenant Segmented Tab Capsule */}
+              <View style={styles.partyTabContainer}>
+                {/* Landlord Tab */}
+                <TouchableOpacity
+                  style={[
+                    styles.partyTab,
+                    isLandlord && styles.partyTabActive,
+                  ]}
+                  onPress={() => setActivePartyTab('landlord')}
+                  activeOpacity={0.85}
+                >
+                  <House
+                    size={18}
+                    color={isLandlord ? '#FFFFFF' : '#6B7280'}
+                    strokeWidth={2}
                   />
+                  <Text
+                    style={[
+                      styles.partyTabText,
+                      isLandlord && styles.partyTabTextActive,
+                    ]}
+                  >
+                    Landlord
+                  </Text>
+                  <View
+                    style={[
+                      styles.partyBadge,
+                      isLandlord && styles.partyBadgeActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.partyBadgeText,
+                        isLandlord && styles.partyBadgeTextActive,
+                      ]}
+                    >
+                      {landlords.length}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Tenant Tab */}
+                <TouchableOpacity
+                  style={[
+                    styles.partyTab,
+                    !isLandlord && styles.partyTabActive,
+                  ]}
+                  onPress={() => setActivePartyTab('tenant')}
+                  activeOpacity={0.85}
+                >
+                  <Users
+                    size={18}
+                    color={!isLandlord ? '#FFFFFF' : '#6B7280'}
+                    strokeWidth={2}
+                  />
+                  <Text
+                    style={[
+                      styles.partyTabText,
+                      !isLandlord && styles.partyTabTextActive,
+                    ]}
+                  >
+                    Tenant
+                  </Text>
+                  <View
+                    style={[
+                      styles.partyBadge,
+                      !isLandlord && styles.partyBadgeActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.partyBadgeText,
+                        !isLandlord && styles.partyBadgeTextActive,
+                      ]}
+                    >
+                      {tenants.length}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Sub-pills Row (e.g. 1 Landlord 1, 2 Landlord 2, + Add Landlord) */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.partySubPillsScroll}
+              >
+                {currentList.map((p, idx) => {
+                  const isSelected = idx === currentIndex;
                   return (
-                  <View style={styles.contractContentPadding}>
-                    {/* Landlord / Tenant Segmented Tab Capsule */}
-                    <View style={styles.partyTabContainer}>
-                      {/* Landlord Tab */}
-                      <TouchableOpacity
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.partySubPill,
+                        isSelected && styles.partySubPillActive,
+                      ]}
+                      onPress={() => {
+                        if (isLandlord) setActiveLandlordIndex(idx);
+                        else setActiveTenantIndex(idx);
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <View
                         style={[
-                          styles.partyTab,
-                          isLandlord && styles.partyTabActive,
+                          styles.partySubPillBadge,
+                          isSelected && styles.partySubPillBadgeActive,
                         ]}
-                        onPress={() => setActivePartyTab('landlord')}
-                        activeOpacity={0.85}
                       >
-                        <House
-                          size={18}
-                          color={isLandlord ? '#FFFFFF' : '#6B7280'}
-                          strokeWidth={2}
-                        />
                         <Text
                           style={[
-                            styles.partyTabText,
-                            isLandlord && styles.partyTabTextActive,
+                            styles.partySubPillBadgeText,
+                            isSelected && styles.partySubPillBadgeTextActive,
                           ]}
                         >
-                          Landlord
+                          {idx + 1}
                         </Text>
-                        <View
-                          style={[
-                            styles.partyBadge,
-                            isLandlord && styles.partyBadgeActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.partyBadgeText,
-                              isLandlord && styles.partyBadgeTextActive,
-                            ]}
-                          >
-                            {landlords.length}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-
-                      {/* Tenant Tab */}
-                      <TouchableOpacity
+                      </View>
+                      <Text
                         style={[
-                          styles.partyTab,
-                          !isLandlord && styles.partyTabActive,
+                          styles.partySubPillText,
+                          isSelected && styles.partySubPillTextActive,
                         ]}
-                        onPress={() => setActivePartyTab('tenant')}
-                        activeOpacity={0.85}
                       >
-                        <Users
-                          size={18}
-                          color={!isLandlord ? '#FFFFFF' : '#6B7280'}
-                          strokeWidth={2}
-                        />
-                        <Text
-                          style={[
-                            styles.partyTabText,
-                            !isLandlord && styles.partyTabTextActive,
-                          ]}
-                        >
-                          Tenant
-                        </Text>
-                        <View
-                          style={[
-                            styles.partyBadge,
-                            !isLandlord && styles.partyBadgeActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.partyBadgeText,
-                              !isLandlord && styles.partyBadgeTextActive,
-                            ]}
-                          >
-                            {tenants.length}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    </View>
+                        {roleLabel} {idx + 1}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
 
-                    {/* Phone & Email */}
-                    <View style={styles.contractTwoCol}>
-                      <View style={styles.colHalf}>
-                        <Text style={styles.contractFieldLabel}>Phone number *</Text>
-                        {/* Sub-pills Row (e.g. 1 Landlord 1, 2 Landlord 2, + Add Landlord) */}
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.partySubPillsScroll}
-                        >
-                          {currentList.map((p, idx) => {
-                            const isSelected = idx === currentIndex;
+                {/* + Add Landlord / Tenant Button */}
+                <TouchableOpacity
+                  style={styles.partyAddPill}
+                  onPress={() => handleAddPerson(isLandlord ? 'landlord' : 'tenant')}
+                  activeOpacity={0.85}
+                >
+                  <Plus size={14} color="#111827" strokeWidth={2.5} />
+                  <Text style={styles.partyAddPillText}>Add {roleLabel}</Text>
+                </TouchableOpacity>
+              </ScrollView>
+
+              {/* Form Card for the Selected Person */}
+              <View style={styles.partyCard}>
+                {/* Header: "Landlord 2 details" & "Remove" */}
+                <View style={styles.partyCardHeader}>
+                  <Text style={styles.partyCardTitle}>
+                    {roleLabel} {personNumber} details
+                  </Text>
+                  {currentList.length > 1 && (
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleRemovePerson(isLandlord ? 'landlord' : 'tenant', currentIndex)
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.partyRemoveText}>Remove</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Full name */}
+                <View style={styles.partyField}>
+                  <Text style={styles.partyFieldLabel}>Full name</Text>
+                  <TextInput
+                    style={styles.partyInput}
+                    placeholder="As per ID proof"
+                    placeholderTextColor="#9CA3AF"
+                    value={person?.fullName || ''}
+                    onChangeText={val =>
+                      handleUpdatePerson(
+                        isLandlord ? 'landlord' : 'tenant',
+                        currentIndex,
+                        'fullName',
+                        val
+                      )
+                    }
+                  />
+                </View>
+
+                {/* Phone number with +91 prefix */}
+                <View style={styles.partyField}>
+                  <Text style={styles.partyFieldLabel}>Phone number</Text>
+                  <View style={styles.phoneInputWrap}>
+                    <Text style={styles.phonePrefix}>+91</Text>
+                    <TextInput
+                      style={styles.phoneInput}
+                      placeholder="10-digit number"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                      value={person?.phone || ''}
+                      onChangeText={val =>
+                        handleUpdatePerson(
+                          isLandlord ? 'landlord' : 'tenant',
+                          currentIndex,
+                          'phone',
+                          val
+                        )
+                      }
+                    />
+                  </View>
+                </View>
+
+                {/* Email address */}
+                <View style={styles.partyField}>
+                  <Text style={styles.partyFieldLabel}>Email address</Text>
+                  <TextInput
+                    style={styles.partyInput}
+                    placeholder="name@email.com"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={person?.email || ''}
+                    onChangeText={val =>
+                      handleUpdatePerson(
+                        isLandlord ? 'landlord' : 'tenant',
+                        currentIndex,
+                        'email',
+                        val
+                      )
+                    }
+                  />
+                </View>
+
+                {/* Yellow Callout Banner */}
+                <View style={styles.partyCallout}>
+                  <Clock size={16} color="#92400E" strokeWidth={2} />
+                  <Text style={styles.partyCalloutText}>
+                    Agreement updates will be sent to this phone number and email.
+                  </Text>
+                </View>
+
+                {/* Full permanent address */}
+                <View style={styles.partyField}>
+                  <Text style={styles.partyFieldLabel}>Full permanent address</Text>
+                  <TextInput
+                    style={styles.partyInput}
+                    placeholder="House no., street, area, city"
+                    placeholderTextColor="#9CA3AF"
+                    value={person?.address || ''}
+                    onChangeText={val =>
+                      handleUpdatePerson(
+                        isLandlord ? 'landlord' : 'tenant',
+                        currentIndex,
+                        'address',
+                        val
+                      )
+                    }
+                  />
+                </View>
+
+                {/* PIN code */}
+                <View style={styles.partyField}>
+                  <Text style={styles.partyFieldLabel}>PIN code</Text>
+                  <TextInput
+                    style={styles.partyInput}
+                    placeholder="6 digits"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                    maxLength={6}
+                    value={person?.pincode || ''}
+                    onChangeText={val =>
+                      handleUpdatePerson(
+                        isLandlord ? 'landlord' : 'tenant',
+                        currentIndex,
+                        'pincode',
+                        val
+                      )
+                    }
+                  />
+                </View>
+
+                {/* Accordion: "More about this landlord" */}
+                <TouchableOpacity
+                  style={styles.partyAccordionHeader}
+                  onPress={() =>
+                    handleUpdatePerson(
+                      isLandlord ? 'landlord' : 'tenant',
+                      currentIndex,
+                      'isExpanded',
+                      !person?.isExpanded
+                    )
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.partyAccordionTitle}>
+                    More about this {roleLabel.toLowerCase()}
+                  </Text>
+                  {person?.isExpanded ? (
+                    <ChevronUp size={18} color="#475569" strokeWidth={2} />
+                  ) : (
+                    <ChevronDown size={18} color="#475569" strokeWidth={2} />
+                  )}
+                </TouchableOpacity>
+
+                {/* Accordion Body */}
+                {person?.isExpanded && (
+                  <View style={styles.partyAccordionBody}>
+                    {/* Age and Gender in a two-column row */}
+                    <View style={styles.partyTwoCol}>
+                      {/* Age */}
+                      <View style={styles.colAge}>
+                        <Text style={styles.partyFieldLabel}>Age</Text>
+                        <TextInput
+                          style={styles.partyInput}
+                          placeholder="Years"
+                          placeholderTextColor="#9CA3AF"
+                          keyboardType="numeric"
+                          maxLength={3}
+                          value={person?.age || ''}
+                          onChangeText={val =>
+                            handleUpdatePerson(
+                              isLandlord ? 'landlord' : 'tenant',
+                              currentIndex,
+                              'age',
+                              val
+                            )
+                          }
+                        />
+                      </View>
+
+                      {/* Gender */}
+                      <View style={styles.colGender}>
+                        <Text style={styles.partyFieldLabel}>Gender</Text>
+                        <View style={styles.genderPillsRow}>
+                          {['M', 'F', 'Other'].map(gen => {
+                            const isGenSelected = person?.gender === gen;
                             return (
                               <TouchableOpacity
-                                key={idx}
+                                key={gen}
                                 style={[
-                                  styles.partySubPill,
-                                  isSelected && styles.partySubPillActive,
+                                  styles.genderPill,
+                                  isGenSelected && styles.genderPillActive,
                                 ]}
-                                onPress={() => {
-                                  if (isLandlord) setActiveLandlordIndex(idx);
-                                  else setActiveTenantIndex(idx);
-                                }}
+                                onPress={() =>
+                                  handleUpdatePerson(
+                                    isLandlord ? 'landlord' : 'tenant',
+                                    currentIndex,
+                                    'gender',
+                                    gen
+                                  )
+                                }
                                 activeOpacity={0.85}
                               >
-                                <View
-                                  style={[
-                                    styles.partySubPillBadge,
-                                    isSelected && styles.partySubPillBadgeActive,
-                                  ]}
-                                >
-                                  <Text
-                                    style={[
-                                      styles.partySubPillBadgeText,
-                                      isSelected && styles.partySubPillBadgeTextActive,
-                                    ]}
-                                  >
-                                    {idx + 1}
-                                  </Text>
-                                </View>
                                 <Text
                                   style={[
-                                    styles.partySubPillText,
-                                    isSelected && styles.partySubPillTextActive,
+                                    styles.genderPillText,
+                                    isGenSelected && styles.genderPillTextActive,
                                   ]}
                                 >
-                                  {roleLabel} {idx + 1}
+                                  {gen}
                                 </Text>
                               </TouchableOpacity>
                             );
                           })}
-
-                          {/* + Add Landlord / Tenant Button */}
-                          <TouchableOpacity
-                            style={styles.partyAddPill}
-                            onPress={() => handleAddPerson(isLandlord ? 'landlord' : 'tenant')}
-                            activeOpacity={0.85}
-                          >
-                            <Plus size={14} color="#111827" strokeWidth={2.5} />
-                            <Text style={styles.partyAddPillText}>Add {roleLabel}</Text>
-                          </TouchableOpacity>
-                        </ScrollView>
-
-                        {/* Form Card for the Selected Person */}
-                        <View style={styles.partyCard}>
-                          {/* Header: "Landlord 2 details" & "Remove" */}
-                          <View style={styles.partyCardHeader}>
-                            <Text style={styles.partyCardTitle}>
-                              {roleLabel} {personNumber} details
-                            </Text>
-                            {currentList.length > 1 && (
-                              <TouchableOpacity
-                                onPress={() =>
-                                  handleRemovePerson(isLandlord ? 'landlord' : 'tenant', currentIndex)
-                                }
-                                activeOpacity={0.7}
-                              >
-                                <Text style={styles.partyRemoveText}>Remove</Text>
-                              </TouchableOpacity>
-                            )}
-                          </View>
-
-                          {/* Full name */}
-                          <View style={styles.partyField}>
-                            <Text style={styles.partyFieldLabel}>Full name</Text>
-                            <TextInput
-                              style={styles.contractInput}
-                              value={ownerPhone}
-                              onChangeText={setOwnerPhone}
-                              placeholder="e.g. 98490 12345"
-                              keyboardType="phone-pad"
-                              style={styles.partyInput}
-                              placeholder="As per ID proof"
-                              placeholderTextColor="#9CA3AF"
-                              value={person?.fullName || ''}
-                              onChangeText={val =>
-                                handleUpdatePerson(
-                                  isLandlord ? 'landlord' : 'tenant',
-                                  currentIndex,
-                                  'fullName',
-                                  val
-                                )
-                              }
-                            />
-                          </View>
-                          <View style={styles.colHalf}>
-                            <Text style={styles.contractFieldLabel}>Email address</Text>
-
-                            {/* Phone number with +91 prefix */}
-                            <View style={styles.partyField}>
-                              <Text style={styles.partyFieldLabel}>Phone number</Text>
-                              <View style={styles.phoneInputWrap}>
-                                <Text style={styles.phonePrefix}>+91</Text>
-                                <TextInput
-                                  style={styles.phoneInput}
-                                  placeholder="10-digit number"
-                                  placeholderTextColor="#9CA3AF"
-                                  keyboardType="phone-pad"
-                                  maxLength={10}
-                                  value={person?.phone || ''}
-                                  onChangeText={val =>
-                                    handleUpdatePerson(
-                                      isLandlord ? 'landlord' : 'tenant',
-                                      currentIndex,
-                                      'phone',
-                                      val
-                                    )
-                                  }
-                                />
-                              </View>
-                            </View>
-
-                            {/* Email address */}
-                            <View style={styles.partyField}>
-                              <Text style={styles.partyFieldLabel}>Email address</Text>
-                              <TextInput
-                                style={styles.contractInput}
-                                value={ownerEmail}
-                                onChangeText={setOwnerEmail}
-                                placeholder="e.g. owner@email.com"
-                                style={styles.partyInput}
-                                placeholder="name@email.com"
-                                placeholderTextColor="#9CA3AF"
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                placeholderTextColor="#9CA3AF"
-                                value={person?.email || ''}
-                                onChangeText={val =>
-                                  handleUpdatePerson(
-                                    isLandlord ? 'landlord' : 'tenant',
-                                    currentIndex,
-                                    'email',
-                                    val
-                                  )
-                                }
-                              />
-                            </View>
-                          </View>
-
-                          {/* PAN / ID */}
-                          <View style={styles.contractField}>
-                            <Text style={styles.contractFieldLabel}>PAN / Government ID (optional)</Text>
-                            <TextInput
-                              style={styles.contractInput}
-                              value={ownerPan}
-                              onChangeText={setOwnerPan}
-                              placeholder="e.g. ABCDE1234F"
-                              autoCapitalize="characters"
-                              placeholderTextColor="#9CA3AF"
-                            />
-                          </View>
-
-                          {/* Current address */}
-                          <View style={styles.contractField}>
-                            <Text style={styles.contractFieldLabel}>Current address (optional)</Text>
-                            <TextInput
-                              style={styles.contractInput}
-                              value={ownerAddress}
-                              onChangeText={setOwnerAddress}
-                              placeholder="House/Flat, Street, Area, City"
-                              placeholderTextColor="#9CA3AF"
-                            />
-                          </View>
                         </View>
+                      </View>
+                    </View>
 
-                        {/* Card 2: Tenant details */}
-                        <View style={styles.contractCard}>
-                          <View style={styles.cardHeaderRow}>
-                            <View style={styles.cardIconBox}>
-                              <Users size={20} color="#111827" strokeWidth={2} />
-                              {/* Yellow Callout Banner */}
-                              <View style={styles.partyCallout}>
-                                <Clock size={16} color="#92400E" strokeWidth={2} />
-                                <Text style={styles.partyCalloutText}>
-                                  Agreement updates will be sent to this phone number and email.
-                                </Text>
-                              </View>
-                              <View style={styles.cardHeaderTextCol}>
-                                <Text style={styles.cardMainTitle}>Tenant details</Text>
-                                <Text style={styles.cardSubtitle}>Contact details of tenant staying in property</Text>
-                              </View>
-                            </View>
+                    {/* PAN */}
+                    <View style={styles.partyField}>
+                      <Text style={styles.partyFieldLabel}>PAN</Text>
+                      <TextInput
+                        style={styles.partyInput}
+                        placeholder="ABCDE1234F"
+                        placeholderTextColor="#9CA3AF"
+                        autoCapitalize="characters"
+                        maxLength={10}
+                        value={person?.pan || ''}
+                        onChangeText={val =>
+                          handleUpdatePerson(
+                            isLandlord ? 'landlord' : 'tenant',
+                            currentIndex,
+                            'pan',
+                            val
+                          )
+                        }
+                      />
+                    </View>
 
-                            {/* Full name */}
-                            <View style={styles.contractField}>
-                              <Text style={styles.contractFieldLabel}>Tenant full name *</Text>
-                              <TextInput
-                                style={styles.contractInput}
-                                value={tenantName}
-                                onChangeText={setTenantName}
-                                placeholder="e.g. Rahul Sharma"
-                                placeholderTextColor="#9CA3AF"
-                              />
-                            </View>
-
-                            {/* Phone & Email */}
-                            <View style={styles.contractTwoCol}>
-                              <View style={styles.colHalf}>
-                                <Text style={styles.contractFieldLabel}>Phone number *</Text>
-                                {/* Full permanent address */}
-                                <View style={styles.partyField}>
-                                  <Text style={styles.partyFieldLabel}>Full permanent address</Text>
-                                  <TextInput
-                                    style={styles.contractInput}
-                                    value={tenantPhone}
-                                    onChangeText={setTenantPhone}
-                                    placeholder="e.g. 98765 43210"
-                                    keyboardType="phone-pad"
-                                    style={styles.partyInput}
-                                    placeholder="House no., street, area, city"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={person?.address || ''}
-                                    onChangeText={val =>
-                                      handleUpdatePerson(
-                                        isLandlord ? 'landlord' : 'tenant',
-                                        currentIndex,
-                                        'address',
-                                        val
-                                      )
-                                    }
-                                  />
-                                </View>
-                                <View style={styles.colHalf}>
-                                  <Text style={styles.contractFieldLabel}>Email address</Text>
-
-                                  {/* PIN code */}
-                                  <View style={styles.partyField}>
-                                    <Text style={styles.partyFieldLabel}>PIN code</Text>
-                                    <TextInput
-                                      style={styles.contractInput}
-                                      value={tenantEmail}
-                                      onChangeText={setTenantEmail}
-                                      placeholder="e.g. rahul@email.com"
-                                      keyboardType="email-address"
-                                      autoCapitalize="none"
-                                      style={styles.partyInput}
-                                      placeholder="6 digits"
-                                      placeholderTextColor="#9CA3AF"
-                                      keyboardType="numeric"
-                                      maxLength={6}
-                                      value={person?.pincode || ''}
-                                      onChangeText={val =>
-                                        handleUpdatePerson(
-                                          isLandlord ? 'landlord' : 'tenant',
-                                          currentIndex,
-                                          'pincode',
-                                          val
-                                        )
-                                      }
-                                    />
-                                  </View>
-                                </View>
-
-                                {/* Permanent residential address */}
-                                <View style={styles.contractField}>
-                                  <Text style={styles.contractFieldLabel}>Permanent residential address *</Text>
-                                  <TextInput
-                                    style={styles.contractInput}
-                                    value={tenantAddress}
-                                    onChangeText={setTenantAddress}
-                                    placeholder="e.g. H.No 12-4, Ameerpet, Hyderabad"
-                                    placeholderTextColor="#9CA3AF"
-                                  />
-                                </View>
-                                {/* Accordion: "More about this landlord" */}
-                                <TouchableOpacity
-                                  style={styles.partyAccordionHeader}
-                                  onPress={() =>
-                                    handleUpdatePerson(
-                                      isLandlord ? 'landlord' : 'tenant',
-                                      currentIndex,
-                                      'isExpanded',
-                                      !person?.isExpanded
-                                    )
-                                  }
-                                  activeOpacity={0.8}
-                                >
-                                  <Text style={styles.partyAccordionTitle}>
-                                    More about this {roleLabel.toLowerCase()}
-                                  </Text>
-                                  {person?.isExpanded ? (
-                                    <ChevronUp size={18} color="#475569" strokeWidth={2} />
-                                  ) : (
-                                    <ChevronDown size={18} color="#475569" strokeWidth={2} />
-                                  )}
-                                </TouchableOpacity>
-
-                                {/* Aadhaar / ID Number */}
-                                <View style={styles.contractField}>
-                                  <Text style={styles.contractFieldLabel}>Aadhaar / ID number (optional)</Text>
-                                  <TextInput
-                                    style={styles.contractInput}
-                                    value={tenantAadhaar}
-                                    onChangeText={setTenantAadhaar}
-                                    placeholder="e.g. 12-digit Aadhaar / Voter ID"
-                                    keyboardType="numeric"
-                                    placeholderTextColor="#9CA3AF"
-                                  />
-                                </View>
-                              </View>
-                              {/* Accordion Body */}
-                              {person?.isExpanded && (
-                                <View style={styles.partyAccordionBody}>
-                                  {/* Age and Gender in a two-column row */}
-                                  <View style={styles.partyTwoCol}>
-                                    {/* Age */}
-                                    <View style={styles.colAge}>
-                                      <Text style={styles.partyFieldLabel}>Age</Text>
-                                      <TextInput
-                                        style={styles.partyInput}
-                                        placeholder="Years"
-                                        placeholderTextColor="#9CA3AF"
-                                        keyboardType="numeric"
-                                        maxLength={3}
-                                        value={person?.age || ''}
-                                        onChangeText={val =>
-                                          handleUpdatePerson(
-                                            isLandlord ? 'landlord' : 'tenant',
-                                            currentIndex,
-                                            'age',
-                                            val
-                                          )
-                                        }
-                                      />
-                                    </View>
-
-                                    {/* Card 3: Digital Signing & Verification Notice */}
-                                    <View style={styles.contractCard}>
-                                      <View style={styles.cardHeaderRow}>
-                                        <View style={[styles.cardIconBox, { backgroundColor: '#ECFDF5' }]}>
-                                          <ShieldCheck size={20} color="#059669" strokeWidth={2} />
-                                        </View>
-                                        <View style={styles.cardHeaderTextCol}>
-                                          <Text style={styles.cardMainTitle}>Aadhaar e-Sign Verification</Text>
-                                          <Text style={styles.cardSubtitle}>100% legal digital execution</Text>
-                                        </View>
-                                      </View>
-                                      {/* Gender */}
-                                      <View style={styles.colGender}>
-                                        <Text style={styles.partyFieldLabel}>Gender</Text>
-                                        <View style={styles.genderPillsRow}>
-                                          {['M', 'F', 'Other'].map(gen => {
-                                            const isGenSelected = person?.gender === gen;
-                                            return (
-                                              <TouchableOpacity
-                                                key={gen}
-                                                style={[
-                                                  styles.genderPill,
-                                                  isGenSelected && styles.genderPillActive,
-                                                ]}
-                                                onPress={() =>
-                                                  handleUpdatePerson(
-                                                    isLandlord ? 'landlord' : 'tenant',
-                                                    currentIndex,
-                                                    'gender',
-                                                    gen
-                                                  )
-                                                }
-                                                activeOpacity={0.85}
-                                              >
-                                                <Text
-                                                  style={[
-                                                    styles.genderPillText,
-                                                    isGenSelected && styles.genderPillTextActive,
-                                                  ]}
-                                                >
-                                                  {gen}
-                                                </Text>
-                                              </TouchableOpacity>
-                                            );
-                                          })}
-                                        </View>
-                                      </View>
-                                    </View>
-
-                                    <View style={styles.eSignNoticeBox}>
-                                      <View style={styles.eSignStepRow}>
-                                        <View style={styles.eSignDot} />
-                                        <Text style={styles.eSignText}>
-                                          Both parties receive digital signing links on SMS & WhatsApp
-                                        </Text>
-                                      </View>
-                                      <View style={styles.eSignStepRow}>
-                                        <View style={styles.eSignDot} />
-                                        <Text style={styles.eSignText}>
-                                          Sign electronically via Aadhaar OTP in under 2 minutes
-                                        </Text>
-                                      </View>
-                                      <View style={styles.eSignStepRow}>
-                                        <View style={styles.eSignDot} />
-                                        <Text style={styles.eSignText}>
-                                          Legally valid across India under the Information Technology Act, 2000
-                                        </Text>
-                                      </View>
-                                      {/* PAN */}
-                                      <View style={styles.partyField}>
-                                        <Text style={styles.partyFieldLabel}>PAN</Text>
-                                        <TextInput
-                                          style={styles.partyInput}
-                                          placeholder="ABCDE1234F"
-                                          placeholderTextColor="#9CA3AF"
-                                          autoCapitalize="characters"
-                                          maxLength={10}
-                                          value={person?.pan || ''}
-                                          onChangeText={val =>
-                                            handleUpdatePerson(
-                                              isLandlord ? 'landlord' : 'tenant',
-                                              currentIndex,
-                                              'pan',
-                                              val
-                                            )
-                                          }
-                                        />
-                                      </View>
-
-                                      {/* Aadhar */}
-                                      <View style={styles.partyField}>
-                                        <Text style={styles.partyFieldLabel}>Aadhar</Text>
-                                        <TextInput
-                                          style={styles.partyInput}
-                                          placeholder="12-digit number"
-                                          placeholderTextColor="#9CA3AF"
-                                          keyboardType="numeric"
-                                          maxLength={12}
-                                          value={person?.aadhaar || ''}
-                                          onChangeText={val =>
-                                            handleUpdatePerson(
-                                              isLandlord ? 'landlord' : 'tenant',
-                                              currentIndex,
-                                              'aadhaar',
-                                              val
-                                            )
-                                          }
-                                        />
-                                      </View>
-                                    </View>
+                    {/* Aadhar */}
+                    <View style={styles.partyField}>
+                      <Text style={styles.partyFieldLabel}>Aadhar</Text>
+                      <TextInput
+                        style={styles.partyInput}
+                        placeholder="12-digit number"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="numeric"
+                        maxLength={12}
+                        value={person?.aadhaar || ''}
+                        onChangeText={val =>
+                          handleUpdatePerson(
+                            isLandlord ? 'landlord' : 'tenant',
+                            currentIndex,
+                            'aadhaar',
+                            val
+                          )
+                        }
+                      />
+                    </View>
+                  </View>
                 )}
-                                  </View>
-                                </View>
-          </View>
-        )}
-                            );
+              </View>
+            </View>
+          );
         })()}
-
                             {/* Step 1: Owner / Tenant Role Selection & Click Rental Agreements */}
                             {step === 'role' && (
                               <View style={styles.contentPadding}>
