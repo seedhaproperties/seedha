@@ -20,7 +20,7 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   async register(dto: RegisterDto) {
     const existing = mockDb.users.find(

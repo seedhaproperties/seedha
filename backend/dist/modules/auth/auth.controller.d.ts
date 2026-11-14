@@ -2,10 +2,13 @@ import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 declare class SendOtpDto {
-    identifier: string;
+    identifier?: string;
+    phone?: string;
+    email?: string;
 }
 declare class VerifyOtpDto {
-    identifier: string;
+    identifier?: string;
+    phone?: string;
     otp: string;
 }
 declare class ForgotPasswordDto {

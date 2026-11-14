@@ -50,7 +50,7 @@ class ForgotPasswordDto {
 @ApiTags('Authentication')
 @Controller('api/v1/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new customer, owner, or staff (sends welcome email via SMTP)' })

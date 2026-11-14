@@ -12,27 +12,55 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 import { Controller, Post, Body, Get, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiProperty } from '@nestjs/swagger';
+import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 class SendOtpDto {
     identifier;
+    phone;
+    email;
 }
 __decorate([
     ApiProperty({ example: 'rahul@example.com', description: 'Email address or mobile number' }),
+    IsOptional(),
+    IsString(),
     __metadata("design:type", String)
 ], SendOtpDto.prototype, "identifier", void 0);
+__decorate([
+    ApiProperty({ example: '+919876543210', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], SendOtpDto.prototype, "phone", void 0);
+__decorate([
+    ApiProperty({ example: 'rahul@example.com', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], SendOtpDto.prototype, "email", void 0);
 class VerifyOtpDto {
     identifier;
+    phone;
     otp;
 }
 __decorate([
     ApiProperty({ example: 'rahul@example.com' }),
+    IsOptional(),
+    IsString(),
     __metadata("design:type", String)
 ], VerifyOtpDto.prototype, "identifier", void 0);
 __decorate([
+    ApiProperty({ example: '+919876543210', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], VerifyOtpDto.prototype, "phone", void 0);
+__decorate([
     ApiProperty({ example: '123456' }),
+    IsNotEmpty(),
+    IsString(),
     __metadata("design:type", String)
 ], VerifyOtpDto.prototype, "otp", void 0);
 class ForgotPasswordDto {
@@ -40,6 +68,8 @@ class ForgotPasswordDto {
 }
 __decorate([
     ApiProperty({ example: 'rahul@example.com' }),
+    IsNotEmpty(),
+    IsString(),
     __metadata("design:type", String)
 ], ForgotPasswordDto.prototype, "email", void 0);
 let AuthController = class AuthController {
@@ -54,10 +84,12 @@ let AuthController = class AuthController {
         return this.authService.login(dto);
     }
     async sendOtp(dto) {
-        return this.authService.sendOtp(dto.identifier);
+        const id = dto.identifier || dto.phone || dto.email || '';
+        return this.authService.sendOtp(id);
     }
     async verifyOtp(dto) {
-        return this.authService.verifyOtp(dto.identifier, dto.otp);
+        const id = dto.identifier || dto.phone || '';
+        return this.authService.verifyOtp(id, dto.otp);
     }
     async forgotPassword(dto) {
         return this.authService.forgotPassword(dto.email);

@@ -97,7 +97,7 @@ let AuthService = AuthService_1 = class AuthService {
         };
     }
     async sendOtp(identifier) {
-        const trimmed = identifier.trim();
+        const trimmed = (identifier || '').trim();
         if (!trimmed) {
             throw new BadRequestException('Email or phone number is required');
         }
@@ -121,7 +121,7 @@ let AuthService = AuthService_1 = class AuthService {
         };
     }
     async verifyOtp(identifier, code) {
-        const trimmed = identifier.trim().toLowerCase();
+        const trimmed = (identifier || '').trim().toLowerCase();
         const entry = this.otpStore.get(trimmed);
         const isDemoCode = code === '123456';
         const isValid = (entry && entry.otp === code && Date.now() <= entry.expiresAt) || isDemoCode;
