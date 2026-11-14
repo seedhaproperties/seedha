@@ -12,14 +12,14 @@ import {
   SafeAreaView,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { ChevronLeft, Sparkles, RefreshCw, Phone } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Sparkles, RefreshCw, Phone, User, Mail, Lock, ShieldCheck, CheckCircle2 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import SeedhaLogo from '../../components/SeedhaLogo';
 import { api } from '../../services/api';
 
-function GoogleIcon() {
+function GoogleIcon({ size = 20 }: { size?: number }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24">
+    <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
         fill="#4285F4"
@@ -40,9 +40,9 @@ function GoogleIcon() {
   );
 }
 
-function AppleIcon() {
+function AppleIcon({ size = 20 }: { size?: number }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="#000000">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="#000000">
       <Path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.67-.82 1.12-1.96.99-3.1-.97.04-2.14.65-2.83 1.46-.61.71-1.15 1.87-1.01 2.98 1.08.08 2.19-.53 2.85-1.34z" />
     </Svg>
   );
@@ -52,7 +52,8 @@ export default function MobileLoginScreen() {
   const { currentScreen, cancelAuth, completeAuth } = useApp();
   const initialMode = currentScreen.name === 'signup' ? 'signup' : 'signin';
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [step, setStep] = useState<'phone' | 'otp' | 'apple' | 'google'>('phone');
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -83,6 +84,10 @@ export default function MobileLoginScreen() {
 
   const handleSendOtp = async (inputPhone?: string) => {
     const targetPhone = inputPhone ?? phone;
+    if (mode === 'signup' && !fullName.trim()) {
+      setErrorMessage('Please enter your full name');
+      return;
+    }
     if (targetPhone.length !== 10) {
       setErrorMessage('Please enter a valid 10-digit mobile number');
       return;
@@ -123,8 +128,8 @@ export default function MobileLoginScreen() {
       completeAuth(
         {
           id: `usr_${provider.toLowerCase()}_${Date.now()}`,
-          name: `Verified ${provider} User`,
-          phone: '+91 98765 43210',
+          name: fullName.trim() || `Verified ${provider} User`,
+          phone: phone ? `+91 ${phone}` : '+91 98765 43210',
           email: `${provider.toLowerCase()}.user@seedhaproperties.com`,
           city: 'Hyderabad',
           role: 'USER',
@@ -132,6 +137,48 @@ export default function MobileLoginScreen() {
         `token_${provider.toLowerCase()}_verified`
       );
     }, 600);
+  };
+
+  const handleAppleSignIn = (
+    accountName = 'Rahul Sharma',
+    accountEmail = 'rahul.sharma@privaterelay.appleid.com'
+  ) => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      completeAuth(
+        {
+          id: `usr_apple_${Date.now()}`,
+          name: accountName,
+          phone: phone ? `+91 ${phone}` : '+91 98490 12345',
+          email: accountEmail,
+          city: 'Hyderabad',
+          role: 'USER',
+        },
+        'token_apple_verified_jwt'
+      );
+    }, 500);
+  };
+
+  const handleGoogleSignIn = (
+    accountName = 'Rahul Sharma',
+    accountEmail = 'rahul@gmail.com'
+  ) => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      completeAuth(
+        {
+          id: `usr_google_${Date.now()}`,
+          name: accountName,
+          phone: phone ? `+91 ${phone}` : '+91 98490 12345',
+          email: accountEmail,
+          city: 'Hyderabad',
+          role: 'USER',
+        },
+        'token_google_verified_jwt'
+      );
+    }, 500);
   };
 
   const handleDigitChange = (index: number, val: string) => {
@@ -183,12 +230,15 @@ export default function MobileLoginScreen() {
       const res = await api.auth.verifyOtp(fullIdentifier, otpCode);
       setLoading(false);
       if (res?.user) {
-        completeAuth(res.user, res.accessToken || res.token);
+        completeAuth(
+          fullName.trim() ? { ...res.user, name: fullName.trim() } : res.user,
+          res.accessToken || res.token
+        );
       } else {
         completeAuth(
           {
             id: `usr_${phone}`,
-            name: mode === 'signup' ? 'New Property User' : 'Verified User',
+            name: fullName.trim() || (mode === 'signup' ? 'New Property User' : 'Verified User'),
             phone: `+91 ${phone}`,
             email: `user_${phone.slice(-4)}@seedhaproperties.com`,
             city: 'Hyderabad',
@@ -204,7 +254,7 @@ export default function MobileLoginScreen() {
         completeAuth(
           {
             id: `usr_${phone || 'demo'}`,
-            name: mode === 'signup' ? 'New Property User' : 'Verified User',
+            name: fullName.trim() || (mode === 'signup' ? 'New Property User' : 'Verified User'),
             phone: `+91 ${phone || '9876543210'}`,
             email: `user_${(phone || '5678').slice(-4)}@seedhaproperties.com`,
             city: 'Hyderabad',
@@ -231,15 +281,28 @@ export default function MobileLoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Top Row: Back Button */}
-          <View style={styles.topBar}>
-            <TouchableOpacity
-              onPress={step === 'otp' ? () => setStep('phone') : cancelAuth}
-              style={styles.backButton}
-              activeOpacity={0.8}
-            >
-              <ChevronLeft size={22} color="#0F172A" strokeWidth={2.4} />
-            </TouchableOpacity>
-          </View>
+          {step === 'apple' || step === 'google' ? (
+            <View style={styles.topBarBetween}>
+              <TouchableOpacity
+                onPress={() => setStep('phone')}
+                style={styles.backButton}
+                activeOpacity={0.8}
+              >
+                <ChevronLeft size={22} color="#0F172A" strokeWidth={2.4} />
+              </TouchableOpacity>
+              <SeedhaLogo size="sm" />
+            </View>
+          ) : (
+            <View style={styles.topBar}>
+              <TouchableOpacity
+                onPress={step === 'otp' ? () => setStep('phone') : cancelAuth}
+                style={styles.backButton}
+                activeOpacity={0.8}
+              >
+                <ChevronLeft size={22} color="#0F172A" strokeWidth={2.4} />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Logo - only on Phone Sign In / Sign Up step */}
           {step === 'phone' && (
@@ -253,13 +316,34 @@ export default function MobileLoginScreen() {
             <View style={styles.formContent}>
               {/* Headings */}
               <Text style={styles.heading}>
-                {mode === 'signin' ? 'Welcome back' : 'Create Account'}
+                {mode === 'signin' ? 'Welcome back' : 'Create your account'}
               </Text>
               <Text style={styles.subHeading}>
                 {mode === 'signin'
                   ? 'Sign in to continue your property journey.'
-                  : 'Sign up to continue your property journey.'}
+                  : 'Join Seedha Properties and make your property journey easier.'}
               </Text>
+
+              {/* Full Name Field (only on Create your account) */}
+              {mode === 'signup' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Full Name</Text>
+                  <View style={styles.nameInputRow}>
+                    <User size={18} color="#94A3B8" strokeWidth={2} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.nameTextInput}
+                      placeholder="Enter your full name"
+                      placeholderTextColor="#94A3B8"
+                      value={fullName}
+                      onChangeText={(text) => {
+                        setFullName(text);
+                        if (errorMessage) setErrorMessage(null);
+                      }}
+                      autoFocus
+                    />
+                  </View>
+                </View>
+              )}
 
               {/* Mobile Number Label */}
               <Text style={styles.inputLabel}>Mobile Number</Text>
@@ -284,81 +368,222 @@ export default function MobileLoginScreen() {
                   maxLength={10}
                   value={phone}
                   onChangeText={handlePhoneChange}
-                  autoFocus
+                  autoFocus={mode === 'signin'}
                 />
               </View>
 
+              {/* Helper text on Signup */}
+              {mode === 'signup' && (
+                <Text style={styles.phoneHelperText}>
+                  We'll send a verification code to this number
+                </Text>
+              )}
+
               {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
-              {/* Continue Button */}
+              {/* Action Button: Send OTP / Continue */}
               <TouchableOpacity
                 onPress={() => handleSendOtp()}
-                disabled={loading || phone.length !== 10}
+                disabled={
+                  loading ||
+                  phone.length !== 10 ||
+                  (mode === 'signup' && !fullName.trim())
+                }
                 style={[
                   styles.continueBtn,
-                  phone.length !== 10 && styles.continueBtnDisabled,
+                  (phone.length !== 10 || (mode === 'signup' && !fullName.trim())) &&
+                    styles.continueBtnDisabled,
                 ]}
                 activeOpacity={0.88}
               >
                 {loading ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.continueBtnText}>Continue</Text>
+                  <Text style={styles.continueBtnText}>
+                    {mode === 'signup' ? 'Send OTP' : 'Continue'}
+                  </Text>
                 )}
               </TouchableOpacity>
 
-              {/* Divider: or continue with */}
+              {/* Divider: or sign up with / or continue with */}
               <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or continue with</Text>
+                <Text style={styles.dividerText}>
+                  {mode === 'signup' ? 'or sign up with' : 'or continue with'}
+                </Text>
                 <View style={styles.dividerLine} />
               </View>
 
               {/* Social Buttons */}
               <TouchableOpacity
                 style={styles.socialBtn}
-                onPress={() => handleSocialAuth('Google')}
+                onPress={() => setStep('google')}
                 activeOpacity={0.85}
               >
-                <GoogleIcon />
+                <GoogleIcon size={20} />
                 <Text style={styles.socialBtnText}>Continue with Google</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.socialBtn}
-                onPress={() => handleSocialAuth('Apple')}
+                onPress={() => setStep('apple')}
                 activeOpacity={0.85}
               >
-                <AppleIcon />
+                <AppleIcon size={20} />
                 <Text style={styles.socialBtnText}>Continue with Apple</Text>
               </TouchableOpacity>
 
-              {/* Footer Toggle: Sign In / Create Account */}
+              {/* Footer Toggle: Already have an account? Log In / Don't have an account? Create Account */}
               <View style={styles.toggleRow}>
                 <Text style={styles.toggleQuestion}>
-                  {mode === 'signin'
-                    ? "Don't have an account? "
-                    : 'Already have an account? '}
+                  {mode === 'signup'
+                    ? 'Already have an account? '
+                    : "Don't have an account? "}
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
-                    setMode(m => (m === 'signin' ? 'signup' : 'signin'));
+                    setMode((m) => (m === 'signin' ? 'signup' : 'signin'));
                     setErrorMessage(null);
                   }}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.toggleAction}>
-                    {mode === 'signin' ? 'Create Account' : 'Sign In'}
+                    {mode === 'signup' ? 'Log In' : 'Create Account'}
                   </Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Terms and Privacy Disclaimer */}
-              <Text style={styles.disclaimerText}>
-                By continuing, you agree to our{' '}
-                <Text style={styles.disclaimerLink}>Terms & Conditions</Text> and{' '}
-                <Text style={styles.disclaimerLink}>Privacy Policy</Text>
+              {/* Terms and Privacy Disclaimer (only on signin or subtle) */}
+              {mode === 'signin' && (
+                <Text style={styles.disclaimerText}>
+                  By continuing, you agree to our{' '}
+                  <Text style={styles.disclaimerLink}>Terms & Conditions</Text> and{' '}
+                  <Text style={styles.disclaimerLink}>Privacy Policy</Text>
+                </Text>
+              )}
+            </View>
+          ) : step === 'apple' ? (
+            /* Step 3: Apple Auth screen matching media_1794646832535_a9b114cf.png */
+            <View style={styles.appleContainer}>
+              {/* Apple Icon Badge Box */}
+              <View style={styles.appleBadgeBox}>
+                <AppleIcon size={30} />
+              </View>
+
+              {/* Title & Subtitle */}
+              <Text style={styles.appleHeading}>Continue with Apple</Text>
+              <Text style={styles.appleSubHeading}>
+                Choose an account to securely continue to Seedha Properties.
               </Text>
+
+              {/* Primary Account Card: Rahul Sharma */}
+              <TouchableOpacity
+                style={styles.appleAccountCard}
+                onPress={() => handleAppleSignIn('Rahul Sharma', 'r•••••@privaterelay.appleid.com')}
+                activeOpacity={0.88}
+              >
+                <View style={styles.appleAvatar}>
+                  <Text style={styles.appleAvatarText}>RS</Text>
+                </View>
+                <View style={styles.appleAccountInfo}>
+                  <Text style={styles.appleAccountName}>Rahul Sharma</Text>
+                  <Text style={styles.appleAccountEmail}>r•••••@privaterelay.appleid.com</Text>
+                </View>
+                <ChevronRight size={18} color="#94A3B8" strokeWidth={2.4} />
+              </TouchableOpacity>
+
+              {/* Hide My Email Info Card */}
+              <View style={styles.hideEmailCard}>
+                <View style={styles.hideEmailHeaderRow}>
+                  <Mail size={18} color="#0F172A" strokeWidth={2} />
+                  <Text style={styles.hideEmailTitle}>Hide My Email enabled</Text>
+                </View>
+                <Text style={styles.hideEmailDesc}>
+                  Apple shares a private relay address, keeping your personal email protected.
+                </Text>
+              </View>
+
+              {/* Use a different Apple ID button */}
+              <TouchableOpacity
+                style={styles.differentAppleBtn}
+                onPress={() => handleAppleSignIn('Apple User', 'user@privaterelay.appleid.com')}
+                activeOpacity={0.85}
+              >
+                <Lock size={17} color="#0F172A" strokeWidth={2} />
+                <Text style={styles.differentAppleText}>Use a different Apple ID</Text>
+              </TouchableOpacity>
+
+              {/* Green Security Banner */}
+              <View style={styles.securityBanner}>
+                <ShieldCheck size={18} color="#16A34A" strokeWidth={2} />
+                <Text style={styles.securityBannerText}>
+                  Secure authentication. Seedha Properties never receives your provider password.
+                </Text>
+              </View>
+            </View>
+          ) : step === 'google' ? (
+            /* Step 4: Google Auth screen matching media_1794647222894_3fe8f97a.png */
+            <View style={styles.appleContainer}>
+              {/* Google Icon Badge Box */}
+              <View style={styles.appleBadgeBox}>
+                <GoogleIcon size={30} />
+              </View>
+
+              {/* Title & Subtitle */}
+              <Text style={styles.appleHeading}>Continue with Google</Text>
+              <Text style={styles.appleSubHeading}>
+                Choose an account to securely continue to Seedha Properties.
+              </Text>
+
+              {/* Account 1 Card: Rahul Sharma */}
+              <TouchableOpacity
+                style={styles.appleAccountCard}
+                onPress={() => handleGoogleSignIn('Rahul Sharma', 'rahul@gmail.com')}
+                activeOpacity={0.88}
+              >
+                <View style={styles.appleAvatar}>
+                  <Text style={styles.appleAvatarText}>RS</Text>
+                </View>
+                <View style={styles.appleAccountInfo}>
+                  <Text style={styles.appleAccountName}>Rahul Sharma</Text>
+                  <Text style={styles.appleAccountEmail}>rahul@gmail.com</Text>
+                </View>
+                <ChevronRight size={18} color="#94A3B8" strokeWidth={2.4} />
+              </TouchableOpacity>
+
+              {/* Account 2 Card: Rahul S */}
+              <TouchableOpacity
+                style={styles.appleAccountCard}
+                onPress={() => handleGoogleSignIn('Rahul S', 'rahul.work@gmail.com')}
+                activeOpacity={0.88}
+              >
+                <View style={styles.appleAvatar}>
+                  <Text style={styles.appleAvatarText}>RS</Text>
+                </View>
+                <View style={styles.appleAccountInfo}>
+                  <Text style={styles.appleAccountName}>Rahul S</Text>
+                  <Text style={styles.appleAccountEmail}>rahul.work@gmail.com</Text>
+                </View>
+                <ChevronRight size={18} color="#94A3B8" strokeWidth={2.4} />
+              </TouchableOpacity>
+
+              {/* Use another Google account button */}
+              <TouchableOpacity
+                style={styles.differentAppleBtn}
+                onPress={() => handleGoogleSignIn('Google User', 'user@gmail.com')}
+                activeOpacity={0.85}
+              >
+                <CheckCircle2 size={17} color="#0F172A" strokeWidth={2} />
+                <Text style={styles.differentAppleText}>Use another Google account</Text>
+              </TouchableOpacity>
+
+              {/* Green Security Banner */}
+              <View style={styles.securityBanner}>
+                <ShieldCheck size={18} color="#16A34A" strokeWidth={2} />
+                <Text style={styles.securityBannerText}>
+                  Secure authentication. Seedha Properties never receives your provider password.
+                </Text>
+              </View>
             </View>
           ) : (
             /* Step 2: OTP Verification matching image */
@@ -489,6 +714,144 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  topBarBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  appleContainer: {
+    paddingTop: 8,
+  },
+  appleBadgeBox: {
+    width: 68,
+    height: 68,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  appleHeading: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#0F172A',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  appleSubHeading: {
+    fontSize: 15,
+    color: '#64748B',
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+  appleAccountCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  appleAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  appleAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  appleAccountInfo: {
+    flex: 1,
+  },
+  appleAccountName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  appleAccountEmail: {
+    fontSize: 13.5,
+    color: '#64748B',
+    marginTop: 3,
+  },
+  hideEmailCard: {
+    backgroundColor: '#EEF2F6',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 16,
+  },
+  hideEmailHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  hideEmailTitle: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  hideEmailDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 19,
+    marginTop: 8,
+    marginLeft: 28,
+  },
+  differentAppleBtn: {
+    height: 54,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 20,
+  },
+  differentAppleText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  securityBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  securityBannerText: {
+    fontSize: 12.5,
+    color: '#15803D',
+    lineHeight: 18,
+    flex: 1,
+    fontWeight: '500',
+  },
   backButton: {
     width: 44,
     height: 44,
@@ -528,6 +891,34 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#64748B',
     marginBottom: 8,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  nameInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  nameTextInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0F172A',
+    height: 56,
+  },
+  phoneHelperText: {
+    fontSize: 12.5,
+    color: '#94A3B8',
+    marginTop: 6,
+    marginBottom: 2,
   },
   phoneInputRow: {
     flexDirection: 'row',
