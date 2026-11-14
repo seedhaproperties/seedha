@@ -12,7 +12,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { ChevronLeft, Sparkles, RefreshCw } from 'lucide-react-native';
+import { ChevronLeft, Sparkles, RefreshCw, Phone } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import SeedhaLogo from '../../components/SeedhaLogo';
 import { api } from '../../services/api';
@@ -165,6 +165,8 @@ export default function MobileLoginScreen() {
   };
 
   const otpCode = otpDigits.join('');
+  const last4 = phone && phone.length >= 4 ? phone.slice(-4) : '6758';
+  const maskedPhone = `+91 ****${last4}`;
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) {
@@ -239,10 +241,12 @@ export default function MobileLoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Logo */}
-          <View style={styles.logoWrap}>
-            <SeedhaLogo size="md" />
-          </View>
+          {/* Logo - only on Phone Sign In / Sign Up step */}
+          {step === 'phone' && (
+            <View style={styles.logoWrap}>
+              <SeedhaLogo size="md" />
+            </View>
+          )}
 
           {/* Step 1: Phone / Social Login matching image */}
           {step === 'phone' ? (
@@ -357,40 +361,18 @@ export default function MobileLoginScreen() {
               </Text>
             </View>
           ) : (
-            /* Step 2: OTP Verification */
-            <View style={styles.formContent}>
-              <Text style={styles.heading}>Enter verification code</Text>
-              <View style={styles.phoneSentRow}>
-                <Text style={styles.subHeading}>
-                  Sent to <Text style={styles.boldPhone}>+91 {phone}</Text>
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setStep('phone');
-                    setOtpDigits(['', '', '', '', '', '']);
-                    setErrorMessage(null);
-                  }}
-                  style={styles.editBtn}
-                >
-                  <Text style={styles.editText}>Edit</Text>
-                </TouchableOpacity>
+            /* Step 2: OTP Verification matching image */
+            <View style={styles.verifyContainer}>
+              {/* Phone Icon Box */}
+              <View style={styles.phoneIconBox}>
+                <Phone size={24} color="#0F172A" strokeWidth={2.2} />
               </View>
 
-              {/* Demo Hint Banner */}
-              {demoCodeHint && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setOtpDigits(demoCodeHint.split(''));
-                  }}
-                  style={styles.demoBanner}
-                  activeOpacity={0.8}
-                >
-                  <Sparkles size={14} color="#059669" />
-                  <Text style={styles.demoBannerText}>
-                    Test Code: <Text style={styles.boldPhone}>{demoCodeHint}</Text> (Tap to fill)
-                  </Text>
-                </TouchableOpacity>
-              )}
+              {/* Title & Subtitle */}
+              <Text style={styles.verifyHeading}>Verify your number</Text>
+              <Text style={styles.verifySubHeading}>
+                Enter the 6-digit code sent to {maskedPhone}
+              </Text>
 
               {/* 6 Digit Inputs */}
               <View style={styles.digitsRow}>
@@ -417,7 +399,7 @@ export default function MobileLoginScreen() {
               {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
               {infoMessage && <Text style={styles.infoText}>{infoMessage}</Text>}
 
-              {/* Verify Button */}
+              {/* Verify & Continue Button */}
               <TouchableOpacity
                 onPress={handleVerifyOtp}
                 disabled={loading || otpCode.length !== 6}
@@ -434,20 +416,51 @@ export default function MobileLoginScreen() {
                 )}
               </TouchableOpacity>
 
-              {/* Resend Countdown */}
-              <View style={styles.resendRow}>
-                <Text style={styles.resendNote}>Didn't receive the SMS? </Text>
+              {/* Demo Hint Banner (discreet tap-to-autofill for testing) */}
+              {demoCodeHint && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setOtpDigits(demoCodeHint.split(''));
+                  }}
+                  style={styles.demoBanner}
+                  activeOpacity={0.8}
+                >
+                  <Sparkles size={14} color="#059669" />
+                  <Text style={styles.demoBannerText}>
+                    Demo OTP: <Text style={styles.boldPhone}>{demoCodeHint}</Text> (Tap to fill)
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Footer matching image: Didn't receive the code? Resend in 00:26 Change Number */}
+              <View style={styles.verifyFooter}>
+                <Text style={styles.didNotReceiveText}>Didn't receive the code?</Text>
                 {canResend ? (
                   <TouchableOpacity
                     onPress={() => handleSendOtp()}
                     style={styles.resendActionBtn}
+                    activeOpacity={0.7}
                   >
                     <RefreshCw size={13} color="#0F172A" strokeWidth={2.2} />
                     <Text style={styles.resendActionText}>Resend Code</Text>
                   </TouchableOpacity>
                 ) : (
-                  <Text style={styles.timerText}>Resend in {countdown}s</Text>
+                  <Text style={styles.resendCountdownText}>
+                    Resend in 00:{String(countdown).padStart(2, '0')}
+                  </Text>
                 )}
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setStep('phone');
+                    setOtpDigits(['', '', '', '', '', '']);
+                    setErrorMessage(null);
+                  }}
+                  style={styles.changeNumberBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.changeNumberText}>Change Number</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -640,6 +653,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
+  verifyContainer: {
+    paddingTop: 8,
+  },
+  phoneIconBox: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  verifyHeading: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#0F172A',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  verifySubHeading: {
+    fontSize: 15,
+    color: '#64748B',
+    lineHeight: 22,
+    marginBottom: 36,
+  },
   phoneSentRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -667,9 +706,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     gap: 8,
-    marginBottom: 20,
+    marginTop: 16,
     borderWidth: 1,
     borderColor: '#A7F3D0',
+    alignSelf: 'center',
   },
   demoBannerText: {
     fontSize: 13,
@@ -678,24 +718,48 @@ const styles = StyleSheet.create({
   digitsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 16,
+    gap: 10,
+    marginBottom: 28,
   },
   digitBox: {
     flex: 1,
-    height: 52,
+    height: 60,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
     textAlign: 'center',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: '#0F172A',
     backgroundColor: '#FFFFFF',
   },
   digitBoxFilled: {
-    borderColor: '#000000',
-    backgroundColor: '#F8FAFC',
+    borderColor: '#0F172A',
+    backgroundColor: '#FFFFFF',
+  },
+  verifyFooter: {
+    marginTop: 36,
+    alignItems: 'center',
+  },
+  didNotReceiveText: {
+    fontSize: 14,
+    color: '#64748B',
+    marginBottom: 8,
+  },
+  resendCountdownText: {
+    fontSize: 14,
+    color: '#0F172A',
+    fontWeight: '500',
+  },
+  changeNumberBtn: {
+    marginTop: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  changeNumberText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
   },
   resendRow: {
     flexDirection: 'row',
@@ -713,7 +777,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   resendActionText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#0F172A',
   },
