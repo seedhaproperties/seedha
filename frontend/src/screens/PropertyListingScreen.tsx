@@ -6,7 +6,7 @@ import { properties } from '../data/properties';
 import PropertyCard from '../components/PropertyCard';
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
-import type { ListingType } from '../types';
+import type { ListingType, Property } from '../types';
 import colors from '../theme/colors';
 
 type ViewMode = 'grid' | 'list';
@@ -21,30 +21,42 @@ const sortOptions: { value: SortBy; label: string }[] = [
 
 export default function PropertyListingScreen() {
   const { currentScreen, push, activeFilters } = useApp();
-  const { type, title, location } = (currentScreen.params ?? {}) as { type: ListingType; title: string; location?: string };
+  const params = (currentScreen?.params ?? {}) as { type?: ListingType; title?: string; location?: string };
+  const type = params.type;
+  const title = typeof params.title === 'string' ? params.title : 'Property Listings';
+  const location = typeof params.location === 'string' ? params.location : '';
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortBy>('relevance');
   const [showSort, setShowSort] = useState(false);
   const [searchQuery, setSearchQuery] = useState(location || '');
 
-  const filtered = properties
+  const safeProperties = Array.isArray(properties) ? properties.filter((p): p is Property => Boolean(p && p.id && p.title)) : [];
+
+  const filtered = safeProperties
     .filter(p => !type || p.listingType === type)
-    .filter(p => !searchQuery || p.title.toLowerCase().includes(searchQuery.toLowerCase()) || p.location.toLowerCase().includes(searchQuery.toLowerCase()) || p.city.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(p => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase().trim();
+      const pTitle = (p.title || '').toLowerCase();
+      const pLoc = (p.location || '').toLowerCase();
+      const pCity = (p.city || '').toLowerCase();
+      return pTitle.includes(q) || pLoc.includes(q) || pCity.includes(q);
+    })
     .filter(p => {
       if (activeFilters?.verifiedOnly && !p.verified) return false;
       if (activeFilters?.bhk && activeFilters.bhk.length > 0) {
-        const matchesBhk = activeFilters.bhk.some(b => b.startsWith(`${p.bedrooms}`));
+        const matchesBhk = activeFilters.bhk.some(b => b.startsWith(`${p.bedrooms || 0}`));
         if (!matchesBhk) return false;
       }
-      if (activeFilters?.furnishing && activeFilters.furnishing.length > 0) {
-        const matchesFurnishing = activeFilters.furnishing.some(f => f.toLowerCase().replace('-', ' ') === p.furnishing.toLowerCase().replace('-', ' '));
+      if (activeFilters?.furnishing && activeFilters.furnishing.length > 0 && p.furnishing) {
+        const matchesFurnishing = activeFilters.furnishing.some(f => f.toLowerCase().replace('-', ' ') === (p.furnishing || '').toLowerCase().replace('-', ' '));
         if (!matchesFurnishing) return false;
       }
       return true;
     })
     .sort((a, b) => {
-      if (sortBy === 'price_asc') return a.price - b.price;
-      if (sortBy === 'price_desc') return b.price - a.price;
+      if (sortBy === 'price_asc') return (a.price || 0) - (b.price || 0);
+      if (sortBy === 'price_desc') return (b.price || 0) - (a.price || 0);
       return 0;
     });
 
@@ -136,17 +148,21 @@ export default function PropertyListingScreen() {
           />
         ) : viewMode === 'grid' ? (
           <View style={styles.gridWrap}>
-            {filtered.map(p => (
-              <View key={p.id} style={styles.gridCol}>
-                <PropertyCard property={p} compact />
-              </View>
-            ))}
+            {filtered.map(p =>
+              p && p.id ? (
+                <View key={p.id} style={styles.gridCol}>
+                  <PropertyCard property={p} compact />
+                </View>
+              ) : null
+            )}
           </View>
         ) : (
           <View style={styles.listWrap}>
-            {filtered.map(p => (
-              <PropertyCard key={p.id} property={p} horizontal />
-            ))}
+            {filtered.map(p =>
+              p && p.id ? (
+                <PropertyCard key={p.id} property={p} horizontal />
+              ) : null
+            )}
           </View>
         )}
       </ScrollView>

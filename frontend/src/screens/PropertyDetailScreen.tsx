@@ -27,6 +27,7 @@ import {
   Download,
 } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
+import { properties } from '../data/properties';
 import type { Property } from '../types';
 import colors from '../theme/colors';
 
@@ -43,13 +44,20 @@ const getAmenityIcon = (name: string) => amenityIcons[name] ?? <CheckCircle2 siz
 
 export default function PropertyDetailScreen() {
   const { currentScreen, push, pop, toggleSaved, savedIds, requireAuth } = useApp();
-  const property = currentScreen.params?.property as Property;
+  const propertyParam = currentScreen?.params?.property as Property | undefined;
+  const propertyId = (currentScreen?.params?.id || currentScreen?.params?.propertyId) as string | undefined;
+  const property = propertyParam || properties.find(p => p.id === propertyId) || properties[0];
+
+  if (!property) {
+    return null;
+  }
+
   const [activeImg, setActiveImg] = useState(0);
   const [showOwnerDetails, setShowOwnerDetails] = useState(false);
-  const saved = savedIds ? savedIds.has(property.id) : false;
+  const saved = savedIds && property?.id ? savedIds.has(property.id) : false;
 
-  const emiMonthly = Math.round(property.price * 0.00624);
-  const pricePerSqft = Math.round(property.price / property.area);
+  const emiMonthly = Math.round((property.price || 0) * 0.00624);
+  const pricePerSqft = property.area ? Math.round((property.price || 0) / property.area) : 0;
 
   return (
     <View style={styles.container}>

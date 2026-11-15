@@ -26,8 +26,12 @@ const getBadge = (type: Property['listingType']) => {
 };
 
 export default function PropertyCard({ property, compact = false, horizontal = false }: Props) {
+  if (!property || !property.id || !property.title) {
+    return null;
+  }
+
   const { push, toggleSaved, savedIds } = useApp();
-  const saved = savedIds.has(property.id);
+  const saved = savedIds ? savedIds.has(property.id) : false;
   const badge = getBadge(property.listingType);
 
   // Micro-animations: Card scale & Heart pop

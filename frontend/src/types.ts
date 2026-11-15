@@ -85,6 +85,13 @@ export type ScreenName =
   | 'postProperty'
   | 'compare'
   | 'savedProperties'
+  | 'myActivity'
+  | 'myProperties'
+  | 'personalInformation'
+  | 'myDocuments'
+  | 'helpSupport'
+  | 'accountSettings'
+  | 'privacySecurity'
   | 'ownerVerification'
   | 'adminPortal'
   | 'visitRating';

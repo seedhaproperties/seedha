@@ -7,7 +7,17 @@ import BottomNav from './components/BottomNav';
 import HomeScreen from './screens/HomeScreen';
 import ExploreScreen from './screens/ExploreScreen';
 import MyPropertyScreen from './screens/MyPropertyScreen';
-import ProfileScreen from './screens/ProfileScreen';
+import {
+  ProfileScreen,
+  SavedPropertiesScreen,
+  MyActivityScreen,
+  MyPropertiesScreen,
+  PersonalInformationScreen,
+  MyDocumentsScreen,
+  HelpSupportScreen,
+  AccountSettingsScreen,
+  PrivacySecurityScreen,
+} from './screens/profileScreens';
 import PropertyListingScreen from './screens/PropertyListingScreen';
 import PropertyDetailScreen from './screens/PropertyDetailScreen';
 import BookVisitScreen from './screens/BookVisitScreen';
@@ -66,9 +76,15 @@ function ScreenRouter() {
       case 'landing': return <LandingScreen />;
       case 'home': return <HomeScreen />;
       case 'explore': return <ExploreScreen />;
-      case 'myProperty': return <MyPropertyScreen />;
+      case 'myProperty':
+      case 'myProperties': return <MyPropertiesScreen />;
       case 'payments': return <PaymentsScreen />;
       case 'profile': return <ProfileScreen />;
+      case 'personalInformation': return <PersonalInformationScreen />;
+      case 'myDocuments': return <MyDocumentsScreen />;
+      case 'helpSupport': return <HelpSupportScreen />;
+      case 'accountSettings': return <AccountSettingsScreen />;
+      case 'privacySecurity': return <PrivacySecurityScreen />;
       case 'propertyListing': return <PropertyListingScreen />;
       case 'propertyDetail': return <PropertyDetailScreen />;
       case 'bookVisit': return <BookVisitScreen />;
@@ -84,7 +100,8 @@ function ScreenRouter() {
       case 'propertyManagement': return <PropertyManagementScreen />;
       case 'ownerVerification': return <OwnerVerificationScreen />;
       case 'adminPortal': return <AdminPortalScreen />;
-      case 'savedProperties': return <ExploreScreen />;
+      case 'savedProperties': return <SavedPropertiesScreen />;
+      case 'myActivity': return <MyActivityScreen />;
       case 'compare': return <CompareScreen />;
       // Admin Operations Flow
       case 'adminLogin': return <AdminLoginScreen />;
