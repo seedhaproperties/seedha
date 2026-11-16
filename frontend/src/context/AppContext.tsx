@@ -214,9 +214,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setTokenState] = useState<string | null>(getAuthToken());
-  // Launch flow: Starts with the Seedha Properties logo animation, then transitions to the Landing page
+  // Launch flow: Starts with the Seedha Properties logo animation, then transitions to Home directly in Guest Mode
   const [stack, setStack] = useState<ScreenState[]>([{ name: 'splash' }]);
-  const [activeTab, setActiveTab] = useState('landing');
+  const [activeTab, setActiveTab] = useState('home');
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set(['1', '3']));
   const [adminRequests, setAdminRequests] = useState<AdminItem[]>(defaultAdminRequests);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
@@ -347,19 +347,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       requireAuth(undefined, { name: 'postProperty' }, 'Post Property');
       return;
     }
+    if (tab === 'saved') {
+      if (!isAuthenticated) {
+        requireAuth(undefined, { name: 'savedProperties' }, 'Saved Properties');
+        return;
+      }
+    }
+    if (tab === 'profile') {
+      if (!isAuthenticated) {
+        requireAuth(undefined, { name: 'profile' }, 'Profile');
+        return;
+      }
+    }
+    if (tab === 'payments') {
+      if (!isAuthenticated) {
+        requireAuth(undefined, { name: 'payments' }, 'Payments & Transactions');
+        return;
+      }
+    }
     setActiveTab(tab);
     const tabScreens: Record<string, ScreenState> = {
       home: { name: 'home' },
-      landing: { name: 'landing' },
+      landing: { name: 'home' },
       explore: { name: 'explore' },
       search: { name: 'search' },
       saved: { name: 'explore', params: { filter: 'saved' } },
+      savedProperties: { name: 'explore', params: { filter: 'saved' } },
       myProperty: { name: 'myProperty' },
       payments: { name: 'payments' },
       profile: { name: 'profile' },
     };
     setStack([tabScreens[tab] || { name: 'home' }]);
-  }, [requireAuth]);
+  }, [isAuthenticated, requireAuth]);
 
   const toggleSaved = useCallback(
     (id: string) => {
@@ -426,9 +445,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         window.localStorage.removeItem('seedha_auth_token');
       } catch {}
     }
-    // Stay gracefully in Guest mode on Landing screen
-    setStack([{ name: 'landing' }]);
-    setActiveTab('landing');
+    // Return cleanly to Guest mode on Home screen
+    setStack([{ name: 'home' }]);
+    setActiveTab('home');
   }, []);
 
   const logoutAdmin = useCallback(() => {

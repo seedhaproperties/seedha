@@ -11,11 +11,23 @@ import {
   Platform,
   SafeAreaView,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import { ChevronLeft, ChevronRight, Sparkles, RefreshCw, Phone, User, Mail, Lock, ShieldCheck, CheckCircle2 } from 'lucide-react-native';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { ChevronLeft, ChevronRight, Sparkles, RefreshCw, Phone, User, Mail, Lock, ShieldCheck, CheckCircle2, Check } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import SeedhaLogo from '../../components/SeedhaLogo';
 import { api } from '../../services/api';
+
+function IndiaFlag({ width = 22, height = 15 }: { width?: number; height?: number }) {
+  return (
+    <Svg width={width} height={height} viewBox="0 0 30 20" style={{ borderRadius: 2, overflow: 'hidden' }}>
+      <Path d="M0 0h30v6.67H0z" fill="#FF9933" />
+      <Path d="M0 6.67h30v6.67H0z" fill="#FFFFFF" />
+      <Path d="M0 13.34h30v6.67H0z" fill="#138808" />
+      <Circle cx="15" cy="10" r="2.5" fill="none" stroke="#000080" strokeWidth="0.6" />
+      <Circle cx="15" cy="10" r="0.6" fill="#000080" />
+    </Svg>
+  );
+}
 
 function GoogleIcon({ size = 20 }: { size?: number }) {
   return (
@@ -49,17 +61,34 @@ function AppleIcon({ size = 20 }: { size?: number }) {
 }
 
 export default function MobileLoginScreen() {
-  const { currentScreen, cancelAuth, completeAuth } = useApp();
+  const { currentScreen, cancelAuth, completeAuth, pendingAction } = useApp();
   const initialMode = currentScreen.name === 'signup' ? 'signup' : 'signin';
+  const actionName =
+    typeof currentScreen.params?.actionName === 'string'
+      ? currentScreen.params.actionName
+      : typeof pendingAction?.actionName === 'string'
+        ? pendingAction.actionName
+        : null;
+  const initialStep =
+    currentScreen.params?.step === 'apple' ||
+      currentScreen.params?.provider === 'apple' ||
+      currentScreen.params?.mode === 'apple'
+      ? 'apple'
+      : currentScreen.params?.step === 'google' ||
+        currentScreen.params?.provider === 'google'
+        ? 'google'
+        : 'phone';
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
-  const [step, setStep] = useState<'phone' | 'otp' | 'apple' | 'google'>('phone');
+  const [step, setStep] = useState<'phone' | 'otp' | 'apple' | 'google'>(initialStep);
   const [fullName, setFullName] = useState('');
+  const [isNameFocused, setIsNameFocused] = useState(false);
   const [phone, setPhone] = useState('');
+  const [isPhoneFocused, setIsPhoneFocused] = useState(false);
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(30);
+  const [countdown, setCountdown] = useState(26);
   const [canResend, setCanResend] = useState(false);
   const [demoCodeHint, setDemoCodeHint] = useState<string | null>(null);
 
@@ -75,6 +104,35 @@ export default function MobileLoginScreen() {
     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [countdown, step]);
+
+  // Strip browser focus outline / black rectangular box on web inputs
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const styleId = 'seedha-clean-inputs';
+      if (!document.getElementById(styleId)) {
+        const styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        styleEl.innerHTML = `
+          input, textarea, select {
+            outline: none !important;
+            outline-style: none !important;
+            outline-width: 0 !important;
+            box-shadow: none !important;
+            border-style: none !important;
+            -webkit-tap-highlight-color: transparent !important;
+          }
+          input:focus, textarea:focus, select:focus {
+            outline: none !important;
+            outline-style: none !important;
+            outline-width: 0 !important;
+            box-shadow: none !important;
+            border-style: none !important;
+          }
+        `;
+        document.head.appendChild(styleEl);
+      }
+    }
+  }, []);
 
   const handlePhoneChange = (val: string) => {
     const cleaned = val.replace(/\D/g, '').slice(0, 10);
@@ -103,7 +161,7 @@ export default function MobileLoginScreen() {
       const res = await api.auth.sendOtp(fullIdentifier);
       setLoading(false);
       setStep('otp');
-      setCountdown(30);
+      setCountdown(26);
       setCanResend(false);
       setInfoMessage(`Code sent to +91 ${targetPhone}`);
       if (res?.demoOtp) {
@@ -114,7 +172,7 @@ export default function MobileLoginScreen() {
       // Graceful local verification fallback
       setLoading(false);
       setStep('otp');
-      setCountdown(30);
+      setCountdown(26);
       setCanResend(false);
       setDemoCodeHint('123456');
       setInfoMessage(`Verification code sent to +91 ${targetPhone}`);
@@ -328,10 +386,18 @@ export default function MobileLoginScreen() {
               {mode === 'signup' && (
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Full Name</Text>
-                  <View style={styles.nameInputRow}>
+                  <View
+                    style={[
+                      styles.nameInputRow,
+                      isNameFocused && styles.inputRowActive,
+                    ]}
+                  >
                     <User size={18} color="#94A3B8" strokeWidth={2} style={styles.inputIcon} />
                     <TextInput
-                      style={styles.nameTextInput}
+                      style={[
+                        styles.nameTextInput,
+                        Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                      ]}
                       placeholder="Enter your full name"
                       placeholderTextColor="#94A3B8"
                       value={fullName}
@@ -339,7 +405,9 @@ export default function MobileLoginScreen() {
                         setFullName(text);
                         if (errorMessage) setErrorMessage(null);
                       }}
-                      autoFocus
+                      onFocus={() => setIsNameFocused(true)}
+                      onBlur={() => setIsNameFocused(false)}
+                      autoFocus={mode === 'signup'}
                     />
                   </View>
                 </View>
@@ -349,10 +417,15 @@ export default function MobileLoginScreen() {
               <Text style={styles.inputLabel}>Mobile Number</Text>
 
               {/* Mobile Input Field */}
-              <View style={styles.phoneInputRow}>
+              <View
+                style={[
+                  styles.phoneInputRow,
+                  phone.length === 10 && styles.phoneInputRowActive,
+                ]}
+              >
                 {/* Flag + Country Code */}
                 <View style={styles.countryWrap}>
-                  <Text style={styles.flagEmoji}>🇮🇳</Text>
+                  <IndiaFlag width={22} height={15} />
                   <Text style={styles.countryCode}>+91</Text>
                 </View>
 
@@ -361,15 +434,27 @@ export default function MobileLoginScreen() {
 
                 {/* Phone Input */}
                 <TextInput
-                  style={styles.phoneInput}
+                  style={[
+                    styles.phoneInput,
+                    Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                  ]}
                   placeholder="Enter mobile number"
                   placeholderTextColor="#94A3B8"
                   keyboardType="phone-pad"
                   maxLength={10}
                   value={phone}
                   onChangeText={handlePhoneChange}
-                  autoFocus={mode === 'signin'}
+                  onFocus={() => setIsPhoneFocused(true)}
+                  onBlur={() => setIsPhoneFocused(false)}
+                  autoFocus={false}
                 />
+
+                {/* Green Valid Checkmark Circle (matching screenshot) */}
+                {phone.length === 10 && (
+                  <View style={styles.validCheckCircle}>
+                    <Check size={13} color="#FFFFFF" strokeWidth={3} />
+                  </View>
+                )}
               </View>
 
               {/* Helper text on Signup */}
@@ -384,16 +469,8 @@ export default function MobileLoginScreen() {
               {/* Action Button: Send OTP / Continue */}
               <TouchableOpacity
                 onPress={() => handleSendOtp()}
-                disabled={
-                  loading ||
-                  phone.length !== 10 ||
-                  (mode === 'signup' && !fullName.trim())
-                }
-                style={[
-                  styles.continueBtn,
-                  (phone.length !== 10 || (mode === 'signup' && !fullName.trim())) &&
-                    styles.continueBtnDisabled,
-                ]}
+                disabled={loading}
+                style={styles.continueBtn}
                 activeOpacity={0.88}
               >
                 {loading ? (
@@ -425,7 +502,7 @@ export default function MobileLoginScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.socialBtn}
+                style={[styles.socialBtn, styles.socialBtnApple]}
                 onPress={() => setStep('apple')}
                 activeOpacity={0.85}
               >
@@ -453,7 +530,7 @@ export default function MobileLoginScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Terms and Privacy Disclaimer (only on signin or subtle) */}
+              {/* Terms and Privacy Disclaimer (only on signin) */}
               {mode === 'signin' && (
                 <Text style={styles.disclaimerText}>
                   By continuing, you agree to our{' '}
@@ -590,7 +667,7 @@ export default function MobileLoginScreen() {
             <View style={styles.verifyContainer}>
               {/* Phone Icon Box */}
               <View style={styles.phoneIconBox}>
-                <Phone size={24} color="#0F172A" strokeWidth={2.2} />
+                <Phone size={24} color="#000000" strokeWidth={2} />
               </View>
 
               {/* Title & Subtitle */}
@@ -615,6 +692,7 @@ export default function MobileLoginScreen() {
                     style={[
                       styles.digitBox,
                       digit ? styles.digitBoxFilled : null,
+                      Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
                     ]}
                     autoFocus={idx === 0}
                   />
@@ -622,16 +700,12 @@ export default function MobileLoginScreen() {
               </View>
 
               {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-              {infoMessage && <Text style={styles.infoText}>{infoMessage}</Text>}
 
               {/* Verify & Continue Button */}
               <TouchableOpacity
                 onPress={handleVerifyOtp}
-                disabled={loading || otpCode.length !== 6}
-                style={[
-                  styles.continueBtn,
-                  otpCode.length !== 6 && styles.continueBtnDisabled,
-                ]}
+                disabled={loading}
+                style={styles.continueBtn}
                 activeOpacity={0.88}
               >
                 {loading ? (
@@ -640,22 +714,6 @@ export default function MobileLoginScreen() {
                   <Text style={styles.continueBtnText}>Verify & Continue</Text>
                 )}
               </TouchableOpacity>
-
-              {/* Demo Hint Banner (discreet tap-to-autofill for testing) */}
-              {demoCodeHint && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setOtpDigits(demoCodeHint.split(''));
-                  }}
-                  style={styles.demoBanner}
-                  activeOpacity={0.8}
-                >
-                  <Sparkles size={14} color="#059669" />
-                  <Text style={styles.demoBannerText}>
-                    Demo OTP: <Text style={styles.boldPhone}>{demoCodeHint}</Text> (Tap to fill)
-                  </Text>
-                </TouchableOpacity>
-              )}
 
               {/* Footer matching image: Didn't receive the code? Resend in 00:26 Change Number */}
               <View style={styles.verifyFooter}>
@@ -868,26 +926,27 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   logoWrap: {
-    marginBottom: 16,
+    marginTop: 4,
+    marginBottom: 28,
   },
   formContent: {
-    marginTop: 8,
+    marginTop: 0,
   },
   heading: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
     color: '#0F172A',
     letterSpacing: -0.5,
+    marginBottom: 8,
   },
   subHeading: {
     fontSize: 15,
     color: '#64748B',
-    marginTop: 8,
-    marginBottom: 28,
     lineHeight: 22,
+    marginBottom: 32,
   },
   inputLabel: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '500',
     color: '#64748B',
     marginBottom: 8,
@@ -899,11 +958,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: 56,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
+  },
+  inputRowActive: {
+    borderColor: '#000000',
+    borderWidth: 1.5,
   },
   inputIcon: {
     marginRight: 12,
@@ -913,6 +976,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#0F172A',
     height: 56,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+        outlineWidth: 0,
+        outlineStyle: 'none',
+        outlineColor: 'transparent',
+        boxShadow: 'none',
+      } as any)
+      : {}),
   },
   phoneHelperText: {
     fontSize: 12.5,
@@ -924,19 +999,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: 56,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
+  },
+  phoneInputRowActive: {
+    borderColor: '#000000',
+    borderWidth: 1.5,
+  },
+  validCheckCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
   countryWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-  },
-  flagEmoji: {
-    fontSize: 18,
+    gap: 8,
   },
   countryCode: {
     fontSize: 15,
@@ -954,6 +1039,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#0F172A',
     height: 56,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+        outlineWidth: 0,
+        outlineStyle: 'none',
+        outlineColor: 'transparent',
+        boxShadow: 'none',
+      } as any)
+      : {}),
   },
   errorText: {
     fontSize: 12.5,
@@ -969,24 +1066,25 @@ const styles = StyleSheet.create({
   },
   continueBtn: {
     height: 54,
-    borderRadius: 16,
+    borderRadius: 14,
     backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 22,
+    marginBottom: 26,
   },
   continueBtnDisabled: {
     opacity: 0.5,
   },
   continueBtnText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 26,
+    marginBottom: 22,
   },
   dividerLine: {
     flex: 1,
@@ -994,25 +1092,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
   },
   dividerText: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: '#94A3B8',
     marginHorizontal: 14,
     fontWeight: '500',
   },
   socialBtn: {
-    height: 52,
-    borderRadius: 16,
+    height: 54,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 10,
     marginBottom: 12,
   },
+  socialBtnApple: {
+    marginBottom: 44,
+  },
   socialBtnText: {
-    fontSize: 14.5,
+    fontSize: 15,
     fontWeight: '600',
     color: '#0F172A',
   },
@@ -1020,28 +1121,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
+    marginBottom: 18,
   },
   toggleQuestion: {
-    fontSize: 13.5,
+    fontSize: 14,
     color: '#64748B',
   },
   toggleAction: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#000000',
   },
   disclaimerText: {
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#94A3B8',
     textAlign: 'center',
     lineHeight: 18,
-    marginTop: 24,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
+    marginBottom: 16,
   },
   disclaimerLink: {
-    color: '#64748B',
-    fontWeight: '600',
+    color: '#0F172A',
+    fontWeight: '500',
     textDecorationLine: 'underline',
   },
   verifyContainer: {
@@ -1055,11 +1156,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   verifyHeading: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 30,
+    fontWeight: '800',
     color: '#0F172A',
     letterSpacing: -0.5,
     marginBottom: 8,
@@ -1109,27 +1210,41 @@ const styles = StyleSheet.create({
   digitsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    alignItems: 'center',
+    width: '100%',
     marginBottom: 28,
   },
   digitBox: {
     flex: 1,
-    height: 60,
+    minWidth: 0,
+    maxWidth: 46,
+    height: 56,
     borderRadius: 14,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
     textAlign: 'center',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#000000',
     backgroundColor: '#FFFFFF',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    marginHorizontal: 3,
+    ...(Platform.OS === 'web'
+      ? ({
+        outlineWidth: 0,
+        outlineStyle: 'none',
+        outlineColor: 'transparent',
+        boxShadow: 'none',
+      } as any)
+      : {}),
   },
   digitBoxFilled: {
-    borderColor: '#0F172A',
-    backgroundColor: '#FFFFFF',
+    borderColor: '#000000',
+    borderWidth: 1.5,
   },
   verifyFooter: {
-    marginTop: 36,
+    marginTop: 28,
     alignItems: 'center',
   },
   didNotReceiveText: {
@@ -1139,13 +1254,13 @@ const styles = StyleSheet.create({
   },
   resendCountdownText: {
     fontSize: 14,
-    color: '#0F172A',
+    color: '#000000',
     fontWeight: '500',
+    marginBottom: 18,
   },
   changeNumberBtn: {
-    marginTop: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   changeNumberText: {
     fontSize: 14,

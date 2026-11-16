@@ -129,7 +129,11 @@ export default function OTPScreen() {
                   value={d}
                   onChangeText={(text: string) => handleChange(i, text)}
                   onKeyPress={(e) => handleKeyPress(i, e)}
-                  style={[styles.digitBox, d ? styles.digitBoxFilled : null]}
+                  style={[
+                    styles.digitBox,
+                    d ? styles.digitBoxFilled : null,
+                    Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                  ]}
                   autoFocus={i === 0}
                 />
               ))}
@@ -138,11 +142,8 @@ export default function OTPScreen() {
             {/* Action Button: Verify & Continue */}
             <TouchableOpacity
               onPress={handleVerify}
-              disabled={otp.length !== 6 || loading}
-              style={[
-                styles.verifyBtn,
-                otp.length !== 6 && styles.verifyBtnDisabled,
-              ]}
+              disabled={loading}
+              style={styles.verifyBtn}
               activeOpacity={0.88}
             >
               {loading ? (
@@ -251,24 +252,38 @@ const styles = StyleSheet.create({
   digitsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    alignItems: 'center',
+    width: '100%',
     marginBottom: 28,
   },
   digitBox: {
     flex: 1,
-    height: 60,
+    minWidth: 0,
+    maxWidth: 46,
+    height: 56,
     borderRadius: 14,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
     textAlign: 'center',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#000000',
     backgroundColor: '#FFFFFF',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    marginHorizontal: 3,
+    ...(Platform.OS === 'web'
+      ? ({
+        outlineWidth: 0,
+        outlineStyle: 'none',
+        outlineColor: 'transparent',
+        boxShadow: 'none',
+      } as any)
+      : {}),
   },
   digitBoxFilled: {
-    borderColor: '#0F172A',
-    backgroundColor: '#FFFFFF',
+    borderColor: '#000000',
+    borderWidth: 1.5,
   },
   verifyBtn: {
     height: 54,

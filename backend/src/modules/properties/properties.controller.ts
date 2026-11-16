@@ -22,6 +22,8 @@ export class PropertiesController {
   }
 
   @Get(':id/owner')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get owner details for a property' })
   async getOwnerDetails(@Param('id') id: string) {
     return this.propertiesService.getOwnerDetails(id);

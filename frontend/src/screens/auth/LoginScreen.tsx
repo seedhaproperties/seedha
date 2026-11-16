@@ -256,7 +256,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => push({ name: 'profileSetup', params: { mode: 'apple' } })}
+            onPress={() => push({ name: 'mobileLogin', params: { step: 'apple' } })}
             style={styles.socialButton}
             activeOpacity={0.8}
           >

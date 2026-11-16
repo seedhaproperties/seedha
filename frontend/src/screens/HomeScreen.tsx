@@ -123,7 +123,7 @@ export default function HomeScreen() {
     }
 
     if (target) {
-      handleProtectedNavigate(target, title);
+      push(target);
     }
   };
 
@@ -189,7 +189,7 @@ export default function HomeScreen() {
         <View style={styles.searchPill}>
           <TouchableOpacity
             style={styles.searchInputArea}
-            onPress={() => handleProtectedNavigate({ name: 'search' }, 'Search')}
+            onPress={() => push({ name: 'search' })}
             activeOpacity={0.85}
           >
             <Search size={17} color="#747874" strokeWidth={2.2} />
@@ -200,7 +200,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.filterButton}
-            onPress={() => handleProtectedNavigate({ name: 'filters' }, 'Filters')}
+            onPress={() => push({ name: 'filters' })}
             activeOpacity={0.8}
           >
             <SlidersHorizontal size={16} color="#1A1C1A" strokeWidth={2.4} />
@@ -309,10 +309,7 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.spotlightCard}
           onPress={() =>
-            handleProtectedNavigate(
-              { name: 'propertyDetail', params: { property: spotlightProperty } },
-              spotlightProperty.title
-            )
+            push({ name: 'propertyDetail', params: { property: spotlightProperty } })
           }
           activeOpacity={0.92}
         >
@@ -406,7 +403,7 @@ export default function HomeScreen() {
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => handleProtectedNavigate({ name: 'search' }, 'Search Localities')}
+            onPress={() => push({ name: 'search' })}
             activeOpacity={0.7}
           >
             <Text style={styles.viewAllText}>View all &gt;</Text>
@@ -423,13 +420,10 @@ export default function HomeScreen() {
               key={loc.id}
               style={styles.locationCard}
               onPress={() =>
-                handleProtectedNavigate(
-                  {
-                    name: 'propertyListing',
-                    params: { location: loc.name, title: loc.name },
-                  },
-                  loc.name
-                )
+                push({
+                  name: 'propertyListing',
+                  params: { location: loc.name, title: loc.name },
+                })
               }
               activeOpacity={0.88}
             >
@@ -463,10 +457,7 @@ export default function HomeScreen() {
               key={prop.id}
               style={styles.featuredCard}
               onPress={() =>
-                handleProtectedNavigate(
-                  { name: 'propertyDetail', params: { property: prop } },
-                  prop.title
-                )
+                push({ name: 'propertyDetail', params: { property: prop } })
               }
               activeOpacity={0.9}
             >
@@ -540,7 +531,7 @@ export default function HomeScreen() {
       {/* ── 7. Section - Promotional Banner ── */}
       <TouchableOpacity
         style={styles.promoBanner}
-        onPress={() => handleProtectedNavigate({ name: 'ownerVerification' }, 'Verify Owner')}
+        onPress={() => push({ name: 'ownerVerification' })}
         activeOpacity={0.9}
       >
         <View style={styles.promoLeftCol}>
@@ -571,10 +562,7 @@ export default function HomeScreen() {
               key={prop.id}
               style={styles.recommendedCard}
               onPress={() =>
-                handleProtectedNavigate(
-                  { name: 'propertyDetail', params: { property: prop } },
-                  prop.title
-                )
+                push({ name: 'propertyDetail', params: { property: prop } })
               }
               activeOpacity={0.92}
             >

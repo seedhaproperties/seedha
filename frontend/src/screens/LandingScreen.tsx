@@ -136,19 +136,11 @@ const services: ServiceItem[] = [
 export default function LandingScreen() {
   const { setTab, push, isAuthenticated, requireAuth } = useApp();
   const enterApp = () => {
-    if (!isAuthenticated) {
-      requireAuth(undefined, { name: 'home' }, 'Explore Properties');
-      return;
-    }
     setTab('home');
   };
   const isNative = Platform.OS !== 'web';
 
   const handleNavigate = (screen: ScreenState, actionName: string) => {
-    if (!isAuthenticated) {
-      requireAuth(undefined, screen, actionName);
-      return;
-    }
     push(screen);
   };
 
@@ -262,15 +254,19 @@ export default function LandingScreen() {
       title = 'Ventures & Land';
     }
 
-    if (!isAuthenticated) {
-      requireAuth(undefined, target, title);
-      return;
+    if (actionType === 'post') {
+      if (!isAuthenticated) {
+        requireAuth(undefined, target, title);
+        return;
+      }
+      setTab('post');
+    } else if (actionType === 'ventures') {
+      setTab('explore');
+    } else if (target.name === 'home') {
+      enterApp();
+    } else {
+      push(target);
     }
-
-    if (actionType === 'post') setTab('post');
-    else if (actionType === 'ventures') setTab('explore');
-    else if (target.name === 'home') enterApp();
-    else push(target);
   };
 
   const handleServiceClick = (item: ServiceItem) => {
@@ -281,8 +277,12 @@ export default function LandingScreen() {
       target = { name: item.isTab as any };
     }
 
-    if (!isAuthenticated) {
-      requireAuth(undefined, target, item.label);
+    if (item.isTab === 'post') {
+      if (!isAuthenticated) {
+        requireAuth(undefined, target, item.label);
+        return;
+      }
+      setTab('post');
       return;
     }
 
