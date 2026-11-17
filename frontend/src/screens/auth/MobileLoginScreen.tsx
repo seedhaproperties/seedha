@@ -9,13 +9,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { ChevronLeft, ChevronRight, Sparkles, RefreshCw, Phone, User, Mail, Lock, ShieldCheck, CheckCircle2, Check } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import SeedhaLogo from '../../components/SeedhaLogo';
 import { api } from '../../services/api';
+import { startGoogleSignIn } from '../../services/googleAuth';
 
 function IndiaFlag({ width = 22, height = 15 }: { width?: number; height?: number }) {
   return (
@@ -61,7 +62,7 @@ function AppleIcon({ size = 20 }: { size?: number }) {
 }
 
 export default function MobileLoginScreen() {
-  const { currentScreen, cancelAuth, completeAuth, pendingAction } = useApp();
+  const { currentScreen, cancelAuth, completeAuth, pendingAction, isAuthenticated, setTab } = useApp();
   const initialMode = currentScreen.name === 'signup' ? 'signup' : 'signin';
   const actionName =
     typeof currentScreen.params?.actionName === 'string'
@@ -69,28 +70,23 @@ export default function MobileLoginScreen() {
       : typeof pendingAction?.actionName === 'string'
         ? pendingAction.actionName
         : null;
-  const initialStep =
-    currentScreen.params?.step === 'apple' ||
-      currentScreen.params?.provider === 'apple' ||
-      currentScreen.params?.mode === 'apple'
-      ? 'apple'
-      : currentScreen.params?.step === 'google' ||
-        currentScreen.params?.provider === 'google'
-        ? 'google'
-        : 'phone';
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
-  const [step, setStep] = useState<'phone' | 'otp' | 'apple' | 'google'>(initialStep);
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [fullName, setFullName] = useState('');
   const [isNameFocused, setIsNameFocused] = useState(false);
   const [phone, setPhone] = useState('');
   const [isPhoneFocused, setIsPhoneFocused] = useState(false);
+  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
+  const [email, setEmail] = useState('');
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(26);
   const [canResend, setCanResend] = useState(false);
-  const [demoCodeHint, setDemoCodeHint] = useState<string | null>(null);
 
   const otpInputRefs = useRef<any[]>([]);
 
@@ -137,17 +133,34 @@ export default function MobileLoginScreen() {
   const handlePhoneChange = (val: string) => {
     const cleaned = val.replace(/\D/g, '').slice(0, 10);
     setPhone(cleaned);
+    setIsPhoneVerified(false);
     if (errorMessage) setErrorMessage(null);
   };
 
-  const handleSendOtp = async (inputPhone?: string) => {
-    const targetPhone = inputPhone ?? phone;
-    if (mode === 'signup' && !fullName.trim()) {
-      setErrorMessage('Please enter your full name');
-      return;
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  const handleSendOtp = async (inputTarget?: string) => {
+    let target = inputTarget;
+
+    if (!target) {
+      if (authMethod === 'phone') {
+        if (phone.length !== 10) {
+          setErrorMessage('Please enter a valid 10-digit mobile number');
+          return;
+        }
+        target = `+91${phone}`;
+      } else {
+        const cleanEmail = email.trim().toLowerCase();
+        if (!isEmailValid) {
+          setErrorMessage('Please enter a valid email address');
+          return;
+        }
+        target = cleanEmail;
+      }
     }
-    if (targetPhone.length !== 10) {
-      setErrorMessage('Please enter a valid 10-digit mobile number');
+
+    if (mode === 'signup' && !isPhoneVerified && !fullName.trim()) {
+      setErrorMessage('Please enter your full name');
       return;
     }
 
@@ -155,88 +168,121 @@ export default function MobileLoginScreen() {
     setErrorMessage(null);
     setInfoMessage(null);
 
-    const fullIdentifier = `+91${targetPhone}`;
-
     try {
-      const res = await api.auth.sendOtp(fullIdentifier);
+      const res = await api.auth.sendOtp(target);
       setLoading(false);
       setStep('otp');
       setCountdown(26);
       setCanResend(false);
-      setInfoMessage(`Code sent to +91 ${targetPhone}`);
-      if (res?.demoOtp) {
-        setDemoCodeHint(res.demoOtp);
-      }
+      setInfoMessage(
+        res?.message || (target.includes('@') ? `Code sent to ${target}` : `Code sent to ${target}`)
+      );
     } catch (err: any) {
-      console.warn('[MobileLogin] sendOtp notice:', err.message);
-      // Graceful local verification fallback
+      console.warn('[MobileLogin] sendOtp error:', err.message);
       setLoading(false);
-      setStep('otp');
-      setCountdown(26);
-      setCanResend(false);
-      setDemoCodeHint('123456');
-      setInfoMessage(`Verification code sent to +91 ${targetPhone}`);
+      setErrorMessage(err.message || 'Unable to send verification code. Please check your network and try again.');
     }
   };
 
-  const handleSocialAuth = (provider: 'Google' | 'Apple') => {
+  const handleResendOtp = async () => {
+    const fullIdentifier = authMethod === 'email' ? email.trim().toLowerCase() : `+91${phone}`;
     setLoading(true);
-    setTimeout(() => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+
+    try {
+      await api.auth.resendOtp(fullIdentifier);
       setLoading(false);
-      completeAuth(
-        {
-          id: `usr_${provider.toLowerCase()}_${Date.now()}`,
-          name: fullName.trim() || `Verified ${provider} User`,
-          phone: phone ? `+91 ${phone}` : '+91 98765 43210',
-          email: `${provider.toLowerCase()}.user@seedhaproperties.com`,
-          city: 'Hyderabad',
-          role: 'USER',
-        },
-        `token_${provider.toLowerCase()}_verified`
-      );
-    }, 600);
+      setCountdown(30);
+      setCanResend(false);
+      setInfoMessage('A new verification code has been sent.');
+    } catch (err: any) {
+      console.warn('[MobileLogin] resendOtp error:', err.message);
+      setLoading(false);
+      setErrorMessage(err.message || 'Failed to resend code. Please try again shortly.');
+    }
   };
 
-  const handleAppleSignIn = (
-    accountName = 'Rahul Sharma',
-    accountEmail = 'rahul.sharma@privaterelay.appleid.com'
-  ) => {
+  const handleCompleteSignup = async () => {
+    if (!fullName.trim() || fullName.trim().length < 2) {
+      setErrorMessage('Please enter your full name (at least 2 characters)');
+      return;
+    }
+    if (authMethod === 'phone' && phone.length !== 10) {
+      setErrorMessage('Please enter a valid 10-digit mobile number');
+      return;
+    }
+    if (authMethod === 'email' && !isEmailValid) {
+      setErrorMessage('Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+
+    try {
+      const res = await api.auth.completeSignup({
+        name: fullName.trim(),
+        phone: phone ? `+91${phone}` : undefined,
+        email: email ? email.trim().toLowerCase() : undefined,
+      });
       setLoading(false);
-      completeAuth(
-        {
-          id: `usr_apple_${Date.now()}`,
-          name: accountName,
-          phone: phone ? `+91 ${phone}` : '+91 98490 12345',
-          email: accountEmail,
-          city: 'Hyderabad',
-          role: 'USER',
-        },
-        'token_apple_verified_jwt'
-      );
-    }, 500);
+      if (res?.user && (res.accessToken || res.token)) {
+        completeAuth(res.user, res.accessToken || res.token);
+        setTab('home');
+      } else {
+        setErrorMessage('Failed to complete registration. Please try again.');
+      }
+    } catch (err: any) {
+      console.warn('[MobileLogin] completeSignup error:', err.message);
+      setLoading(false);
+      setErrorMessage(err.message || 'Registration failed. Please check your details and try again.');
+    }
   };
 
-  const handleGoogleSignIn = (
-    accountName = 'Rahul Sharma',
-    accountEmail = 'rahul@gmail.com'
-  ) => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      completeAuth(
-        {
-          id: `usr_google_${Date.now()}`,
-          name: accountName,
-          phone: phone ? `+91 ${phone}` : '+91 98490 12345',
-          email: accountEmail,
-          city: 'Hyderabad',
-          role: 'USER',
-        },
-        'token_google_verified_jwt'
-      );
-    }, 500);
+  const handleAppleButtonPress = () => {
+    setErrorMessage('Apple Sign-In is only supported on Apple iOS devices with FaceID/TouchID. Please log in with your mobile number.');
+  };
+
+  const handleGoogleButtonPress = async () => {
+    if (googleLoading) return;
+    setGoogleLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const result = await startGoogleSignIn();
+
+      if (result.canceled) {
+        setGoogleLoading(false);
+        return;
+      }
+
+      if (result.success && (result.code || result.idToken || result.accessToken)) {
+        // Exchange authorization code (PKCE) or verify tokens via backend
+        const res = await api.auth.googleLogin({
+          code: result.code,
+          codeVerifier: result.codeVerifier,
+          redirectUri: result.redirectUri,
+          idToken: result.idToken,
+          accessToken: result.accessToken,
+        });
+        setGoogleLoading(false);
+        if (res?.user && (res.accessToken || res.token)) {
+          completeAuth(res.user, res.accessToken || res.token);
+          setTab('home');
+        } else {
+          setErrorMessage('Google authentication could not be completed.');
+        }
+        return;
+      }
+
+      setGoogleLoading(false);
+      setErrorMessage(result.error || 'Google Sign-In is currently unavailable. Please log in with your mobile number.');
+    } catch (err: any) {
+      setGoogleLoading(false);
+      setErrorMessage(err.message || 'Failed to start Google Sign-In. Please log in with your mobile number.');
+    }
   };
 
   const handleDigitChange = (index: number, val: string) => {
@@ -270,8 +316,13 @@ export default function MobileLoginScreen() {
   };
 
   const otpCode = otpDigits.join('');
-  const last4 = phone && phone.length >= 4 ? phone.slice(-4) : '6758';
-  const maskedPhone = `+91 ****${last4}`;
+  const maskedPhone = phone.length >= 4 ? `+91 ••••• ${phone.slice(-4)}` : (phone ? `+91 ${phone}` : '+91 Mobile');
+  const emailParts = email.trim().split('@');
+  const maskedEmail =
+    emailParts.length === 2
+      ? `${emailParts[0].slice(0, 2)}••••@${emailParts[1]}`
+      : email;
+  const maskedTarget = authMethod === 'email' ? maskedEmail : maskedPhone;
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) {
@@ -282,48 +333,43 @@ export default function MobileLoginScreen() {
     setLoading(true);
     setErrorMessage(null);
 
-    const fullIdentifier = `+91${phone}`;
+    const fullIdentifier = authMethod === 'email' ? email.trim().toLowerCase() : `+91${phone}`;
 
     try {
-      const res = await api.auth.verifyOtp(fullIdentifier, otpCode);
+      const res = await api.auth.verifyOtp(
+        fullIdentifier,
+        otpCode,
+        mode === 'signup' && fullName.trim() ? fullName.trim() : undefined
+      );
       setLoading(false);
-      if (res?.user) {
+
+      // Requirement 2: New user redirected to Signup after OTP verification
+      if (res?.isNewUser) {
+        setIsPhoneVerified(true);
+        setMode('signup');
+        setStep('phone');
+        setInfoMessage(
+          authMethod === 'email'
+            ? 'Email verified! Please enter your name to complete registration.'
+            : 'Mobile number verified! Please enter your name to complete registration.'
+        );
+        return;
+      }
+
+      // Requirement 3: Existing user logs in directly
+      if (res?.user && (res.accessToken || res.token)) {
         completeAuth(
           fullName.trim() ? { ...res.user, name: fullName.trim() } : res.user,
           res.accessToken || res.token
         );
+        setTab('home');
       } else {
-        completeAuth(
-          {
-            id: `usr_${phone}`,
-            name: fullName.trim() || (mode === 'signup' ? 'New Property User' : 'Verified User'),
-            phone: `+91 ${phone}`,
-            email: `user_${phone.slice(-4)}@seedhaproperties.com`,
-            city: 'Hyderabad',
-            role: 'USER',
-          },
-          res?.accessToken || 'token_demo'
-        );
+        setErrorMessage('Verification failed. Invalid response received from server.');
       }
     } catch (err: any) {
-      console.warn('[MobileLogin] verifyOtp notice:', err.message);
-      if (otpCode === '123456' || (demoCodeHint && otpCode === demoCodeHint)) {
-        setLoading(false);
-        completeAuth(
-          {
-            id: `usr_${phone || 'demo'}`,
-            name: fullName.trim() || (mode === 'signup' ? 'New Property User' : 'Verified User'),
-            phone: `+91 ${phone || '9876543210'}`,
-            email: `user_${(phone || '5678').slice(-4)}@seedhaproperties.com`,
-            city: 'Hyderabad',
-            role: 'USER',
-          },
-          'token_verified_guest'
-        );
-      } else {
-        setLoading(false);
-        setErrorMessage(err.message || 'Invalid verification code. Enter 123456 for demo.');
-      }
+      console.warn('[MobileLogin] verifyOtp error:', err.message);
+      setLoading(false);
+      setErrorMessage(err.message || 'Invalid verification code. Please check and try again.');
     }
   };
 
@@ -339,8 +385,8 @@ export default function MobileLoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Top Row: Back Button */}
-          {step === 'apple' || step === 'google' ? (
-            <View style={styles.topBarBetween}>
+          <View style={styles.topBar}>
+            {step === 'otp' ? (
               <TouchableOpacity
                 onPress={() => setStep('phone')}
                 style={styles.backButton}
@@ -348,19 +394,16 @@ export default function MobileLoginScreen() {
               >
                 <ChevronLeft size={22} color="#0F172A" strokeWidth={2.4} />
               </TouchableOpacity>
-              <SeedhaLogo size="sm" />
-            </View>
-          ) : (
-            <View style={styles.topBar}>
+            ) : isAuthenticated ? (
               <TouchableOpacity
-                onPress={step === 'otp' ? () => setStep('phone') : cancelAuth}
+                onPress={cancelAuth}
                 style={styles.backButton}
                 activeOpacity={0.8}
               >
                 <ChevronLeft size={22} color="#0F172A" strokeWidth={2.4} />
               </TouchableOpacity>
-            </View>
-          )}
+            ) : null}
+          </View>
 
           {/* Logo - only on Phone Sign In / Sign Up step */}
           {step === 'phone' && (
@@ -372,6 +415,14 @@ export default function MobileLoginScreen() {
           {/* Step 1: Phone / Social Login matching image */}
           {step === 'phone' ? (
             <View style={styles.formContent}>
+              {/* Info banner (e.g. redirected after OTP verification to enter name) */}
+              {infoMessage && (
+                <View style={styles.infoBanner}>
+                  <CheckCircle2 size={16} color="#059669" strokeWidth={2.2} />
+                  <Text style={styles.infoBannerText}>{infoMessage}</Text>
+                </View>
+              )}
+
               {/* Headings */}
               <Text style={styles.heading}>
                 {mode === 'signin' ? 'Welcome back' : 'Create your account'}
@@ -413,63 +464,173 @@ export default function MobileLoginScreen() {
                 </View>
               )}
 
-              {/* Mobile Number Label */}
-              <Text style={styles.inputLabel}>Mobile Number</Text>
-
-              {/* Mobile Input Field */}
-              <View
-                style={[
-                  styles.phoneInputRow,
-                  phone.length === 10 && styles.phoneInputRowActive,
-                ]}
-              >
-                {/* Flag + Country Code */}
-                <View style={styles.countryWrap}>
-                  <IndiaFlag width={22} height={15} />
-                  <Text style={styles.countryCode}>+91</Text>
-                </View>
-
-                {/* Vertical Divider */}
-                <View style={styles.inputDivider} />
-
-                {/* Phone Input */}
-                <TextInput
+              {/* Toggle Switcher: Mobile OTP vs Email OTP */}
+              <View style={styles.methodToggleWrap}>
+                <TouchableOpacity
                   style={[
-                    styles.phoneInput,
-                    Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                    styles.methodToggleBtn,
+                    authMethod === 'phone' && styles.methodToggleBtnActive,
                   ]}
-                  placeholder="Enter mobile number"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={phone}
-                  onChangeText={handlePhoneChange}
-                  onFocus={() => setIsPhoneFocused(true)}
-                  onBlur={() => setIsPhoneFocused(false)}
-                  autoFocus={false}
-                />
+                  onPress={() => {
+                    setAuthMethod('phone');
+                    setErrorMessage(null);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Phone
+                    size={15}
+                    color={authMethod === 'phone' ? '#0F172A' : '#64748B'}
+                    strokeWidth={2.2}
+                  />
+                  <Text
+                    style={[
+                      styles.methodToggleText,
+                      authMethod === 'phone' && styles.methodToggleTextActive,
+                    ]}
+                  >
+                    Mobile OTP
+                  </Text>
+                </TouchableOpacity>
 
-                {/* Green Valid Checkmark Circle (matching screenshot) */}
-                {phone.length === 10 && (
-                  <View style={styles.validCheckCircle}>
-                    <Check size={13} color="#FFFFFF" strokeWidth={3} />
-                  </View>
-                )}
+                <TouchableOpacity
+                  style={[
+                    styles.methodToggleBtn,
+                    authMethod === 'email' && styles.methodToggleBtnActive,
+                  ]}
+                  onPress={() => {
+                    setAuthMethod('email');
+                    setErrorMessage(null);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Mail
+                    size={15}
+                    color={authMethod === 'email' ? '#0F172A' : '#64748B'}
+                    strokeWidth={2.2}
+                  />
+                  <Text
+                    style={[
+                      styles.methodToggleText,
+                      authMethod === 'email' && styles.methodToggleTextActive,
+                    ]}
+                  >
+                    Email OTP
+                  </Text>
+                </TouchableOpacity>
               </View>
+
+              {/* Input Label */}
+              <Text style={styles.inputLabel}>
+                {authMethod === 'phone' ? 'Mobile Number' : 'Email Address'}
+              </Text>
+
+              {/* Input Field: Phone or Email */}
+              {authMethod === 'phone' ? (
+                <View
+                  style={[
+                    styles.phoneInputRow,
+                    phone.length === 10 && styles.phoneInputRowActive,
+                  ]}
+                >
+                  {/* Flag + Country Code */}
+                  <View style={styles.countryWrap}>
+                    <IndiaFlag width={22} height={15} />
+                    <Text style={styles.countryCode}>+91</Text>
+                  </View>
+
+                  {/* Vertical Divider */}
+                  <View style={styles.inputDivider} />
+
+                  {/* Phone Input */}
+                  <TextInput
+                    style={[
+                      styles.phoneInput,
+                      Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                    ]}
+                    placeholder="Enter mobile number"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                    value={phone}
+                    onChangeText={handlePhoneChange}
+                    onFocus={() => setIsPhoneFocused(true)}
+                    onBlur={() => setIsPhoneFocused(false)}
+                    autoFocus={false}
+                  />
+
+                  {/* Green Valid Checkmark Circle (matching screenshot) */}
+                  {phone.length === 10 && (
+                    <View style={styles.validCheckCircle}>
+                      <Check size={13} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.phoneInputRow,
+                    isEmailValid && styles.phoneInputRowActive,
+                  ]}
+                >
+                  <View style={styles.emailIconWrap}>
+                    <Mail size={18} color="#64748B" strokeWidth={2} />
+                  </View>
+
+                  {/* Vertical Divider */}
+                  <View style={styles.inputDivider} />
+
+                  {/* Email Input */}
+                  <TextInput
+                    style={[
+                      styles.phoneInput,
+                      Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                    ]}
+                    placeholder="Enter your email address"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      setIsPhoneVerified(false);
+                      if (errorMessage) setErrorMessage(null);
+                    }}
+                    onFocus={() => setIsEmailFocused(true)}
+                    onBlur={() => setIsEmailFocused(false)}
+                    autoFocus={false}
+                  />
+
+                  {/* Green Valid Checkmark Circle */}
+                  {isEmailValid && (
+                    <View style={styles.validCheckCircle}>
+                      <Check size={13} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  )}
+                </View>
+              )}
 
               {/* Helper text on Signup */}
               {mode === 'signup' && (
                 <Text style={styles.phoneHelperText}>
-                  We'll send a verification code to this number
+                  {authMethod === 'phone'
+                    ? "We'll send a verification code to this mobile number"
+                    : "We'll send a verification code to this email address"}
                 </Text>
               )}
 
               {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
-              {/* Action Button: Send OTP / Continue */}
+              {/* Action Button: Send OTP / Continue / Create Account */}
               <TouchableOpacity
-                onPress={() => handleSendOtp()}
-                disabled={loading}
+                onPress={() => {
+                  if (mode === 'signup' && isPhoneVerified) {
+                    handleCompleteSignup();
+                  } else {
+                    handleSendOtp();
+                  }
+                }}
+                disabled={loading || googleLoading}
                 style={styles.continueBtn}
                 activeOpacity={0.88}
               >
@@ -477,7 +638,11 @@ export default function MobileLoginScreen() {
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.continueBtnText}>
-                    {mode === 'signup' ? 'Send OTP' : 'Continue'}
+                    {mode === 'signup'
+                      ? isPhoneVerified
+                        ? 'Create Account'
+                        : 'Send OTP'
+                      : 'Continue'}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -494,16 +659,23 @@ export default function MobileLoginScreen() {
               {/* Social Buttons */}
               <TouchableOpacity
                 style={styles.socialBtn}
-                onPress={() => setStep('google')}
+                onPress={handleGoogleButtonPress}
+                disabled={loading || googleLoading}
                 activeOpacity={0.85}
               >
-                <GoogleIcon size={20} />
-                <Text style={styles.socialBtnText}>Continue with Google</Text>
+                {googleLoading ? (
+                  <ActivityIndicator size="small" color="#0F172A" />
+                ) : (
+                  <>
+                    <GoogleIcon size={20} />
+                    <Text style={styles.socialBtnText}>Continue with Google</Text>
+                  </>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.socialBtn, styles.socialBtnApple]}
-                onPress={() => setStep('apple')}
+                onPress={handleAppleButtonPress}
                 activeOpacity={0.85}
               >
                 <AppleIcon size={20} />
@@ -521,6 +693,8 @@ export default function MobileLoginScreen() {
                   onPress={() => {
                     setMode((m) => (m === 'signin' ? 'signup' : 'signin'));
                     setErrorMessage(null);
+                    setInfoMessage(null);
+                    setIsPhoneVerified(false);
                   }}
                   activeOpacity={0.7}
                 >
@@ -539,141 +713,24 @@ export default function MobileLoginScreen() {
                 </Text>
               )}
             </View>
-          ) : step === 'apple' ? (
-            /* Step 3: Apple Auth screen matching media_1794646832535_a9b114cf.png */
-            <View style={styles.appleContainer}>
-              {/* Apple Icon Badge Box */}
-              <View style={styles.appleBadgeBox}>
-                <AppleIcon size={30} />
-              </View>
-
-              {/* Title & Subtitle */}
-              <Text style={styles.appleHeading}>Continue with Apple</Text>
-              <Text style={styles.appleSubHeading}>
-                Choose an account to securely continue to Seedha Properties.
-              </Text>
-
-              {/* Primary Account Card: Rahul Sharma */}
-              <TouchableOpacity
-                style={styles.appleAccountCard}
-                onPress={() => handleAppleSignIn('Rahul Sharma', 'r•••••@privaterelay.appleid.com')}
-                activeOpacity={0.88}
-              >
-                <View style={styles.appleAvatar}>
-                  <Text style={styles.appleAvatarText}>RS</Text>
-                </View>
-                <View style={styles.appleAccountInfo}>
-                  <Text style={styles.appleAccountName}>Rahul Sharma</Text>
-                  <Text style={styles.appleAccountEmail}>r•••••@privaterelay.appleid.com</Text>
-                </View>
-                <ChevronRight size={18} color="#94A3B8" strokeWidth={2.4} />
-              </TouchableOpacity>
-
-              {/* Hide My Email Info Card */}
-              <View style={styles.hideEmailCard}>
-                <View style={styles.hideEmailHeaderRow}>
-                  <Mail size={18} color="#0F172A" strokeWidth={2} />
-                  <Text style={styles.hideEmailTitle}>Hide My Email enabled</Text>
-                </View>
-                <Text style={styles.hideEmailDesc}>
-                  Apple shares a private relay address, keeping your personal email protected.
-                </Text>
-              </View>
-
-              {/* Use a different Apple ID button */}
-              <TouchableOpacity
-                style={styles.differentAppleBtn}
-                onPress={() => handleAppleSignIn('Apple User', 'user@privaterelay.appleid.com')}
-                activeOpacity={0.85}
-              >
-                <Lock size={17} color="#0F172A" strokeWidth={2} />
-                <Text style={styles.differentAppleText}>Use a different Apple ID</Text>
-              </TouchableOpacity>
-
-              {/* Green Security Banner */}
-              <View style={styles.securityBanner}>
-                <ShieldCheck size={18} color="#16A34A" strokeWidth={2} />
-                <Text style={styles.securityBannerText}>
-                  Secure authentication. Seedha Properties never receives your provider password.
-                </Text>
-              </View>
-            </View>
-          ) : step === 'google' ? (
-            /* Step 4: Google Auth screen matching media_1794647222894_3fe8f97a.png */
-            <View style={styles.appleContainer}>
-              {/* Google Icon Badge Box */}
-              <View style={styles.appleBadgeBox}>
-                <GoogleIcon size={30} />
-              </View>
-
-              {/* Title & Subtitle */}
-              <Text style={styles.appleHeading}>Continue with Google</Text>
-              <Text style={styles.appleSubHeading}>
-                Choose an account to securely continue to Seedha Properties.
-              </Text>
-
-              {/* Account 1 Card: Rahul Sharma */}
-              <TouchableOpacity
-                style={styles.appleAccountCard}
-                onPress={() => handleGoogleSignIn('Rahul Sharma', 'rahul@gmail.com')}
-                activeOpacity={0.88}
-              >
-                <View style={styles.appleAvatar}>
-                  <Text style={styles.appleAvatarText}>RS</Text>
-                </View>
-                <View style={styles.appleAccountInfo}>
-                  <Text style={styles.appleAccountName}>Rahul Sharma</Text>
-                  <Text style={styles.appleAccountEmail}>rahul@gmail.com</Text>
-                </View>
-                <ChevronRight size={18} color="#94A3B8" strokeWidth={2.4} />
-              </TouchableOpacity>
-
-              {/* Account 2 Card: Rahul S */}
-              <TouchableOpacity
-                style={styles.appleAccountCard}
-                onPress={() => handleGoogleSignIn('Rahul S', 'rahul.work@gmail.com')}
-                activeOpacity={0.88}
-              >
-                <View style={styles.appleAvatar}>
-                  <Text style={styles.appleAvatarText}>RS</Text>
-                </View>
-                <View style={styles.appleAccountInfo}>
-                  <Text style={styles.appleAccountName}>Rahul S</Text>
-                  <Text style={styles.appleAccountEmail}>rahul.work@gmail.com</Text>
-                </View>
-                <ChevronRight size={18} color="#94A3B8" strokeWidth={2.4} />
-              </TouchableOpacity>
-
-              {/* Use another Google account button */}
-              <TouchableOpacity
-                style={styles.differentAppleBtn}
-                onPress={() => handleGoogleSignIn('Google User', 'user@gmail.com')}
-                activeOpacity={0.85}
-              >
-                <CheckCircle2 size={17} color="#0F172A" strokeWidth={2} />
-                <Text style={styles.differentAppleText}>Use another Google account</Text>
-              </TouchableOpacity>
-
-              {/* Green Security Banner */}
-              <View style={styles.securityBanner}>
-                <ShieldCheck size={18} color="#16A34A" strokeWidth={2} />
-                <Text style={styles.securityBannerText}>
-                  Secure authentication. Seedha Properties never receives your provider password.
-                </Text>
-              </View>
-            </View>
           ) : (
             /* Step 2: OTP Verification matching image */
             <View style={styles.verifyContainer}>
-              {/* Phone Icon Box */}
+              {/* Phone / Email Icon Box */}
               <View style={styles.phoneIconBox}>
-                <Phone size={24} color="#000000" strokeWidth={2} />
+                {authMethod === 'email' ? (
+                  <Mail size={24} color="#000000" strokeWidth={2} />
+                ) : (
+                  <Phone size={24} color="#000000" strokeWidth={2} />
+                )}
               </View>
 
               {/* Title & Subtitle */}
-              <Text style={styles.verifyHeading}>Verify your number</Text>
+              <Text style={styles.verifyHeading}>
+                {authMethod === 'email' ? 'Verify your email' : 'Verify your number'}
+              </Text>
               <Text style={styles.verifySubHeading}>
-                Enter the 6-digit code sent to {maskedPhone}
+                Enter the 6-digit code sent to {maskedTarget}
               </Text>
 
               {/* 6 Digit Inputs */}
@@ -720,7 +777,7 @@ export default function MobileLoginScreen() {
                 <Text style={styles.didNotReceiveText}>Didn't receive the code?</Text>
                 {canResend ? (
                   <TouchableOpacity
-                    onPress={() => handleSendOtp()}
+                    onPress={handleResendOtp}
                     style={styles.resendActionBtn}
                     activeOpacity={0.7}
                   >
@@ -742,7 +799,9 @@ export default function MobileLoginScreen() {
                   style={styles.changeNumberBtn}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.changeNumberText}>Change Number</Text>
+                  <Text style={styles.changeNumberText}>
+                    {authMethod === 'email' ? 'Change Email' : 'Change Number'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -945,6 +1004,45 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 32,
   },
+  methodToggleWrap: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 20,
+    marginTop: 4,
+  },
+  methodToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 11,
+    gap: 7,
+  },
+  methodToggleBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  methodToggleText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  methodToggleTextActive: {
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  emailIconWrap: {
+    marginRight: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
@@ -1051,6 +1149,25 @@ const styles = StyleSheet.create({
         boxShadow: 'none',
       } as any)
       : {}),
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  infoBannerText: {
+    fontSize: 13,
+    color: '#065F46',
+    flex: 1,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   errorText: {
     fontSize: 12.5,
@@ -1189,23 +1306,6 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: '#2563EB',
     fontWeight: '600',
-  },
-  demoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    alignSelf: 'center',
-  },
-  demoBannerText: {
-    fontSize: 13,
-    color: '#065F46',
   },
   digitsRow: {
     flexDirection: 'row',

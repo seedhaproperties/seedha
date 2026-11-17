@@ -368,7 +368,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActiveTab(tab);
     const tabScreens: Record<string, ScreenState> = {
       home: { name: 'home' },
-      landing: { name: 'home' },
+      landing: { name: 'landing' },
       explore: { name: 'explore' },
       search: { name: 'search' },
       saved: { name: 'explore', params: { filter: 'saved' } },

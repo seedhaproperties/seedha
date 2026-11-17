@@ -3,4 +3,6 @@ dist/
 .env
 *.log
 *.tsbuildinfo
+*serviceAccount*.json
+serviceAccountKey.json
 

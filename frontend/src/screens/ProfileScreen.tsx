@@ -150,32 +150,6 @@ export default function ProfileScreen() {
               </View>
             ) : null}
 
-            {/* Quick Login / Role Switcher for Testing */}
-            <View style={styles.roleSwitchCard}>
-              <Text style={styles.roleSwitchTitle}>Role & Auth Status: <Text style={{ color: colors.primary, fontWeight: '700' }}>{roleLabel}</Text></Text>
-              <View style={styles.roleSwitchActions}>
-                <TouchableOpacity
-                  style={[styles.roleChip, isAdmin && styles.roleChipActive]}
-                  onPress={() => push({ name: 'login' })}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.roleChipText, isAdmin && styles.roleChipTextActive]}>
-                    {isAdmin ? '✓ Admin Mode' : 'Switch / Login as Admin'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.roleChip, !isAdmin && isAuthenticated && styles.roleChipActive]}
-                  onPress={() => requireAuth(undefined, undefined, 'Sign In')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.roleChipText, !isAdmin && isAuthenticated && styles.roleChipTextActive]}>
-                    {!isAdmin && isAuthenticated ? '✓ User Mode' : 'Mobile OTP Login'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
             {/* Stats */}
             <View style={styles.statsRow}>
               {[

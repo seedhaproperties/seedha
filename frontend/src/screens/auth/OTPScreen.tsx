@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, RefreshCw, Phone } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 

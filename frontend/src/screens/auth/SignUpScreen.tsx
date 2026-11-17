@@ -197,7 +197,7 @@ export default function SignUpScreen() {
         {/* Social Buttons */}
         <View style={styles.socialGroup}>
           <TouchableOpacity
-            onPress={() => push({ name: 'profileSetup', params: { mode: 'google' } })}
+            onPress={() => push({ name: 'mobileLogin', params: { step: 'google' } })}
             style={styles.socialButton}
             activeOpacity={0.8}
           >

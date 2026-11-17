@@ -8,6 +8,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
+import { Msg91Service } from './msg91.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 let AuthModule = class AuthModule {
 };
@@ -20,8 +21,8 @@ AuthModule = __decorate([
             }),
         ],
         controllers: [AuthController],
-        providers: [AuthService, JwtAuthGuard],
-        exports: [AuthService, JwtModule, JwtAuthGuard],
+        providers: [AuthService, Msg91Service, JwtAuthGuard],
+        exports: [AuthService, Msg91Service, JwtModule, JwtAuthGuard],
     })
 ], AuthModule);
 export { AuthModule };

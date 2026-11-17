@@ -87,23 +87,6 @@ export default function AdminLoginScreen() {
           <Text style={styles.loginBtnText}>Authenticate & Enter Hub</Text>
           <ArrowRight size={18} color={colors.textWhite} />
         </TouchableOpacity>
-
-        {/* Quick Demo Access for Testing */}
-        <View style={styles.demoBox}>
-          <Text style={styles.demoTitle}>Seedha Operations Demo Key</Text>
-          <Text style={styles.demoHint}>Default passcode is: <Text style={{ fontWeight: '700' }}>admin123</Text></Text>
-          <TouchableOpacity
-            onPress={() => {
-              setPasscode('admin123');
-              handleLogin('admin123');
-            }}
-            style={styles.quickAccessBtn}
-            activeOpacity={0.8}
-          >
-            <KeyRound size={14} color={colors.secondary} />
-            <Text style={styles.quickAccessText}>One-Tap Demo Admin Access</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </View>
   );
@@ -217,39 +200,5 @@ const styles = StyleSheet.create({
     color: colors.textWhite,
     fontSize: 15,
     fontWeight: '700',
-  },
-  demoBox: {
-    width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  demoTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 2,
-  },
-  demoHint: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 10,
-  },
-  quickAccessBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.secondaryBg,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  quickAccessText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.secondary,
   },
 });

@@ -4,12 +4,40 @@ import { LoginDto } from './dto/login.dto.js';
 declare class SendOtpDto {
     identifier?: string;
     phone?: string;
+    mobile?: string;
     email?: string;
 }
 declare class VerifyOtpDto {
     identifier?: string;
     phone?: string;
+    mobile?: string;
+    email?: string;
     otp: string;
+    name?: string;
+}
+declare class CompleteSignupDto {
+    name: string;
+    phone: string;
+    email?: string;
+}
+declare class GoogleAuthDto {
+    code?: string;
+    codeVerifier?: string;
+    redirectUri?: string;
+    idToken?: string;
+    accessToken?: string;
+    email?: string;
+    name?: string;
+    phone?: string;
+}
+declare class SocialAuthDto {
+    email: string;
+    name: string;
+    phone?: string;
+    providerId?: string;
+}
+declare class RefreshTokenDto {
+    refreshToken: string;
 }
 declare class ForgotPasswordDto {
     email: string;
@@ -43,9 +71,44 @@ export declare class AuthController {
         success: boolean;
         message: string;
         emailSent: boolean;
-        demoOtp: string;
+        isExistingUser: boolean;
+        mobile?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        mobile: string;
+        isExistingUser: boolean;
+        emailSent?: undefined;
+    }>;
+    resendOtp(dto: SendOtpDto): Promise<{
+        success: boolean;
+        message: string;
+        emailSent: boolean;
+        isExistingUser: boolean;
+        mobile?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        mobile: string;
+        isExistingUser: boolean;
+        emailSent?: undefined;
     }>;
     verifyOtp(dto: VerifyOtpDto): Promise<{
+        accessToken: string;
+        refreshToken: string;
+        success: boolean;
+        isNewUser: boolean;
+        phone: string;
+        mobile: string;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: import("../../common/constants.js").UserRole;
+        };
+    }>;
+    completeSignup(dto: CompleteSignupDto): Promise<{
         accessToken: string;
         refreshToken: string;
         success: boolean;
@@ -56,6 +119,35 @@ export declare class AuthController {
             phone: string;
             role: import("../../common/constants.js").UserRole;
         };
+    }>;
+    googleAuth(dto: GoogleAuthDto): Promise<{
+        accessToken: string;
+        refreshToken: string;
+        success: boolean;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: import("../../common/constants.js").UserRole;
+        };
+    }>;
+    appleAuth(dto: SocialAuthDto): Promise<{
+        accessToken: string;
+        refreshToken: string;
+        success: boolean;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: import("../../common/constants.js").UserRole;
+        };
+    }>;
+    refreshToken(dto: RefreshTokenDto): Promise<{
+        accessToken: string;
+        refreshToken: string;
+        success: boolean;
     }>;
     forgotPassword(dto: ForgotPasswordDto): Promise<{
         success: boolean;

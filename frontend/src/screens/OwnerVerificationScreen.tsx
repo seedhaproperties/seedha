@@ -9,9 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  SafeAreaView,
   Image as RNImage,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
   ChevronRight,

@@ -34,8 +34,8 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   const port = process.env.PORT || 4000;
-  await app.listen(port);
-  logger.log(`🚀 Seedha Properties API running at: http://localhost:${port}/`);
+  await app.listen(port, '0.0.0.0');
+  logger.log(`🚀 Seedha Properties API running at: http://0.0.0.0:${port}/`);
   logger.log(`📖 Swagger API Documentation available at: http://localhost:${port}/api/docs`);
 }
 

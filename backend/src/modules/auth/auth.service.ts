@@ -1,11 +1,14 @@
 import { Injectable, ConflictException, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { OAuth2Client } from 'google-auth-library';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { mockDb, UserRecord } from '../../common/mock-db.js';
 import { UserRole } from '../../common/constants.js';
 import { EmailService } from '../email/email.service.js';
+import { PrismaService } from '../../database/prisma.service.js';
+import { Msg91Service } from './msg91.service.js';
 
 interface OtpEntry {
   otp: string;
@@ -16,16 +19,145 @@ interface OtpEntry {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private otpStore = new Map<string, OtpEntry>();
+  private googleClient: OAuth2Client;
 
   constructor(
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
-  ) { }
+    private readonly prisma: PrismaService,
+    private readonly msg91Service: Msg91Service,
+  ) {
+    this.googleClient = new OAuth2Client();
+  }
+
+  /**
+   * Find a user by email, phone, or ID in PostgreSQL (Prisma) with in-memory fallback
+   */
+  async findUser(identifier: string): Promise<UserRecord | null> {
+    const clean = (identifier || '').trim().toLowerCase();
+    if (!clean) return null;
+
+    const digits = clean.replace(/\D/g, '');
+    const last10 = digits.slice(-10);
+
+    // 1. Check PostgreSQL via Prisma if connected
+    if (this.prisma?.isConnected) {
+      try {
+        const user = await this.prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: { equals: clean, mode: 'insensitive' } },
+              ...(last10 ? [{ phone: { contains: last10 } }] : []),
+              { phone: clean },
+              { id: clean },
+            ],
+          },
+        });
+
+        if (user) {
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            passwordHash: user.passwordHash,
+            role: (user.role as unknown as UserRole) || UserRole.USER,
+            createdAt: user.createdAt.toISOString(),
+          };
+        }
+      } catch (err: any) {
+        this.logger.warn(`PostgreSQL findUser lookup notice: ${err.message}`);
+      }
+    }
+
+    // 2. In-memory fallback
+    return (
+      mockDb.users.find((u) => {
+        const uPhoneDigits = (u.phone || '').replace(/\D/g, '');
+        return (
+          u.email.toLowerCase() === clean ||
+          u.phone.toLowerCase() === clean ||
+          (last10 && uPhoneDigits.endsWith(last10)) ||
+          u.id === clean
+        );
+      }) || null
+    );
+  }
+
+  /**
+   * Create and persist a new user in PostgreSQL and in-memory cache
+   */
+  async createUser(userData: {
+    name: string;
+    email: string;
+    phone: string;
+    passwordHash?: string;
+    role?: UserRole;
+  }): Promise<UserRecord> {
+    const newUser: UserRecord = {
+      id: `usr_${Date.now()}`,
+      name: userData.name.trim(),
+      email: userData.email.trim().toLowerCase(),
+      phone: userData.phone.trim(),
+      passwordHash: userData.passwordHash || 'otp_social_verified',
+      role: userData.role || UserRole.USER,
+      createdAt: new Date().toISOString(),
+    };
+
+    // 1. Persist to PostgreSQL if connected
+    if (this.prisma?.isConnected) {
+      try {
+        const created = await this.prisma.user.create({
+          data: {
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email,
+            phone: newUser.phone,
+            passwordHash: newUser.passwordHash,
+            role: newUser.role as any,
+          },
+        });
+        newUser.id = created.id;
+        this.logger.log(`Created user ${newUser.id} (${newUser.email}) in PostgreSQL`);
+      } catch (err: any) {
+        this.logger.warn(`PostgreSQL createUser notice: ${err.message}`);
+      }
+    }
+
+    // 2. Cache in mockDb
+    const idx = mockDb.users.findIndex(
+      (u) => u.email === newUser.email || u.phone === newUser.phone,
+    );
+    if (idx >= 0) {
+      mockDb.users[idx] = newUser;
+    } else {
+      mockDb.users.push(newUser);
+    }
+
+    return newUser;
+  }
+
+  /**
+   * Persist active refresh token
+   */
+  private async saveRefreshToken(userId: string, token: string) {
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.refreshToken.create({
+          data: {
+            userId,
+            tokenHash: token.slice(-24),
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          },
+        });
+      } catch (err: any) {
+        this.logger.warn(`PostgreSQL saveRefreshToken notice: ${err.message}`);
+      }
+    }
+  }
 
   async register(dto: RegisterDto) {
-    const existing = mockDb.users.find(
-      (u) => u.email.toLowerCase() === dto.email.toLowerCase() || u.phone === dto.phone,
-    );
+    const existing = await this.findUser(dto.email) || await this.findUser(dto.phone);
     if (existing) {
       throw new ConflictException('User with this email or phone number already exists');
     }
@@ -33,17 +165,13 @@ export class AuthService {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(dto.password, salt);
 
-    const newUser: UserRecord = {
-      id: `usr_${Date.now()}`,
+    const newUser = await this.createUser({
       name: dto.name,
-      email: dto.email.toLowerCase(),
+      email: dto.email,
       phone: dto.phone,
       passwordHash,
       role: dto.role || UserRole.USER,
-      createdAt: new Date().toISOString(),
-    };
-
-    mockDb.users.push(newUser);
+    });
 
     // Send Welcome Email via SMTP in the background
     this.emailService
@@ -51,6 +179,8 @@ export class AuthService {
       .catch((err) => this.logger.warn(`Failed sending welcome email: ${err.message}`));
 
     const tokens = this.generateTokens(newUser);
+    await this.saveRefreshToken(newUser.id, tokens.refreshToken);
+
     return {
       user: {
         id: newUser.id,
@@ -64,43 +194,21 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = mockDb.users.find(
-      (u) =>
-        u.email.toLowerCase() === dto.identifier.toLowerCase() ||
-        u.phone === dto.identifier,
-    );
+    const user = await this.findUser(dto.identifier);
 
     if (!user) {
-      // Demo fallback check for instant quick logins
-      if (dto.identifier === 'admin@seedhaproperties.com' || dto.identifier === 'admin') {
-        const adminUser = mockDb.users.find((u) => u.role === UserRole.ADMIN)!;
-        return {
-          user: {
-            id: adminUser.id,
-            name: adminUser.name,
-            email: adminUser.email,
-            phone: adminUser.phone,
-            role: adminUser.role,
-          },
-          ...this.generateTokens(adminUser),
-        };
-      }
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Direct password match fallback for development test passwords
-    let isValid = false;
-    if (dto.password === 'admin123' || dto.password === 'password123' || dto.password === 'Seedha@2026') {
-      isValid = true;
-    } else {
-      isValid = await bcrypt.compare(dto.password, user.passwordHash).catch(() => false);
-    }
+    const isValid = await bcrypt.compare(dto.password, user.passwordHash).catch(() => false);
 
     if (!isValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const tokens = this.generateTokens(user);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
+
     return {
       user: {
         id: user.id,
@@ -116,65 +224,203 @@ export class AuthService {
   async sendOtp(identifier: string) {
     const trimmed = (identifier || '').trim();
     if (!trimmed) {
-      throw new BadRequestException('Email or phone number is required');
+      throw new BadRequestException('Email or mobile number is required');
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const isEmail = trimmed.includes('@');
 
-    this.otpStore.set(trimmed.toLowerCase(), { otp, expiresAt });
+    if (isEmail) {
+      const cleanKey = trimmed.toLowerCase();
+      const existingUser = await this.findUser(cleanKey);
 
-    let emailSent = false;
-    if (trimmed.includes('@')) {
-      emailSent = await this.emailService.sendOtp(trimmed.toLowerCase(), otp);
-    } else {
-      this.logger.log(`📱 SMS OTP for ${trimmed}: ${otp}`);
+      // Generate 6-digit OTP code for email
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+      this.otpStore.set(cleanKey, { otp, expiresAt });
+
+      const emailSent = await this.emailService.sendOtp(cleanKey, otp);
+      if ((process.env.NODE_ENV || '').toLowerCase() !== 'production') {
+        this.logger.log(`🧪 [DEVELOPMENT OTP MODE] Email: ${cleanKey} | Generated OTP: ${otp} | Fixed Test OTP: 123456`);
+      }
+
+      return {
+        success: true,
+        message: `Verification code sent to ${cleanKey}`,
+        emailSent,
+        isExistingUser: !!existingUser,
+      };
     }
+
+    // Mobile Number Flow: MSG91 official SendOTP API
+    const normalized = this.msg91Service.normalizeMobile(trimmed);
+    const existingUser = await this.findUser(normalized.e164);
+
+    const msg91Res = await this.msg91Service.sendOtp(normalized.digits10);
 
     return {
       success: true,
-      message: trimmed.includes('@')
-        ? `Verification code sent to ${trimmed}`
-        : `Verification code sent to mobile ${trimmed}`,
-      emailSent,
-      // Provide OTP in response during development for easy testing
-      demoOtp: otp,
+      message: msg91Res.message || 'OTP sent successfully',
+      mobile: normalized.e164,
+      isExistingUser: !!existingUser,
     };
   }
 
-  async verifyOtp(identifier: string, code: string) {
-    const trimmed = (identifier || '').trim().toLowerCase();
-    const entry = this.otpStore.get(trimmed);
-
-    const isDemoCode = code === '123456';
-    const isValid = (entry && entry.otp === code && Date.now() <= entry.expiresAt) || isDemoCode;
-
-    if (!isValid) {
-      throw new UnauthorizedException('Invalid or expired verification code');
+  async resendOtp(identifier: string) {
+    const trimmed = (identifier || '').trim();
+    if (!trimmed) {
+      throw new BadRequestException('Email or mobile number is required');
     }
 
-    this.otpStore.delete(trimmed);
+    if (trimmed.includes('@')) {
+      return this.sendOtp(trimmed);
+    }
 
-    // Find or create user
-    let user = mockDb.users.find(
-      (u) => u.email.toLowerCase() === trimmed || u.phone === trimmed,
-    );
+    const normalized = this.msg91Service.normalizeMobile(trimmed);
+    const msg91Res = await this.msg91Service.resendOtp(normalized.digits10);
+    const existingUser = await this.findUser(normalized.e164);
 
+    return {
+      success: true,
+      message: msg91Res.message || 'OTP resent successfully',
+      mobile: normalized.e164,
+      isExistingUser: !!existingUser,
+    };
+  }
+
+  async verifyOtp(identifier: string, code: string, name?: string) {
+    const trimmed = (identifier || '').trim();
+    if (!trimmed) {
+      throw new BadRequestException('Email or mobile number is required');
+    }
+
+    const isEmail = trimmed.includes('@');
+    let normalizedIdentifier = trimmed;
+
+    if (isEmail) {
+      const cleanKey = trimmed.toLowerCase();
+      normalizedIdentifier = cleanKey;
+      const entry = this.otpStore.get(cleanKey);
+
+      const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+      const isDemoCode = !isProduction && code === '123456';
+      const isValid = (entry && entry.otp === code && Date.now() <= entry.expiresAt) || isDemoCode;
+
+      if (!isValid) {
+        throw new UnauthorizedException('Invalid or expired verification code');
+      }
+
+      this.otpStore.delete(cleanKey);
+    } else {
+      // Mobile OTP Verification via MSG91 official Verify OTP API
+      const normalizedMobile = this.msg91Service.normalizeMobile(trimmed);
+      normalizedIdentifier = normalizedMobile.e164;
+
+      await this.msg91Service.verifyOtp(normalizedMobile.digits10, code);
+    }
+
+    // Find existing user in PostgreSQL / local DB
+    let user = await this.findUser(normalizedIdentifier);
+    let isNewUser = false;
+
+    // User does not exist yet -> create new account with default or provided name
     if (!user) {
-      user = {
-        id: `usr_${Date.now()}`,
-        name: trimmed.includes('@') ? trimmed.split('@')[0] : 'Verified User',
-        email: trimmed.includes('@') ? trimmed : `${trimmed}@seedhaproperties.com`,
-        phone: !trimmed.includes('@') ? trimmed : '+91 98765 43210',
-        passwordHash: 'otp_verified',
+      isNewUser = true;
+      const digits = normalizedIdentifier.replace(/\D/g, '');
+      const defaultName = (name && name.trim()) || `User ${digits.slice(-4) || 'Seedha'}`;
+      const email = isEmail
+        ? normalizedIdentifier
+        : `user_${digits.slice(-4) || 'seedha'}@seedhaproperties.com`;
+      const phone = !isEmail
+        ? normalizedIdentifier
+        : `+91 98490 ${Math.floor(10000 + Math.random() * 90000)}`;
+
+      user = await this.createUser({
+        name: defaultName,
+        email,
+        phone,
         role: UserRole.USER,
-        createdAt: new Date().toISOString(),
-      };
-      mockDb.users.push(user);
+      });
+
+      this.emailService
+        .sendWelcomeEmail(user.email, user.name)
+        .catch((err) => this.logger.warn(`Failed sending welcome email: ${err.message}`));
+    }
+
+    // Issue secure JWT access and refresh tokens
+    const tokens = this.generateTokens(user);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
+
+    return {
+      success: true,
+      isNewUser,
+      phone: normalizedIdentifier,
+      mobile: normalizedIdentifier,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+      ...tokens,
+    };
+  }
+
+  async completeSignup(dto: { name: string; phone?: string; email?: string; role?: UserRole }) {
+    const trimmedName = (dto.name || '').trim();
+    const trimmedPhone = (dto.phone || '').trim();
+    const trimmedEmail = (dto.email || '').trim().toLowerCase();
+
+    if (!trimmedName || trimmedName.length < 2) {
+      throw new BadRequestException('Full name must be at least 2 characters');
+    }
+    if (!trimmedPhone && !trimmedEmail) {
+      throw new BadRequestException('Mobile number or email is required');
+    }
+
+    let user = trimmedPhone ? await this.findUser(trimmedPhone) : null;
+    if (!user && trimmedEmail) {
+      user = await this.findUser(trimmedEmail);
+    }
+
+    if (user) {
+      // User exists, update name in memory and in PostgreSQL
+      user.name = trimmedName;
+      if (this.prisma?.isConnected) {
+        try {
+          await this.prisma.user.update({
+            where: { id: user.id },
+            data: { name: trimmedName },
+          });
+          this.logger.log(`Updated user ${user.id} name to "${trimmedName}" in PostgreSQL`);
+        } catch (err: any) {
+          this.logger.warn(`PostgreSQL completeSignup update notice: ${err.message}`);
+        }
+      }
+    } else {
+      const digits = trimmedPhone.replace(/\D/g, '');
+      const email =
+        trimmedEmail ||
+        `user_${digits.slice(-4) || 'seedha'}@seedhaproperties.com`;
+      const phone =
+        trimmedPhone ||
+        `+91 98490 ${Math.floor(10000 + Math.random() * 90000)}`;
+
+      user = await this.createUser({
+        name: trimmedName,
+        email,
+        phone,
+        role: dto.role || UserRole.USER,
+      });
+
+      this.emailService
+        .sendWelcomeEmail(user.email, user.name)
+        .catch((err) => this.logger.warn(`Failed sending welcome email: ${err.message}`));
     }
 
     const tokens = this.generateTokens(user);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
+
     return {
       success: true,
       user: {
@@ -188,11 +434,300 @@ export class AuthService {
     };
   }
 
+  /**
+   * Verify Google ID token using Google's official verification library (google-auth-library)
+   */
+  async verifyGoogleToken(idToken: string): Promise<{ email: string; name: string; googleId: string; picture?: string }> {
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    const isConfigured = googleClientId && !googleClientId.includes('YOUR_GOOGLE_CLIENT_ID');
+
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: isConfigured
+          ? [
+              googleClientId,
+              '557082409167-5putmtnclofhcjvvbpfop7siajj82jie.apps.googleusercontent.com',
+              '557082409167-jb1ni7kc4e2eua2l93sshfn0hvk8m5r4.apps.googleusercontent.com',
+            ].filter(Boolean)
+          : undefined,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new UnauthorizedException('Invalid Google token payload');
+      }
+
+      if (!payload.email) {
+        throw new UnauthorizedException('Google account does not provide an email address');
+      }
+
+      if (!payload.email_verified) {
+        throw new UnauthorizedException('Google email address is not verified');
+      }
+
+      return {
+        email: payload.email.toLowerCase().trim(),
+        name: payload.name || payload.email.split('@')[0],
+        googleId: payload.sub,
+        picture: payload.picture,
+      };
+    } catch (err: any) {
+      this.logger.error(`Google token verification failed: ${err.message}`);
+      throw new UnauthorizedException(err.message || 'Invalid or expired Google ID token');
+    }
+  }
+
+  /**
+   * Exchanges Google authorization code with Google's token endpoint using PKCE verifier
+   */
+  async exchangeGoogleCode(
+    code: string,
+    codeVerifier: string,
+    redirectUri?: string,
+  ): Promise<{ idToken: string; accessToken?: string }> {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || clientId.includes('YOUR_GOOGLE_CLIENT_ID')) {
+      throw new BadRequestException('Google Client ID is not configured on the server');
+    }
+
+    const bodyParams = new URLSearchParams({
+      code,
+      client_id: clientId,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri || 'https://auth.expo.io',
+      code_verifier: codeVerifier,
+    });
+
+    if (clientSecret && !clientSecret.includes('YOUR_GOOGLE_CLIENT_SECRET')) {
+      bodyParams.append('client_secret', clientSecret);
+    }
+
+    try {
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: bodyParams.toString(),
+      });
+
+      const tokenData = await response.json();
+
+      if (!response.ok || tokenData.error) {
+        this.logger.error(`Google token exchange error: ${tokenData.error_description || tokenData.error}`);
+        throw new UnauthorizedException(
+          tokenData.error_description || 'Failed to exchange Google authorization code',
+        );
+      }
+
+      return {
+        idToken: tokenData.id_token,
+        accessToken: tokenData.access_token,
+      };
+    } catch (err: any) {
+      if (err instanceof UnauthorizedException || err instanceof BadRequestException) throw err;
+      this.logger.error(`Error exchanging code with Google: ${err.message}`);
+      throw new UnauthorizedException('Failed to exchange authorization code with Google');
+    }
+  }
+
+  /**
+   * Authenticate or register using Google Sign-In with server-side ID token, PKCE authorization code, or access token verification
+   */
+  async googleAuth(dto: {
+    code?: string;
+    codeVerifier?: string;
+    redirectUri?: string;
+    idToken?: string;
+    accessToken?: string;
+    email?: string;
+    name?: string;
+    phone?: string;
+  }) {
+    let idToken = dto.idToken;
+    let accessToken = dto.accessToken;
+    let email = '';
+    let name = '';
+    let googleId = '';
+
+    // 1. If PKCE authorization code is provided, securely exchange it for tokens on the server
+    if (dto.code && dto.codeVerifier) {
+      const exchanged = await this.exchangeGoogleCode(dto.code, dto.codeVerifier, dto.redirectUri);
+      idToken = exchanged.idToken;
+      if (exchanged.accessToken) {
+        accessToken = exchanged.accessToken;
+      }
+    }
+
+    if (idToken) {
+      // Production secure flow: verify ID token with Google servers
+      try {
+        const verified = await this.verifyGoogleToken(idToken);
+        email = verified.email;
+        name = verified.name;
+        googleId = verified.googleId;
+      } catch (tokenErr) {
+        if (accessToken) {
+          const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            email = data.email?.toLowerCase().trim();
+            name = data.name || data.given_name || email.split('@')[0];
+            googleId = data.sub;
+          } else {
+            throw tokenErr;
+          }
+        } else {
+          throw tokenErr;
+        }
+      }
+    } else if (accessToken) {
+      // Google Identity Services OAuth 2.0 flow: verify via Google userinfo endpoint
+      const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) {
+        throw new UnauthorizedException('Invalid Google access token');
+      }
+      const data = await res.json();
+      email = data.email?.toLowerCase().trim();
+      name = data.name || data.given_name || email.split('@')[0];
+      googleId = data.sub;
+    } else if (
+      dto.email &&
+      (process.env.NODE_ENV === 'test' ||
+        !process.env.GOOGLE_CLIENT_ID ||
+        process.env.GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE_CLIENT_ID'))
+    ) {
+      // Development / Test suite fallback when Google Cloud Client ID is not yet provisioned
+      email = dto.email.trim().toLowerCase();
+      name = dto.name?.trim() || 'Google User';
+      googleId = 'dev_google_id';
+    } else {
+      throw new BadRequestException('Google authorization code or idToken is required');
+    }
+
+    if (!email) {
+      throw new BadRequestException('Valid email is required for Google authentication');
+    }
+
+    // 1. Check whether user already exists in PostgreSQL
+    let user = await this.findUser(email);
+
+    if (!user) {
+      // 2. New user: automatically register in database
+      const phone = dto.phone ? dto.phone.trim() : `+91 98490 ${Math.floor(10000 + Math.random() * 90000)}`;
+      user = await this.createUser({
+        name,
+        email,
+        phone,
+        passwordHash: `google_oauth_${googleId}`,
+        role: UserRole.USER,
+      });
+
+      this.emailService
+        .sendWelcomeEmail(user.email, user.name)
+        .catch((err) => this.logger.warn(`Failed sending welcome email: ${err.message}`));
+    }
+
+    // 3. Generate application JWT access and refresh tokens
+    const tokens = this.generateTokens(user);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
+
+    return {
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+      ...tokens,
+    };
+  }
+
+  async socialAuth(dto: {
+    provider: 'google' | 'apple';
+    email: string;
+    name: string;
+    providerId?: string;
+    phone?: string;
+  }) {
+    const email = (dto.email || '').trim().toLowerCase();
+    const name =
+      (dto.name || '').trim() ||
+      (dto.provider === 'google' ? 'Google User' : 'Apple User');
+
+    if (!email) {
+      throw new BadRequestException('Email is required for social authentication');
+    }
+
+    let user = await this.findUser(email);
+
+    if (!user) {
+      const phone = dto.phone ? dto.phone.trim() : `+91 98490 ${Math.floor(10000 + Math.random() * 90000)}`;
+      user = await this.createUser({
+        name,
+        email,
+        phone,
+        passwordHash: `${dto.provider}_oauth_verified`,
+        role: UserRole.USER,
+      });
+
+      this.emailService
+        .sendWelcomeEmail(user.email, user.name)
+        .catch((err) => this.logger.warn(`Failed sending welcome email: ${err.message}`));
+    }
+
+    const tokens = this.generateTokens(user);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
+
+    return {
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+      ...tokens,
+    };
+  }
+
+  async refreshTokens(refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    try {
+      const payload = this.jwtService.verify(refreshToken);
+      const user = await this.findUser(payload.sub);
+
+      if (!user) {
+        throw new UnauthorizedException('User no longer exists');
+      }
+
+      const tokens = this.generateTokens(user);
+      await this.saveRefreshToken(user.id, tokens.refreshToken);
+
+      return {
+        success: true,
+        ...tokens,
+      };
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+  }
+
   async forgotPassword(email: string) {
     const trimmed = email.trim().toLowerCase();
-    const user = mockDb.users.find((u) => u.email.toLowerCase() === trimmed);
+    const user = await this.findUser(trimmed);
     if (!user) {
-      // Don't reveal if user exists, just return generic success
       return { success: true, message: 'If an account exists, a reset code was sent' };
     }
 
@@ -208,7 +743,7 @@ export class AuthService {
   }
 
   async getCurrentUser(userId: string) {
-    const user = mockDb.users.find((u) => u.id === userId);
+    const user = await this.findUser(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -224,7 +759,7 @@ export class AuthService {
   private generateTokens(user: UserRecord) {
     const payload = { sub: user.id, email: user.email, role: user.role, name: user.name };
     const accessToken = this.jwtService.sign(payload, { expiresIn: '7d' });
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' });
+    const refreshToken = this.jwtService.sign({ sub: user.id }, { expiresIn: '30d' });
     return { accessToken, refreshToken };
   }
 }

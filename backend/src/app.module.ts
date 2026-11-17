@@ -10,6 +10,7 @@ import { HomeLoansModule } from './modules/home-loans/home-loans.module.js';
 import { RentalAgreementsModule } from './modules/rental-agreements/rental-agreements.module.js';
 import { OwnerBackgroundModule } from './modules/owner-background/owner-background.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
+import { FirebaseNotificationModule } from './modules/firebase-notification/firebase-notification.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -26,6 +27,7 @@ import { AppService } from './app.service.js';
     RentalAgreementsModule,
     OwnerBackgroundModule,
     AdminModule,
+    FirebaseNotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

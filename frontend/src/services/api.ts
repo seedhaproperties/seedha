@@ -1,14 +1,34 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-const debuggerHost = Constants.expoConfig?.hostUri?.split(':')[0];
-const host = debuggerHost || (Platform.OS === 'android' ? '10.0.2.2' : 'localhost');
+export const getHost = () => {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    return window.location.hostname;
+  }
+  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
+  const debuggerHost = hostUri?.split(':')[0];
+  // If running via Expo Tunnel (.exp.direct), the tunnel only forwards Metro (port 8081), not port 4000.
+  // We fall back to the LAN IP of the host machine so phones on Wi-Fi can reach the API.
+  if (debuggerHost && !debuggerHost.includes('exp.direct')) {
+    return debuggerHost;
+  }
+  return '192.168.31.145';
+};
 
-const API_BASE =
-  process.env.EXPO_PUBLIC_API_URL ||
-  (Platform.OS === 'web'
-    ? 'http://localhost:4000/api/v1'
-    : `http://${host}:4000/api/v1`);
+export const getApiBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim() !== '') {
+    return process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
+  }
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/api/v1`;
+  }
+  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
+  if (hostUri) {
+    const protocol = hostUri.includes('exp.direct') ? 'https' : 'http';
+    return `${protocol}://${hostUri}/api/v1`;
+  }
+  return 'http://127.0.0.1:4000/api/v1';
+};
 
 let currentAuthToken: string | null = null;
 
@@ -36,21 +56,38 @@ export function getAuthToken(): string | null {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE}${path}`;
+  const url = `${getApiBaseUrl()}${path}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'bypass-tunnel-reminder': 'true',
     ...(currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {}),
     ...((options.headers as Record<string, string>) || {}),
   };
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
   try {
-    const res = await fetch(url, { ...options, headers });
-    const data = await res.json();
+    const res = await fetch(url, { ...options, headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+    const text = await res.text();
+    let data: any = {};
+    if (text && text.trim()) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text };
+      }
+    }
     if (!res.ok) {
       throw new Error(data.message || `Request failed with status ${res.status}`);
     }
     return data;
   } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Connection timed out. Please check your network and make sure the server is reachable.');
+    }
     console.warn(`[API] fetch to ${url} failed:`, err.message);
     throw err;
   }
@@ -84,10 +121,65 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ identifier }),
       }),
-    verifyOtp: async (identifier: string, otp: string) => {
+    resendOtp: (identifier: string) =>
+      request<any>('/auth/resend-otp', {
+        method: 'POST',
+        body: JSON.stringify({ identifier }),
+      }),
+    verifyOtp: async (identifier: string, otp: string, name?: string) => {
       const data = await request<any>('/auth/verify-otp', {
         method: 'POST',
-        body: JSON.stringify({ identifier, otp }),
+        body: JSON.stringify({ identifier, otp, ...(name ? { name } : {}) }),
+      });
+      if (data?.accessToken) {
+        setAuthToken(data.accessToken);
+      }
+      return data;
+    },
+    completeSignup: async (payload: { name: string; phone?: string; email?: string }) => {
+      const data = await request<any>('/auth/complete-signup', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (data?.accessToken) {
+        setAuthToken(data.accessToken);
+      }
+      return data;
+    },
+    googleLogin: async (payload: {
+      code?: string;
+      codeVerifier?: string;
+      redirectUri?: string;
+      idToken?: string;
+      accessToken?: string;
+      email?: string;
+      name?: string;
+      googleId?: string;
+      phone?: string;
+    }) => {
+      const data = await request<any>('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (data?.accessToken) {
+        setAuthToken(data.accessToken);
+      }
+      return data;
+    },
+    appleLogin: async (payload: { email: string; name: string; appleId?: string; phone?: string }) => {
+      const data = await request<any>('/auth/apple', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (data?.accessToken) {
+        setAuthToken(data.accessToken);
+      }
+      return data;
+    },
+    refreshToken: async (refreshToken: string) => {
+      const data = await request<any>('/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
       });
       if (data?.accessToken) {
         setAuthToken(data.accessToken);
