@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "expo start --go",
     "start": "expo start --go",
-    "tunnel": "expo start --tunnel --go",
-    "dev:tunnel": "expo start --tunnel --go",
+    "lan": "expo start --lan --go",
+    "tunnel": "expo start --tunnel ngrok --go",
+    "tunnel:expo": "expo start --tunnel expo --go",
+    "dev:tunnel": "expo start --tunnel ngrok --go",
     "dev:client": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
