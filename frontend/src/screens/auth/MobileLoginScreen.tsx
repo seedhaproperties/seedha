@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
@@ -278,10 +279,18 @@ export default function MobileLoginScreen() {
       }
 
       setGoogleLoading(false);
-      setErrorMessage(result.error || 'Google Sign-In is currently unavailable. Please log in with your mobile number.');
+      const msg = result.error || 'Google Sign-In is currently unavailable. Please log in with your mobile number.';
+      setErrorMessage(msg);
+      if (Platform.OS !== 'web' && result.error) {
+        Alert.alert('Notice', msg);
+      }
     } catch (err: any) {
       setGoogleLoading(false);
-      setErrorMessage(err.message || 'Failed to start Google Sign-In. Please log in with your mobile number.');
+      const msg = err.message || 'Failed to start Google Sign-In. Please log in with your mobile number.';
+      setErrorMessage(msg);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Notice', msg);
+      }
     }
   };
 

@@ -1,4 +1,5 @@
-import { Platform } from 'react-native';
+import { Platform, TurboModuleRegistry } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 export interface GoogleAuthResult {
   success: boolean;
@@ -28,9 +29,43 @@ export function getGoogleWebClientId(): string {
   );
 }
 
+/**
+ * Safely determines if native Nitro TurboModules are available in the current runtime environment.
+ * Standard Expo Go from Play Store does not contain compiled C++ Nitro TurboModules.
+ */
+export function isNitroAvailable(): boolean {
+  if (Platform.OS === 'web') return false;
+
+  // In Expo Go, native C++ TurboModules cannot be loaded
+  try {
+    if (
+      Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+      (Constants as any).appOwnership === 'expo'
+    ) {
+      return false;
+    }
+  } catch {
+    // If checking constants throws, assume Expo Go
+    return false;
+  }
+
+  try {
+    if (typeof (global as any).NitroModulesProxy !== 'undefined') {
+      return true;
+    }
+    const module = TurboModuleRegistry?.get?.('NitroModules');
+    return !!module;
+  } catch {
+    return false;
+  }
+}
+
 let isConfigured = false;
 
 function getNitroGoogleSignIn(): any {
+  if (!isNitroAvailable()) {
+    return null;
+  }
   try {
     const pkg = require('react-native-nitro-google-signin');
     if (pkg && pkg.GoogleOneTapSignIn) {
@@ -43,22 +78,22 @@ function getNitroGoogleSignIn(): any {
 }
 
 function ensureConfigured(): void {
-  if (isConfigured || Platform.OS === 'web') return;
+  if (isConfigured || Platform.OS === 'web' || !isNitroAvailable()) return;
   try {
     const nitro = getNitroGoogleSignIn();
     if (!nitro || !nitro.GoogleOneTapSignIn) return;
 
     const webClientId = getGoogleWebClientId();
-      nitro.GoogleOneTapSignIn.configure({
-        webClientId,
-        scopes: ['openid', 'profile', 'email'],
-        autoSelectOnSignIn: false,
-      });
-      isConfigured = true;
-    } catch (err: any) {
-      console.warn('[GoogleAuth] Native Google Sign-In configuration notice:', err?.message || err);
-    }
+    nitro.GoogleOneTapSignIn.configure({
+      webClientId,
+      scopes: ['openid', 'profile', 'email'],
+      autoSelectOnSignIn: false,
+    });
+    isConfigured = true;
+  } catch (err: any) {
+    console.warn('[GoogleAuth] Native Google Sign-In configuration notice:', err?.message || err);
   }
+}
 
 /**
  * Loads the official Google Identity Services (GIS) SDK script on Web.
