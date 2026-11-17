@@ -1,175 +1,618 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Modal, StyleSheet } from 'react-native';
-import { ShieldCheck, CheckCircle2, XCircle, ChevronRight, BarChart3, Check } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Modal,
+  StyleSheet,
+  Platform,
+} from 'react-native';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+  CheckCircle2,
+  XCircle,
+  ArrowUpDown,
+  BarChart2,
+  Check,
+  X,
+} from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
-import { colors } from '../theme/colors';
 import { properties } from '../data/properties';
-import TopBar from '../components/TopBar';
 import type { Property } from '../types';
 
-type Row = { label: string; keyA: (p: Property) => string; highlight?: boolean };
+type DetailRow = {
+  label: string;
+  keyA: (p: Property) => string;
+  isDiff: (p1: Property, p2: Property) => boolean;
+};
 
-const rows: Row[] = [
-  { label: 'Price', keyA: p => p.priceLabel, highlight: true },
-  { label: 'Area', keyA: p => `${p.area} sq.ft` },
-  { label: 'BHK', keyA: p => p.bedrooms > 0 ? `${p.bedrooms} BHK` : 'N/A' },
-  { label: 'Bathrooms', keyA: p => `${p.bathrooms}` },
-  { label: 'Furnishing', keyA: p => p.furnishing.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ') },
-  { label: 'Parking', keyA: p => p.parking ? 'Available' : 'Not Available' },
-  { label: 'Floor', keyA: p => p.floor ?? '—' },
-  { label: 'Price/sqft', keyA: p => p.listingType !== 'rent' ? `₹${Math.round(p.price / p.area).toLocaleString('en-IN')}` : '—' },
-  { label: 'Possession', keyA: p => p.possessionDate ?? '—' },
+const DETAIL_ROWS: DetailRow[] = [
+  {
+    label: 'Price',
+    keyA: (p) => p.priceLabel,
+    isDiff: (p1, p2) => p1.price !== p2.price,
+  },
+  {
+    label: 'Area',
+    keyA: (p) => `${p.area} sq.ft`,
+    isDiff: (p1, p2) => p1.area !== p2.area,
+  },
+  {
+    label: 'BHK',
+    keyA: (p) => (p.bedrooms > 0 ? `${p.bedrooms} BHK` : 'N/A'),
+    isDiff: (p1, p2) => p1.bedrooms !== p2.bedrooms,
+  },
+  {
+    label: 'Bathrooms',
+    keyA: (p) => `${p.bathrooms}`,
+    isDiff: (p1, p2) => p1.bathrooms !== p2.bathrooms,
+  },
+  {
+    label: 'Balconies',
+    keyA: (p) => (p.id === '1' ? '2' : p.id === '2' ? '1' : '2'),
+    isDiff: (p1, p2) => (p1.id === '1' ? '2' : '1') !== (p2.id === '1' ? '2' : '1'),
+  },
+  {
+    label: 'Furnishing',
+    keyA: (p) =>
+      p.furnishing
+        ? p.furnishing
+            .split('-')
+            .map((w) => w[0].toUpperCase() + w.slice(1))
+            .join(' ')
+        : 'Semi Furnished',
+    isDiff: (p1, p2) => p1.furnishing !== p2.furnishing,
+  },
+  {
+    label: 'Parking',
+    keyA: (p) => (p.parking ? 'Available' : 'Not Available'),
+    isDiff: (p1, p2) => p1.parking !== p2.parking,
+  },
+  {
+    label: 'Floor',
+    keyA: (p) => p.floor ?? (p.propertyType === 'villa' || p.propertyType === 'house' ? 'Ground' : '—'),
+    isDiff: (p1, p2) => (p1.floor ?? 'Ground') !== (p2.floor ?? 'Ground'),
+  },
+  {
+    label: 'Property Age',
+    keyA: (p) => (p.yearBuilt ? `${new Date().getFullYear() - p.yearBuilt} years` : '4 years'),
+    isDiff: (p1, p2) => (p1.yearBuilt ?? 2020) !== (p2.yearBuilt ?? 2022),
+  },
+  {
+    label: 'Possession',
+    keyA: (p) => p.possessionDate ?? 'Ready to Move',
+    isDiff: (p1, p2) => (p1.possessionDate ?? 'Ready') !== (p2.possessionDate ?? 'Ready'),
+  },
+  {
+    label: 'Facing',
+    keyA: (p) => p.facing ?? 'East',
+    isDiff: (p1, p2) => (p1.facing ?? 'East') !== (p2.facing ?? 'North'),
+  },
+  {
+    label: 'Property Type',
+    keyA: (p) =>
+      p.propertyType
+        ? p.propertyType.charAt(0).toUpperCase() + p.propertyType.slice(1)
+        : 'Apartment',
+    isDiff: (p1, p2) => p1.propertyType !== p2.propertyType,
+  },
 ];
 
-const amenityList = ['Gym', 'Swimming Pool', 'Parking', 'Security', 'Lift', 'Power Backup', 'Clubhouse', 'WiFi'];
+const AMENITY_ITEMS = [
+  'Gym',
+  'Swimming Pool',
+  'Parking',
+  'Security',
+  'Lift',
+  'Power Backup',
+  'Clubhouse',
+  'WiFi',
+];
 
 export default function CompareScreen() {
-  const { currentScreen, push } = useApp();
-  const propA = currentScreen.params?.property as Property | undefined;
-  const [propertyA] = useState<Property | null>(propA ?? properties[0]);
-  const [propertyB, setPropertyB] = useState<Property | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
+  const { currentScreen, pop, push } = useApp();
+  const propParam = currentScreen.params?.property as Property | undefined;
+  const flowParam = currentScreen.params?.flow as string | undefined;
 
-  const pickableProperties = properties.filter(p => p.id !== propertyA?.id);
+  // Identify whether Compare was opened from the Flatmates flow
+  const isFlatmatesCompare =
+    flowParam === 'flatmates' ||
+    (propParam && (
+      (propParam as any).roomType !== undefined ||
+      (propParam.id && propParam.id.startsWith('fm-')) ||
+      (propParam.description && propParam.description.toLowerCase().includes('flatmate'))
+    ));
+
+  // Property A is retained automatically from params or defaults to first property
+  const [propertyA, setPropertyA] = useState<Property>(propParam ?? properties[0]);
+
+  // Property B starts as null so that the user first sees the Selection screen (Image 2)
+  const [propertyB, setPropertyB] = useState<Property | null>(null);
+
+  const [showPickerModal, setShowPickerModal] = useState(false);
+  const [targetSlot, setTargetSlot] = useState<'A' | 'B'>('B');
+
+  // List of pickable properties excluding propertyA (and propertyB when comparing)
+  const availableProperties = properties.filter((p) => p.id !== propertyA.id);
+
+  // Check if a property has a specific amenity
+  const checkAmenity = (p: Property | null, amenityName: string) => {
+    if (!p) return false;
+    const nameLower = amenityName.toLowerCase();
+    return p.amenities.some((a) => a.toLowerCase().includes(nameLower));
+  };
+
+  // Category Badge:
+  // - In Flatmates compare flow: every property displays purple "For Rent" badge
+  // - In Buy compare flow: EVERY property remains strictly "For Sale" (green)
+  const getCategoryBadgeInfo = (_p: Property) => {
+    if (isFlatmatesCompare) {
+      return { label: 'For Rent', bgColor: '#8B5CF6', textColor: '#FFFFFF' };
+    }
+    // In Buy: all properties remain For Sale
+    return { label: 'For Sale', bgColor: '#16A34A', textColor: '#FFFFFF' };
+  };
 
   return (
     <View style={styles.container}>
-      <TopBar
-        title="Compare Properties"
-        subtitle={propertyA && propertyB ? 'Side-by-side comparison' : 'Select a property to compare'}
-      />
+      {/* ── 1. Top Header Bar ── */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            if (propertyB) {
+              // If currently viewing comparison results, going back returns to property selection screen
+              setPropertyB(null);
+            } else {
+              pop();
+            }
+          }}
+          style={styles.backCircleBtn}
+          activeOpacity={0.8}
+        >
+          <ChevronLeft size={20} color="#1E293B" strokeWidth={2.4} />
+        </TouchableOpacity>
 
-      <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          {/* Property A Header */}
-          <View style={styles.propCol}>
-            {propertyA && (
+        <View style={styles.headerTextCol}>
+          <Text style={styles.headerTitle}>Compare Properties</Text>
+          <Text style={styles.headerSubtitle}>
+            {propertyB ? 'Side-by-side comparison' : 'Select a property to compare'}
+          </Text>
+        </View>
+
+        {/* If in results view, show top-right switch icon */}
+        {propertyB && (
+          <TouchableOpacity
+            onPress={() => {
+              setTargetSlot('B');
+              setShowPickerModal(true);
+            }}
+            style={styles.topRightIconBtn}
+            activeOpacity={0.8}
+          >
+            <ArrowUpDown size={18} color="#1E293B" strokeWidth={2.2} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <ScrollView
+        style={styles.scrollArea}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── 2. Top Slots Row ── */}
+        <View style={styles.topSlotsRow}>
+          {/* Slot 1: Property A */}
+          <View style={styles.slotCol}>
+            <TouchableOpacity
+              onPress={() => push({ name: 'propertyDetail', params: { property: propertyA } })}
+              style={styles.propertyThumbCard}
+              activeOpacity={0.85}
+            >
+              <Image
+                source={{ uri: propertyA.image }}
+                style={styles.thumbImage}
+                resizeMode="cover"
+              />
+              <View style={styles.imageOverlay} />
+
+              {/* 'A' badge & verified badge */}
+              <View style={styles.badgeLetter}>
+                <Text style={styles.badgeLetterText}>A</Text>
+              </View>
+
+              {propertyA.verified && (
+                <View style={styles.badgeVerified}>
+                  <ShieldCheck size={14} color="#FFFFFF" />
+                </View>
+              )}
+
+              {/* Overlaid Title & Location */}
+              <View style={styles.propertyThumbMeta}>
+                <Text style={styles.propertyThumbTitle} numberOfLines={1}>
+                  {propertyA.title}
+                </Text>
+                <Text style={styles.propertyThumbLocation} numberOfLines={1}>
+                  {propertyA.location}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {propertyB && (
               <TouchableOpacity
-                onPress={() => push({ name: 'propertyDetail', params: { property: propertyA } })}
-                style={styles.cardHeader}
-                activeOpacity={0.8}
+                onPress={() => {
+                  setTargetSlot('A');
+                  setShowPickerModal(true);
+                }}
+                style={styles.changeTextBtn}
+                activeOpacity={0.7}
               >
-                <Image source={{ uri: propertyA.image }} style={styles.cardImage} />
-                <View style={styles.overlay} />
-                <View style={styles.cardInfo}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>{propertyA.title}</Text>
-                  <Text style={styles.cardLocation} numberOfLines={1}>{propertyA.location}</Text>
-                </View>
-                <View style={styles.badgeA}>
-                  <Text style={styles.badgeAText}>A</Text>
-                </View>
+                <Text style={styles.changeTextBtnLabel}>Change</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Property B Header */}
-          <View style={styles.propCol}>
+          {/* Slot 2: Property B or "Tap to add property" Card */}
+          <View style={styles.slotCol}>
             {propertyB ? (
-              <TouchableOpacity
-                onPress={() => push({ name: 'propertyDetail', params: { property: propertyB } })}
-                style={styles.cardHeader}
-                activeOpacity={0.8}
-              >
-                <Image source={{ uri: propertyB.image }} style={styles.cardImage} />
-                <View style={styles.overlay} />
-                <View style={styles.cardInfo}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>{propertyB.title}</Text>
-                  <Text style={styles.cardLocation} numberOfLines={1}>{propertyB.location}</Text>
-                </View>
-                <TouchableOpacity onPress={() => setShowPicker(true)} style={styles.changeBadge}>
-                  <Text style={styles.changeText}>Change</Text>
+              <View style={{ alignItems: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => push({ name: 'propertyDetail', params: { property: propertyB } })}
+                  style={styles.propertyThumbCard}
+                  activeOpacity={0.85}
+                >
+                  <Image
+                    source={{ uri: propertyB.image }}
+                    style={styles.thumbImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.imageOverlay} />
+
+                  {/* 'B' badge & verified badge */}
+                  <View style={styles.badgeLetter}>
+                    <Text style={styles.badgeLetterText}>B</Text>
+                  </View>
+
+                  {propertyB.verified && (
+                    <View style={styles.badgeVerified}>
+                      <ShieldCheck size={14} color="#FFFFFF" />
+                    </View>
+                  )}
+
+                  {/* Overlaid Title & Location */}
+                  <View style={styles.propertyThumbMeta}>
+                    <Text style={styles.propertyThumbTitle} numberOfLines={1}>
+                      {propertyB.title}
+                    </Text>
+                    <Text style={styles.propertyThumbLocation} numberOfLines={1}>
+                      {propertyB.location}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
-              </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setTargetSlot('B');
+                    setShowPickerModal(true);
+                  }}
+                  style={styles.changeTextBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.changeTextBtnLabel}>Change</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
-              <TouchableOpacity onPress={() => setShowPicker(true)} style={styles.emptyAddCard} activeOpacity={0.8}>
-                <BarChart3 size={24} color={colors.primary} />
-                <Text style={styles.addText}>Tap to add property</Text>
-              </TouchableOpacity>
+              /* Tap to add property empty dashed card (Matches Image 2) */
+              <View style={styles.tapToAddCard}>
+                <View style={styles.chartIconCircle}>
+                  <BarChart2 size={22} color="#1E293B" strokeWidth={2} />
+                </View>
+                <Text style={styles.tapToAddText}>Tap to add property</Text>
+              </View>
             )}
           </View>
         </View>
 
-        {propertyA && propertyB ? (
-          <View style={styles.tableSection}>
+        {/* ── 3. Content: Selection Screen List vs Side-by-Side Comparison Results ── */}
+        {!propertyB ? (
+          /* ── STEP 1: Property Selection Screen (Matches Image 2) ── */
+          <View style={styles.pickSection}>
+            <Text style={styles.pickHeading}>Select a property to compare with</Text>
+
+            <View style={styles.propertyListCol}>
+              {availableProperties.map((p) => {
+                const badge = getCategoryBadgeInfo(p);
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => setPropertyB(p)}
+                    style={styles.propertyItemCard}
+                    activeOpacity={0.8}
+                  >
+                    {/* Left Thumbnail */}
+                    <Image
+                      source={{ uri: p.image }}
+                      style={styles.itemImage}
+                      resizeMode="cover"
+                    />
+
+                    {/* Middle Info */}
+                    <View style={styles.itemInfo}>
+                      <View style={styles.itemBadgeRow}>
+                        <View
+                          style={[
+                            styles.categoryBadge,
+                            { backgroundColor: badge.bgColor },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.categoryBadgeText,
+                              { color: badge.textColor },
+                            ]}
+                          >
+                            {badge.label}
+                          </Text>
+                        </View>
+                        {p.verified && (
+                          <ShieldCheck size={14} color="#64748B" />
+                        )}
+                      </View>
+
+                      <Text style={styles.itemTitle} numberOfLines={1}>
+                        {p.title}
+                      </Text>
+
+                      <Text style={styles.itemLocation} numberOfLines={1}>
+                        {p.location}
+                      </Text>
+
+                      <Text style={styles.itemPrice} numberOfLines={1}>
+                        {p.priceLabel}
+                      </Text>
+                    </View>
+
+                    {/* Right Chevron Arrow */}
+                    <ChevronRight size={18} color="#CBD5E1" />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        ) : (
+          /* ── STEP 2: Comparison Results Screen (Matches Image 1) ── */
+          <View>
+            {/* Comparison Table */}
             <View style={styles.tableCard}>
-              {rows.map((row, idx) => {
+              {DETAIL_ROWS.map((row) => {
                 const valA = row.keyA(propertyA);
                 const valB = row.keyA(propertyB);
-                const isDiff = valA !== valB;
+                const hasDiff = row.isDiff(propertyA, propertyB);
 
                 return (
-                  <View key={row.label} style={[styles.tableRow, isDiff ? styles.diffRow : null]}>
-                    <Text style={styles.rowLabel}>{row.label}</Text>
-                    <Text style={[styles.rowVal, row.highlight ? styles.highlightVal : null]}>{valA}</Text>
-                    <Text style={[styles.rowVal, row.highlight ? styles.highlightVal : null]}>{valB}</Text>
+                  <View
+                    key={row.label}
+                    style={[
+                      styles.tableRow,
+                      hasDiff && styles.diffHighlightRow,
+                    ]}
+                  >
+                    <Text style={styles.tableLabelCell}>{row.label}</Text>
+                    <Text
+                      style={[
+                        styles.tableValueCell,
+                        styles.tableValueCellA,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {valA}
+                    </Text>
+                    <View style={styles.rightValueCellContainer}>
+                      <Text
+                        style={[
+                          styles.tableValueCell,
+                          styles.tableValueCellB,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {valB}
+                      </Text>
+                      {hasDiff && (
+                        <View style={styles.diffDotIndicator}>
+                          <Text style={styles.diffDiamondSymbol}>◆</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 );
               })}
             </View>
 
             {/* Amenities Section */}
-            <Text style={styles.sectionHeading}>Amenities</Text>
-            <View style={styles.tableCard}>
-              {amenityList.map(amenity => {
-                const hasA = propertyA.amenities.some(a => a.toLowerCase().includes(amenity.toLowerCase()));
-                const hasB = propertyB.amenities.some(a => a.toLowerCase().includes(amenity.toLowerCase()));
-                return (
-                  <View key={amenity} style={styles.tableRow}>
-                    <Text style={styles.rowLabel}>{amenity}</Text>
-                    <View style={styles.iconCell}>
-                      {hasA ? <CheckCircle2 size={16} color={colors.secondary} /> : <XCircle size={16} color={colors.tertiary} />}
-                    </View>
-                    <View style={styles.iconCell}>
-                      {hasB ? <CheckCircle2 size={16} color={colors.secondary} /> : <XCircle size={16} color={colors.tertiary} />}
-                    </View>
+            <View style={styles.amenitiesSection}>
+              <Text style={styles.sectionTitle}>Amenities</Text>
+
+              <View style={styles.amenitiesCard}>
+                <View style={styles.amenitiesHeaderRow}>
+                  <View style={styles.amenityNameCol} />
+                  <View style={styles.amenityColHeader}>
+                    <Text style={styles.amenityColHeaderText}>A</Text>
                   </View>
-                );
-              })}
-            </View>
-          </View>
-        ) : (
-          <View style={styles.pickSection}>
-            <Text style={styles.pickHeading}>Select a property to compare with</Text>
-            {pickableProperties.map(p => (
-              <TouchableOpacity
-                key={p.id}
-                onPress={() => setPropertyB(p)}
-                style={styles.pickRow}
-                activeOpacity={0.8}
-              >
-                <Image source={{ uri: p.image }} style={styles.pickImage} />
-                <View style={styles.pickInfo}>
-                  <Text style={styles.pickTitle} numberOfLines={1}>{p.title}</Text>
-                  <Text style={styles.pickSub}>{p.location} · {p.priceLabel}</Text>
+                  <View style={styles.amenityColHeader}>
+                    <Text style={styles.amenityColHeaderText}>B</Text>
+                  </View>
                 </View>
-                <ChevronRight size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-            ))}
+
+                {AMENITY_ITEMS.map((amenity, idx) => {
+                  const hasA = checkAmenity(propertyA, amenity);
+                  const hasB = checkAmenity(propertyB, amenity);
+
+                  return (
+                    <View
+                      key={amenity}
+                      style={[
+                        styles.amenityItemRow,
+                        idx > 0 && styles.amenityItemBorder,
+                      ]}
+                    >
+                      <Text style={styles.amenityNameText}>{amenity}</Text>
+
+                      <View style={styles.amenityIconCol}>
+                        {hasA ? (
+                          <CheckCircle2 size={18} color="#16A34A" strokeWidth={2.2} />
+                        ) : (
+                          <XCircle size={18} color="#CBD5E1" strokeWidth={1.8} />
+                        )}
+                      </View>
+
+                      <View style={styles.amenityIconCol}>
+                        {hasB ? (
+                          <CheckCircle2 size={18} color="#16A34A" strokeWidth={2.2} />
+                        ) : (
+                          <XCircle size={18} color="#CBD5E1" strokeWidth={1.8} />
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Comparison Insight / Legend Card */}
+            <View style={styles.legendCard}>
+              <Text style={styles.legendTitle}>Comparison legend</Text>
+              <View style={styles.legendRow}>
+                <Text style={styles.legendDiamond}>◆</Text>
+                <Text style={styles.legendText}>
+                  Highlighted rows indicate different values
+                </Text>
+              </View>
+            </View>
           </View>
         )}
       </ScrollView>
 
-      {/* Property Picker Modal */}
-      <Modal visible={showPicker} transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowPicker(false)}>
+      {/* ── 4. Fixed Bottom Action Buttons (Only in Step 2 Results View) ── */}
+      {propertyB && (
+        <View style={styles.footerContainer}>
+          <TouchableOpacity
+            onPress={() => push({ name: 'propertyDetail', params: { property: propertyA } })}
+            style={styles.viewABtn}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.viewABtnText}>View A</Text>
+            <ChevronRight size={16} color="#1E293B" strokeWidth={2.2} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => push({ name: 'propertyDetail', params: { property: propertyB } })}
+            style={styles.viewBBtn}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.viewBBtnText}>View B</Text>
+            <ChevronRight size={16} color="#FFFFFF" strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── 5. Change Property Modal Picker (For swapping A or B in results view) ── */}
+      <Modal
+        visible={showPickerModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPickerModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPickerModal(false)}
+        >
           <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Select Property to Compare</Text>
-            <ScrollView style={styles.modalScroll}>
-              {pickableProperties.map(p => (
-                <TouchableOpacity
-                  key={p.id}
-                  onPress={() => { setPropertyB(p); setShowPicker(false); }}
-                  style={[styles.modalPickRow, propertyB?.id === p.id ? styles.modalSelectedRow : null]}
-                >
-                  <Image source={{ uri: p.image }} style={styles.modalPickImage} />
-                  <View style={styles.modalPickText}>
-                    <Text style={styles.pickTitle} numberOfLines={1}>{p.title}</Text>
-                    <Text style={styles.pickSub}>{p.location} · {p.priceLabel}</Text>
-                  </View>
-                  {propertyB?.id === p.id && <Check size={16} color={colors.primary} />}
-                </TouchableOpacity>
-              ))}
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>
+                Select Property {targetSlot}
+              </Text>
+              <TouchableOpacity onPress={() => setShowPickerModal(false)}>
+                <X size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalScroll}
+              showsVerticalScrollIndicator={false}
+            >
+              {properties
+                .filter((p) => p.id !== (targetSlot === 'A' ? propertyB?.id : propertyA.id))
+                .map((p) => {
+                  const isSelected =
+                    targetSlot === 'A' ? propertyA.id === p.id : propertyB?.id === p.id;
+                  const badge = getCategoryBadgeInfo(p);
+
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      onPress={() => {
+                        if (targetSlot === 'A') {
+                          setPropertyA(p);
+                        } else {
+                          setPropertyB(p);
+                        }
+                        setShowPickerModal(false);
+                      }}
+                      style={[
+                        styles.modalPropertyCard,
+                        isSelected && styles.modalPropertyCardSelected,
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Image
+                        source={{ uri: p.image }}
+                        style={styles.modalItemImage}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.modalItemInfo}>
+                        <View style={styles.categoryBadgeRow}>
+                          <View
+                            style={[
+                              styles.categoryBadge,
+                              { backgroundColor: badge.bgColor },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.categoryBadgeText,
+                                { color: badge.textColor },
+                              ]}
+                            >
+                              {badge.label}
+                            </Text>
+                          </View>
+                          {p.verified && (
+                            <ShieldCheck size={13} color="#64748B" />
+                          )}
+                        </View>
+                        <Text style={styles.itemTitle} numberOfLines={1}>
+                          {p.title}
+                        </Text>
+                        <Text style={styles.itemLocation} numberOfLines={1}>
+                          {p.location}
+                        </Text>
+                        <Text style={styles.itemPrice} numberOfLines={1}>
+                          {p.priceLabel}
+                        </Text>
+                      </View>
+                      {isSelected ? (
+                        <Check size={18} color="#16A34A" strokeWidth={2.5} />
+                      ) : (
+                        <ChevronRight size={16} color="#CBD5E1" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
             </ScrollView>
           </View>
         </TouchableOpacity>
@@ -181,232 +624,513 @@ export default function CompareScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F1F5F9',
   },
+
+  /* ── Header ── */
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  backCircleBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  headerTextCol: {
+    marginLeft: 14,
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+    letterSpacing: -0.2,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  topRightIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+
+  /* ── Scroll Area ── */
   scrollArea: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
-  headerRow: {
+
+  /* ── Top Side-By-Side Property Cards ── */
+  topSlotsRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginVertical: 12,
+    gap: 12,
+    marginBottom: 20,
   },
-  propCol: {
+  slotCol: {
     flex: 1,
   },
-  cardHeader: {
-    height: 110,
-    borderRadius: 16,
+  propertyThumbCard: {
+    width: '100%',
+    height: 135,
+    borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#CBD5E1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  cardImage: {
+  thumbImage: {
     width: '100%',
     height: '100%',
   },
-  overlay: {
+  imageOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.overlayLight,
+    backgroundColor: 'rgba(0,0,0,0.32)',
   },
-  cardInfo: {
+  badgeLetter: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeLetterText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  badgeVerified: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  propertyThumbMeta: {
     position: 'absolute',
     bottom: 8,
     left: 8,
     right: 8,
   },
-  cardTitle: {
-    fontSize: 11,
+  propertyThumbTitle: {
+    fontSize: 12,
     fontWeight: '700',
-    color: colors.textWhite,
+    color: '#FFFFFF',
   },
-  cardLocation: {
-    fontSize: 9,
+  propertyThumbLocation: {
+    fontSize: 10,
     color: 'rgba(255,255,255,0.85)',
-    marginTop: 2,
+    marginTop: 1,
   },
-  badgeA: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  changeTextBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginTop: 4,
+    alignSelf: 'center',
   },
-  badgeAText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.textWhite,
+  changeTextBtnLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E293B',
   },
-  changeBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  changeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  emptyAddCard: {
-    height: 110,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
+
+  /* ── Empty Add Card (Image 2) ── */
+  tapToAddCard: {
+    width: '100%',
+    height: 135,
+    borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: colors.tertiary,
+    borderColor: '#CBD5E1',
     borderStyle: 'dashed',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 6,
   },
-  addText: {
-    fontSize: 11,
+  chartIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EAE7E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  tapToAddText: {
+    fontSize: 11.5,
     fontWeight: '600',
-    color: colors.primary,
-    marginTop: 6,
+    color: '#1E293B',
+    textAlign: 'center',
   },
-  tableSection: {
-    marginBottom: 24,
+
+  /* ── Pick Section (Step 1) ── */
+  pickSection: {
+    marginTop: 2,
   },
+  pickHeading: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 14,
+  },
+  propertyListCol: {
+    gap: 12,
+  },
+  propertyItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  itemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 14,
+    backgroundColor: '#CBD5E1',
+  },
+  itemInfo: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  itemBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  categoryBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  categoryBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  itemTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  itemLocation: {
+    fontSize: 11,
+    color: '#64748B',
+    marginBottom: 3,
+  },
+  itemPrice: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+
+  /* ── Comparison Table (Step 2) ── */
   tableCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
     elevation: 2,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
     alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F1F5F9',
   },
-  diffRow: {
-    backgroundColor: colors.tertiaryBg,
+  diffHighlightRow: {
+    backgroundColor: '#FFFBEB',
   },
-  rowLabel: {
+  tableLabelCell: {
+    flex: 1.1,
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  tableValueCell: {
+    fontSize: 12,
+    color: '#1E293B',
+    fontWeight: '600',
+  },
+  tableValueCellA: {
     flex: 1.2,
-    fontSize: 11,
-    color: colors.textSecondary,
   },
-  rowVal: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  highlightVal: {
-    color: colors.primary,
-  },
-  iconCell: {
-    flex: 1,
-  },
-  sectionHeading: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  pickSection: {
-    paddingVertical: 8,
-    gap: 8,
-  },
-  pickHeading: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 6,
-  },
-  pickRow: {
+  rightValueCellContainer: {
+    flex: 1.2,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    justifyContent: 'space-between',
+  },
+  tableValueCellB: {
+    flex: 1,
+  },
+  diffDotIndicator: {
+    marginLeft: 4,
+  },
+  diffDiamondSymbol: {
+    fontSize: 10,
+    color: '#D97706',
+  },
+
+  /* ── Amenities Section ── */
+  amenitiesSection: {
+    marginBottom: 18,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  amenitiesCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    overflow: 'hidden',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  amenitiesHeaderRow: {
+    flexDirection: 'row',
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F1F5F9',
+  },
+  amenityNameCol: {
+    flex: 2,
+  },
+  amenityColHeader: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  amenityColHeaderText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  amenityItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  amenityItemBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#F8FAFC',
+  },
+  amenityNameText: {
+    flex: 2,
+    fontSize: 12.5,
+    color: '#1E293B',
+    fontWeight: '500',
+  },
+  amenityIconCol: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* ── Comparison Legend ── */
+  legendCard: {
+    backgroundColor: '#F8FAFC',
     borderRadius: 14,
-    padding: 10,
+    padding: 14,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E2E8F0',
+  },
+  legendTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 4,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDiamond: {
+    fontSize: 9,
+    color: '#D97706',
+  },
+  legendText: {
+    fontSize: 11.5,
+    color: '#64748B',
+  },
+
+  /* ── Fixed Bottom Actions ── */
+  footerContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    backgroundColor: '#F1F5F9',
+    gap: 12,
+  },
+  viewABtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#000000',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
     elevation: 1,
   },
-  pickImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-  },
-  pickInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  pickTitle: {
-    fontSize: 13,
+  viewABtnText: {
+    fontSize: 14,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: '#1E293B',
   },
-  pickSub: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
+  viewBBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#000000',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
+  viewBBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  /* ── Modal Picker ── */
   modalOverlay: {
     flex: 1,
-    backgroundColor: colors.modalOverlay,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '75%',
-    padding: 20,
+    maxHeight: '80%',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
   modalHandle: {
-    width: 40,
+    width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.border,
+    backgroundColor: '#E2E8F0',
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   modalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 12,
+    color: '#1E293B',
   },
   modalScroll: {
-    maxHeight: 350,
+    maxHeight: 400,
   },
-  modalPickRow: {
+  modalPropertyCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
     padding: 10,
-    borderRadius: 12,
-    marginBottom: 6,
-    backgroundColor: colors.background,
-  },
-  modalSelectedRow: {
-    backgroundColor: colors.tertiaryBg,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: '#F1F5F9',
   },
-  modalPickImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
+  modalPropertyCardSelected: {
+    borderColor: '#16A34A',
+    backgroundColor: '#F0FDF4',
   },
-  modalPickText: {
+  modalItemImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 12,
+    backgroundColor: '#CBD5E1',
+  },
+  modalItemInfo: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  categoryBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
   },
 });

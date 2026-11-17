@@ -32,6 +32,8 @@ let SiteVisitsController = class SiteVisitsController {
 };
 __decorate([
     Post('properties/:id/visits'),
+    UseGuards(JwtAuthGuard),
+    ApiBearerAuth(),
     ApiOperation({ summary: 'Book visiting for a property (Diagram 1 outcome)' }),
     ApiResponse({ status: 201, description: 'Visiting booked with duplicate check' }),
     __param(0, Param('id')),

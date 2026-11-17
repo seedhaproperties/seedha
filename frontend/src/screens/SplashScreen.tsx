@@ -67,10 +67,10 @@ export default function SplashScreen() {
       ])
     ).start();
 
-    // 3. Auto-transition to Landing page after entrance animation completes
+    // 3. Auto-transition directly to Home screen (Guest Mode) after entrance animation completes
     const timer = setTimeout(() => {
-      setTab('landing');
-    }, 2400);
+      setTab('home');
+    }, 2200);
 
     return () => clearTimeout(timer);
   }, []);
@@ -78,7 +78,7 @@ export default function SplashScreen() {
   return (
     <TouchableOpacity
       activeOpacity={0.98}
-      onPress={() => setTab('landing')}
+      onPress={() => setTab('home')}
       style={styles.container}
     >
       {/* Outer Pulse Rings */}

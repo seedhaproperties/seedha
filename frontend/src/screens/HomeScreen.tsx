@@ -28,6 +28,7 @@ import {
   CheckCircle2,
   ArrowRight,
   User,
+  Users,
 } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import { properties } from '../data/properties';
@@ -61,8 +62,17 @@ const POPULAR_LOCATIONS = [
 ];
 
 export default function HomeScreen() {
-  const { push, savedIds, toggleSaved, notifications, setTab } = useApp();
+  const { push, savedIds, toggleSaved, notifications, setTab, isAuthenticated, requireAuth } = useApp();
   const [activeCategory, setActiveCategory] = useState('buy');
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+
+  const handleProtectedNavigate = (screen: any, actionTitle = 'Continue') => {
+    if (!isAuthenticated) {
+      requireAuth(undefined, screen, actionTitle);
+      return;
+    }
+    push(screen);
+  };
 
   // Find properties for spotlight, featured horizontal carousel, and recommended list
   const spotlightProperty =
@@ -78,30 +88,48 @@ export default function HomeScreen() {
 
   const handleCategoryPress = (key: string) => {
     setActiveCategory(key);
+    let target: any = null;
+    let title = 'Explore';
+
     switch (key) {
       case 'buy':
-        push({ name: 'propertyListing', params: { type: 'buy', title: 'Buy Properties' } });
+        target = { name: 'buyProperties', params: { type: 'buy', title: 'Buy Properties' } };
+        title = 'Buy Properties';
         break;
       case 'rent':
-        push({ name: 'propertyListing', params: { type: 'rent', title: 'Rent Homes' } });
+        target = { name: 'rentHomes', params: { type: 'rent', title: 'Rent Homes' } };
+        title = 'Rent Homes';
         break;
       case 'commercial':
-        push({ name: 'propertyListing', params: { type: 'commercial', title: 'Commercial Spaces' } });
+        target = { name: 'propertyListing', params: { type: 'commercial', title: 'Commercial Spaces' } };
+        title = 'Commercial Spaces';
         break;
       case 'manage':
-        push({ name: 'propertyManagement' });
+        target = { name: 'propertyManagement' };
+        title = 'Property Management';
         break;
       case 'loans':
-        push({ name: 'homeLoan' });
+        target = { name: 'homeLoan' };
+        title = 'Home Loans';
         break;
       case 'agreements':
-        push({ name: 'rentalAgreement' });
+        target = { name: 'rentalAgreement' };
+        title = 'Rental Agreement';
         break;
       case 'verify':
-        push({ name: 'ownerVerification' });
+        target = { name: 'ownerVerification' };
+        title = 'Owner Verification';
+        break;
+      case 'flatmates':
+        target = { name: 'flatmates' };
+        title = 'Flatmates';
         break;
       default:
         break;
+    }
+
+    if (target) {
+      handleProtectedNavigate(target, title);
     }
   };
 
@@ -117,7 +145,7 @@ export default function HomeScreen() {
         <View style={styles.headerLeft}>
           <TouchableOpacity
             style={styles.menuButton}
-            onPress={() => push({ name: 'profile' })}
+            onPress={() => handleProtectedNavigate({ name: 'profile' }, 'Profile')}
             activeOpacity={0.7}
           >
             <Menu size={20} color="#000000" strokeWidth={2.2} />
@@ -142,7 +170,7 @@ export default function HomeScreen() {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.notifButton}
-            onPress={() => push({ name: 'notifications' })}
+            onPress={() => handleProtectedNavigate({ name: 'notifications' }, 'Notifications')}
             activeOpacity={0.8}
           >
             <Bell size={18} color="#1A1C1A" strokeWidth={2.2} />
@@ -151,7 +179,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.profileAvatar}
-            onPress={() => push({ name: 'profile' })}
+            onPress={() => handleProtectedNavigate({ name: 'profile' }, 'Profile')}
             activeOpacity={0.8}
           >
             <Image
@@ -167,7 +195,7 @@ export default function HomeScreen() {
         <View style={styles.searchPill}>
           <TouchableOpacity
             style={styles.searchInputArea}
-            onPress={() => push({ name: 'search' })}
+            onPress={() => handleProtectedNavigate({ name: 'search' }, 'Search')}
             activeOpacity={0.85}
           >
             <Search size={17} color="#747874" strokeWidth={2.2} />
@@ -178,7 +206,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.filterButton}
-            onPress={() => push({ name: 'filters' })}
+            onPress={() => handleProtectedNavigate({ name: 'filters' }, 'Filters')}
             activeOpacity={0.8}
           >
             <SlidersHorizontal size={16} color="#1A1C1A" strokeWidth={2.4} />
@@ -193,92 +221,203 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoriesContent}
         >
-          {/* 1. Buy (Active default) */}
-          <TouchableOpacity
-            style={[
-              styles.categoryCard,
-              activeCategory === 'buy' && styles.categoryCardActive,
-            ]}
-            onPress={() => handleCategoryPress('buy')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.categoryIconBox}>
-              <House size={18} color="#434844" strokeWidth={2.2} />
-            </View>
-            <Text style={styles.categoryText}>Buy</Text>
-          </TouchableOpacity>
+          {/* 1. Buy */}
+          {(() => {
+            const isHovered = hoveredCategory === 'buy';
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.categoryCard,
+                  activeCategory === 'buy' && styles.categoryCardActive,
+                  isHovered && styles.categoryCardHovered,
+                ]}
+                onPress={() => handleCategoryPress('buy')}
+                activeOpacity={0.8}
+                {...({
+                  onMouseEnter: () => setHoveredCategory('buy'),
+                  onMouseLeave: () => setHoveredCategory(null),
+                } as any)}
+              >
+                <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
+                  <House size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                </View>
+                <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>Buy</Text>
+              </TouchableOpacity>
+            );
+          })()}
 
           {/* 2. Rent */}
-          <TouchableOpacity
-            style={styles.categoryCard}
-            onPress={() => handleCategoryPress('rent')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.categoryIconBox}>
-              <KeyRound size={18} color="#434844" strokeWidth={2.2} />
-            </View>
-            <Text style={styles.categoryText}>Rent</Text>
-          </TouchableOpacity>
+          {(() => {
+            const isHovered = hoveredCategory === 'rent';
+            return (
+              <TouchableOpacity
+                style={[styles.categoryCard, isHovered && styles.categoryCardHovered]}
+                onPress={() => handleCategoryPress('rent')}
+                activeOpacity={0.8}
+                {...({
+                  onMouseEnter: () => setHoveredCategory('rent'),
+                  onMouseLeave: () => setHoveredCategory(null),
+                } as any)}
+              >
+                <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
+                  <KeyRound size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                </View>
+                <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>Rent</Text>
+              </TouchableOpacity>
+            );
+          })()}
 
           {/* 3. Commercial */}
-          <TouchableOpacity
-            style={[styles.categoryCard, { minWidth: 78 }]}
-            onPress={() => handleCategoryPress('commercial')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.categoryIconBox}>
-              <Building2 size={18} color="#434844" strokeWidth={2.2} />
-            </View>
-            <Text style={styles.categoryText}>Commercial</Text>
-          </TouchableOpacity>
+          {(() => {
+            const isHovered = hoveredCategory === 'commercial';
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.categoryCard,
+                  { minWidth: 78 },
+                  isHovered && styles.categoryCardHovered,
+                ]}
+                onPress={() => handleCategoryPress('commercial')}
+                activeOpacity={0.8}
+                {...({
+                  onMouseEnter: () => setHoveredCategory('commercial'),
+                  onMouseLeave: () => setHoveredCategory(null),
+                } as any)}
+              >
+                <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
+                  <Building2 size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                </View>
+                <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
+                  Commercial
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
 
           {/* 4. Manage (Property Management) */}
-          <TouchableOpacity
-            style={styles.categoryCard}
-            onPress={() => handleCategoryPress('manage')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.categoryIconBox}>
-              <HousePlus size={18} color="#434844" strokeWidth={2.2} />
-            </View>
-            <Text style={styles.categoryText}>Manage</Text>
-          </TouchableOpacity>
+          {(() => {
+            const isHovered = hoveredCategory === 'manage';
+            return (
+              <TouchableOpacity
+                style={[styles.categoryCard, isHovered && styles.categoryCardHovered]}
+                onPress={() => handleCategoryPress('manage')}
+                activeOpacity={0.8}
+                {...({
+                  onMouseEnter: () => setHoveredCategory('manage'),
+                  onMouseLeave: () => setHoveredCategory(null),
+                } as any)}
+              >
+                <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
+                  <HousePlus size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                </View>
+                <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
+                  Manage
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
 
           {/* 5. Home Loans */}
-          <TouchableOpacity
-            style={[styles.categoryCard, { minWidth: 84 }]}
-            onPress={() => handleCategoryPress('loans')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.categoryIconBox}>
-              <Landmark size={18} color="#434844" strokeWidth={2.2} />
-            </View>
-            <Text style={styles.categoryText}>Home Loans</Text>
-          </TouchableOpacity>
+          {(() => {
+            const isHovered = hoveredCategory === 'loans';
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.categoryCard,
+                  { minWidth: 84 },
+                  isHovered && styles.categoryCardHovered,
+                ]}
+                onPress={() => handleCategoryPress('loans')}
+                activeOpacity={0.8}
+                {...({
+                  onMouseEnter: () => setHoveredCategory('loans'),
+                  onMouseLeave: () => setHoveredCategory(null),
+                } as any)}
+              >
+                <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
+                  <Landmark size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                </View>
+                <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
+                  Home Loans
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
 
           {/* 6. Rental Agreements */}
-          <TouchableOpacity
-            style={[styles.categoryCard, { minWidth: 84 }]}
-            onPress={() => handleCategoryPress('agreements')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.categoryIconBox}>
-              <FileText size={18} color="#434844" strokeWidth={2.2} />
-            </View>
-            <Text style={styles.categoryText}>Agreements</Text>
-          </TouchableOpacity>
+          {(() => {
+            const isHovered = hoveredCategory === 'agreements';
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.categoryCard,
+                  { minWidth: 84 },
+                  isHovered && styles.categoryCardHovered,
+                ]}
+                onPress={() => handleCategoryPress('agreements')}
+                activeOpacity={0.8}
+                {...({
+                  onMouseEnter: () => setHoveredCategory('agreements'),
+                  onMouseLeave: () => setHoveredCategory(null),
+                } as any)}
+              >
+                <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
+                  <FileText size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                </View>
+                <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
+                  Agreements
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
 
-          {/* 7. Verify Owner (Obsidian Dark Card) */}
-          <TouchableOpacity
-            style={styles.verifyOwnerCard}
-            onPress={() => handleCategoryPress('verify')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.verifyOwnerIconBox}>
-              <UserCheck size={18} color="#FFFFFF" strokeWidth={2.2} />
-            </View>
-            <Text style={styles.verifyOwnerText}>Verify Owner</Text>
-          </TouchableOpacity>
+          {/* 7. Verify Owner (Dark Card) */}
+          {(() => {
+            const isHovered = hoveredCategory === 'verify';
+            return (
+              <TouchableOpacity
+                style={[styles.verifyOwnerCard, isHovered && styles.verifyOwnerCardHovered]}
+                onPress={() => handleCategoryPress('verify')}
+                activeOpacity={0.85}
+                {...({
+                  onMouseEnter: () => setHoveredCategory('verify'),
+                  onMouseLeave: () => setHoveredCategory(null),
+                } as any)}
+              >
+                <View style={[styles.verifyOwnerIconBox, isHovered && { backgroundColor: '#16221A' }]}>
+                  <UserCheck size={18} color="#FFFFFF" strokeWidth={2.2} />
+                </View>
+                <Text style={styles.verifyOwnerText}>Verify Owner</Text>
+              </TouchableOpacity>
+            );
+          })()}
+
+          {/* 8. Flatmates */}
+          {(() => {
+            const isHovered = hoveredCategory === 'flatmates';
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.categoryCard,
+                  { minWidth: 80 },
+                  isHovered && styles.categoryCardHovered,
+                ]}
+                onPress={() => handleCategoryPress('flatmates')}
+                activeOpacity={0.8}
+                {...({
+                  onMouseEnter: () => setHoveredCategory('flatmates'),
+                  onMouseLeave: () => setHoveredCategory(null),
+                } as any)}
+              >
+                <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
+                  <Users size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                </View>
+                <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
+                  Flatmates
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
         </ScrollView>
       </View>
 
@@ -287,7 +426,10 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.spotlightCard}
           onPress={() =>
-            push({ name: 'propertyDetail', params: { property: spotlightProperty } })
+            handleProtectedNavigate(
+              { name: 'propertyDetail', params: { property: spotlightProperty } },
+              spotlightProperty.title
+            )
           }
           activeOpacity={0.92}
         >
@@ -381,7 +523,7 @@ export default function HomeScreen() {
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => push({ name: 'search' })}
+            onPress={() => handleProtectedNavigate({ name: 'search' }, 'Search Localities')}
             activeOpacity={0.7}
           >
             <Text style={styles.viewAllText}>View all &gt;</Text>
@@ -398,10 +540,13 @@ export default function HomeScreen() {
               key={loc.id}
               style={styles.locationCard}
               onPress={() =>
-                push({
-                  name: 'propertyListing',
-                  params: { location: loc.name, title: loc.name },
-                })
+                handleProtectedNavigate(
+                  {
+                    name: 'propertyListing',
+                    params: { location: loc.name, title: loc.name },
+                  },
+                  loc.name
+                )
               }
               activeOpacity={0.88}
             >
@@ -434,7 +579,12 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={prop.id}
               style={styles.featuredCard}
-              onPress={() => push({ name: 'propertyDetail', params: { property: prop } })}
+              onPress={() =>
+                handleProtectedNavigate(
+                  { name: 'propertyDetail', params: { property: prop } },
+                  prop.title
+                )
+              }
               activeOpacity={0.9}
             >
               <View style={styles.featuredCardImageWrapper}>
@@ -507,7 +657,7 @@ export default function HomeScreen() {
       {/* ── 7. Section - Promotional Banner ── */}
       <TouchableOpacity
         style={styles.promoBanner}
-        onPress={() => push({ name: 'ownerVerification' })}
+        onPress={() => handleProtectedNavigate({ name: 'ownerVerification' }, 'Verify Owner')}
         activeOpacity={0.9}
       >
         <View style={styles.promoLeftCol}>
@@ -537,7 +687,12 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={prop.id}
               style={styles.recommendedCard}
-              onPress={() => push({ name: 'propertyDetail', params: { property: prop } })}
+              onPress={() =>
+                handleProtectedNavigate(
+                  { name: 'propertyDetail', params: { property: prop } },
+                  prop.title
+                )
+              }
               activeOpacity={0.92}
             >
               <View style={styles.recommendedImageWrapper}>
@@ -775,9 +930,25 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 0.6,
     borderColor: '#F0EFEA',
+    ...Platform.select({
+      web: {
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        cursor: 'pointer',
+      } as any,
+    }),
   },
   categoryCardActive: {
     borderColor: '#E2E0D8',
+  },
+  categoryCardHovered: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+    transform: [{ translateY: -2 }],
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
   },
   categoryIconBox: {
     width: 36,
@@ -787,6 +958,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
+    ...Platform.select({
+      web: {
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+      } as any,
+    }),
+  },
+  categoryIconBoxHovered: {
+    backgroundColor: '#1E2822',
   },
   categoryText: {
     fontFamily: 'Plus Jakarta Sans',
@@ -795,6 +974,14 @@ const styles = StyleSheet.create({
     color: '#1A1C1A',
     textAlign: 'center',
     letterSpacing: 0.2,
+    ...Platform.select({
+      web: {
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+      } as any,
+    }),
+  },
+  categoryTextHovered: {
+    color: '#FFFFFF',
   },
   verifyOwnerCard: {
     minWidth: 89,
@@ -809,6 +996,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 4,
+    ...Platform.select({
+      web: {
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        cursor: 'pointer',
+      } as any,
+    }),
+  },
+  verifyOwnerCardHovered: {
+    backgroundColor: '#000000',
+    transform: [{ translateY: -2 }],
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   },
   verifyOwnerIconBox: {
     width: 36,

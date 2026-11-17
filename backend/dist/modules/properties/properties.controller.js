@@ -51,6 +51,8 @@ __decorate([
 ], PropertiesController.prototype, "findOne", null);
 __decorate([
     Get(':id/owner'),
+    UseGuards(JwtAuthGuard),
+    ApiBearerAuth(),
     ApiOperation({ summary: 'Get owner details for a property' }),
     __param(0, Param('id')),
     __metadata("design:type", Function),

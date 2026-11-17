@@ -20,17 +20,23 @@ export function SeedhaMark({ size = 'default' }: MarkProps) {
 
   return (
     <View style={[styles.markContainer, { width: dim, height: dim, borderRadius: radius }]}>
-      <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+        {/* House outline */}
         <Path
-          d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V10.5z"
-          fill="rgba(255,255,255,0.25)"
-          stroke="white"
-          strokeWidth="1.5"
+          d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z"
+          stroke="#FFFFFF"
+          strokeWidth="1.8"
+          strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <Path d="M9 21v-7h6v7" fill="white" />
-        <Circle cx="18" cy="18" r="5.5" fill="white" />
-        <Path d="M15.5 18l1.5 1.5 3-3" stroke={colors.primary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Handshake inside house */}
+        <Path
+          d="M8.5 13.5l2 2 4.5-4.5"
+          stroke="#FFFFFF"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </Svg>
     </View>
   );
@@ -39,8 +45,8 @@ export function SeedhaMark({ size = 'default' }: MarkProps) {
 export default function SeedhaLogo({ size = 'md', light = false }: Props) {
   const scales = { sm: 0.8, md: 1, lg: 1.2 };
   const scale = scales[size];
-  const textColor = light ? colors.textWhite : colors.primary;
-  const subColor = light ? 'rgba(255,255,255,0.75)' : colors.secondary;
+  const textColor = light ? '#FFFFFF' : '#000000';
+  const subColor = light ? 'rgba(255,255,255,0.75)' : '#64748B';
 
   return (
     <View style={[styles.logoRow, { transform: [{ scale }] }]}>
@@ -55,7 +61,7 @@ export default function SeedhaLogo({ size = 'md', light = false }: Props) {
 
 const styles = StyleSheet.create({
   markContainer: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -67,14 +73,14 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   brandTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     letterSpacing: -0.3,
   },
   brandSub: {
     fontSize: 9,
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: 2,
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
   },
 });

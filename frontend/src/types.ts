@@ -85,6 +85,7 @@ export type ScreenName =
   | 'postProperty'
   | 'compare'
   | 'savedProperties'
+<<<<<<< HEAD
   | 'myActivity'
   | 'myProperties'
   | 'personalInformation'
@@ -92,6 +93,11 @@ export type ScreenName =
   | 'helpSupport'
   | 'accountSettings'
   | 'privacySecurity'
+=======
+  | 'buyProperties'
+  | 'rentHomes'
+  | 'flatmates'
+>>>>>>> origin/feature/murali
   | 'ownerVerification'
   | 'adminPortal'
   | 'visitRating';

@@ -32,6 +32,9 @@ import FiltersScreen from './screens/FiltersScreen';
 import SearchScreen from './screens/SearchScreen';
 import CompareScreen from './screens/CompareScreen';
 import AdminPortalScreen from './screens/AdminPortalScreen';
+import BuyPropertiesScreen from './screens/BuyPropertiesScreen';
+import RentHomesScreen from './screens/RentHomesScreen';
+import FlatmatesScreen from './screens/FlatmatesScreen';
 import PaymentsScreen from './screens/PaymentsScreen';
 import LandingScreen from './screens/LandingScreen';
 import SplashScreen from './screens/SplashScreen';
@@ -64,9 +67,9 @@ function ScreenRouter() {
       case 'splash': return <SplashScreen />;
       // Auth flow
       case 'onboarding': return <OnboardingScreen />;
-      case 'login': return <LoginScreen />;
+      case 'login': return <MobileLoginScreen />;
       case 'mobileLogin': return <MobileLoginScreen />;
-      case 'signup': return <SignUpScreen />;
+      case 'signup': return <MobileLoginScreen />;
       case 'otp': return <OTPScreen />;
       case 'profileSetup': return <ProfileSetupScreen />;
       case 'propertyIntent': return <PropertyIntentScreen />;
@@ -103,6 +106,9 @@ function ScreenRouter() {
       case 'savedProperties': return <SavedPropertiesScreen />;
       case 'myActivity': return <MyActivityScreen />;
       case 'compare': return <CompareScreen />;
+      case 'buyProperties': return <BuyPropertiesScreen />;
+      case 'rentHomes': return <RentHomesScreen />;
+      case 'flatmates': return <FlatmatesScreen />;
       // Admin Operations Flow
       case 'adminLogin': return <AdminLoginScreen />;
       case 'adminDashboard': return <AdminDashboardScreen />;

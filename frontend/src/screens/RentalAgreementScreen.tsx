@@ -10,6 +10,7 @@ import {
   Alert,
   SafeAreaView,
   Platform,
+  Modal,
 } from 'react-native';
 import {
   ChevronLeft,
@@ -56,7 +57,14 @@ import {
   Receipt,
   Plus,
   Minus,
+  Pencil,
+  AlertCircle,
+  X,
+  Tag,
+  MapPin,
+  Truck,
 } from 'lucide-react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { useApp } from '../context/AppContext';
 import colors from '../theme/colors';
 
@@ -228,13 +236,13 @@ export default function RentalAgreementScreen() {
 
   const [tenants, setTenants] = useState<PersonDetails[]>([
     {
-      fullName: 'Rahul Sharma',
-      phone: '9876543210',
-      email: 'rahul@email.com',
-      address: 'H.No 12-4, Ameerpet, Hyderabad',
-      pincode: '500016',
-      age: '29',
-      gender: 'M',
+      fullName: '',
+      phone: '',
+      email: '',
+      address: '',
+      pincode: '',
+      age: '',
+      gender: '',
       pan: '',
       aadhaar: '',
       isExpanded: true,
@@ -317,6 +325,12 @@ export default function RentalAgreementScreen() {
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
 
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [showDraftModal, setShowDraftModal] = useState(false);
+  const [extraCopy, setExtraCopy] = useState(false);
+  const [notarisedAgreement, setNotarisedAgreement] = useState(false);
+  const [eSignAgreement, setESignAgreement] = useState(false);
+  const [deliverToParty, setDeliverToParty] = useState<'landlord' | 'tenant'>('landlord');
+  const [deliverySpeed, setDeliverySpeed] = useState<'standard' | 'next'>('standard');
 
   const handleStartAgreement = () => {
     setStep('enterDetails');
@@ -359,10 +373,7 @@ export default function RentalAgreementScreen() {
       });
     }
 
-    setStep('order');
-    setTimeout(() => {
-      setStep('completed');
-    }, 2000);
+    setStep('completed');
   };
 
   const handleDownload = () => {
@@ -376,13 +387,20 @@ export default function RentalAgreementScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      {step !== 'completed' && (
+        <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
             if (step === 'intro') pop();
             else if (step === 'contract') setStep('intro');
             else if (step === 'property') setStep('contract');
-            else if (step === 'parties') setStep('property');
+            else if (step === 'parties') {
+              if (activePartyTab === 'tenant') {
+                setActivePartyTab('landlord');
+              } else {
+                setStep('property');
+              }
+            }
             else if (step === 'role') setStep('parties');
             else if (step === 'enterDetails') setStep('parties');
             else if (step === 'preview') setStep('parties');
@@ -400,16 +418,14 @@ export default function RentalAgreementScreen() {
           {step === 'intro' && (
             <Text style={styles.headerSub}>Create and manage your agreement</Text>
           )}
-          {step !== 'intro' && step !== 'contract' && step !== 'property' && step !== 'parties' && (
+          {step !== 'intro' && step !== 'contract' && step !== 'property' && step !== 'parties' && step !== 'preview' && step !== 'pay' && (
             <Text style={styles.headerSub}>
               {step === 'role'
                 ? 'Select Owner / Tenant'
                 : step === 'enterDetails'
                   ? 'Enter Agreement Details'
-                  : step === 'preview'
-                    ? 'Preview Legal Agreement'
-                    : step === 'pay'
-                      ? 'Pay Stamp & Drafting Fee'
+                  
+                    
                       : step === 'order'
                         ? 'Placing Order...'
                         : 'Agreement Received'}
@@ -424,9 +440,10 @@ export default function RentalAgreementScreen() {
           <View style={{ width: 42 }} />
         )}
       </View>
+      )}
 
       {/* 5-Step Stepper Bar for Contract, Property, Parties & Summary */}
-      {(step === 'contract' || step === 'property' || step === 'parties' || step === 'preview') && (
+      {(step === 'contract' || step === 'property' || step === 'parties' || step === 'preview' || step === 'pay') && (
         <View style={styles.contractStepperWrap}>
           {/* Step 1: Contract */}
           <TouchableOpacity
@@ -434,7 +451,7 @@ export default function RentalAgreementScreen() {
             onPress={() => setStep('contract')}
             activeOpacity={0.8}
           >
-            {step === 'property' || step === 'parties' || step === 'preview' ? (
+            {step === 'property' || step === 'parties' || step === 'preview' || step === 'pay' ? (
               <View style={styles.contractStepBadgeDone}>
                 <Check size={12} color="#FFFFFF" strokeWidth={3} />
               </View>
@@ -448,13 +465,15 @@ export default function RentalAgreementScreen() {
             </Text>
           </TouchableOpacity>
 
+          <Text style={styles.contractStepDot}>·</Text>
+
           {/* Step 2: Property */}
           <TouchableOpacity
             style={styles.contractStepItem}
             onPress={() => setStep('property')}
             activeOpacity={0.8}
           >
-            {step === 'parties' || step === 'preview' ? (
+            {step === 'parties' || step === 'preview' || step === 'pay' ? (
               <View style={styles.contractStepBadgeDone}>
                 <Check size={12} color="#FFFFFF" strokeWidth={3} />
               </View>
@@ -470,13 +489,15 @@ export default function RentalAgreementScreen() {
             </Text>
           </TouchableOpacity>
 
+          <Text style={styles.contractStepDot}>·</Text>
+
           {/* Step 3: Parties */}
           <TouchableOpacity
             style={styles.contractStepItem}
             onPress={() => setStep('parties')}
             activeOpacity={0.8}
           >
-            {step === 'preview' ? (
+            {step === 'preview' || step === 'pay' ? (
               <View style={styles.contractStepBadgeDone}>
                 <Check size={12} color="#FFFFFF" strokeWidth={3} />
               </View>
@@ -492,29 +513,47 @@ export default function RentalAgreementScreen() {
             </Text>
           </TouchableOpacity>
 
+          <Text style={styles.contractStepDot}>·</Text>
+
           {/* Step 4: Summary */}
           <TouchableOpacity
             style={styles.contractStepItem}
             onPress={() => setStep('preview')}
             activeOpacity={0.8}
           >
-            <View style={step === 'preview' ? styles.contractStepBadgeActive : styles.contractStepBadgeInactive}>
-              <Text style={step === 'preview' ? styles.contractStepBadgeTextActive : styles.contractStepBadgeTextInactive}>
-                4
-              </Text>
-            </View>
+            {step === 'pay' ? (
+              <View style={styles.contractStepBadgeDone}>
+                <Check size={12} color="#FFFFFF" strokeWidth={3} />
+              </View>
+            ) : (
+              <View style={step === 'preview' ? styles.contractStepBadgeActive : styles.contractStepBadgeInactive}>
+                <Text style={step === 'preview' ? styles.contractStepBadgeTextActive : styles.contractStepBadgeTextInactive}>
+                  4
+                </Text>
+              </View>
+            )}
             <Text style={step === 'preview' ? styles.contractStepLabelActive : styles.contractStepLabelInactive}>
               Summary
             </Text>
           </TouchableOpacity>
 
+          <Text style={styles.contractStepDot}>·</Text>
+
           {/* Step 5: Pay */}
-          <View style={styles.contractStepItem}>
-            <View style={styles.contractStepBadgeInactive}>
-              <Text style={styles.contractStepBadgeTextInactive}>5</Text>
+          <TouchableOpacity
+            style={styles.contractStepItem}
+            onPress={() => setStep('pay')}
+            activeOpacity={0.8}
+          >
+            <View style={step === 'pay' ? styles.contractStepBadgeActive : styles.contractStepBadgeInactive}>
+              <Text style={step === 'pay' ? styles.contractStepBadgeTextActive : styles.contractStepBadgeTextInactive}>
+                5
+              </Text>
             </View>
-            <Text style={styles.contractStepLabelInactive}>Pay</Text>
-          </View>
+            <Text style={step === 'pay' ? styles.contractStepLabelActive : styles.contractStepLabelInactive}>
+              Pay
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -1479,7 +1518,10 @@ export default function RentalAgreementScreen() {
                     styles.partyTab,
                     !isLandlord && styles.partyTabActive,
                   ]}
-                  onPress={() => setActivePartyTab('tenant')}
+                  onPress={() => {
+                    setActivePartyTab('tenant');
+                    setActiveTenantIndex(0);
+                  }}
                   activeOpacity={0.85}
                 >
                   <Users
@@ -2012,147 +2054,609 @@ export default function RentalAgreementScreen() {
                               </View>
                             )}
 
-                            {/* Step 3: Submit and Preview Agreement */}
+                            {/* Step 4: Summary matching media_1794649513718_6eb2ffc7.png */}
                             {step === 'preview' && (
-                              <View style={styles.contentPadding}>
-                                <View style={styles.stepBadge}>
-                                  <Text style={styles.stepBadgeText}>Step 3 of 5: Preview Legal Agreement</Text>
-                                </View>
-
-                                {/* Simulated Government e-Stamp Paper */}
-                                <View style={styles.stampPaper}>
-                                  <View style={styles.stampHeader}>
-                                    <Text style={styles.stampGovText}>GOVERNMENT OF INDIA · NON-JUDICIAL</Text>
-                                    <Text style={styles.stampCertNo}>Certificate No: IN-DL84920492819241K</Text>
-                                    <Text style={styles.stampValue}>E-STAMP VALUE: ₹100.00</Text>
+                              <View style={[styles.contractContentPadding, { paddingBottom: 100 }]}>
+                                {/* Top Card: Form partly filled */}
+                                <View style={styles.summaryStatusCard}>
+                                  {/* Circular Progress Gauge */}
+                                  <View style={styles.summaryGaugeWrap}>
+                                    <Svg width={62} height={62} viewBox="0 0 62 62">
+                                      <Circle
+                                        cx="31"
+                                        cy="31"
+                                        r={26}
+                                        stroke="#E5E7EB"
+                                        strokeWidth={4.5}
+                                        fill="none"
+                                      />
+                                      <Circle
+                                        cx="31"
+                                        cy="31"
+                                        r={26}
+                                        stroke="#16A34A"
+                                        strokeWidth={4.5}
+                                        fill="none"
+                                        strokeDasharray="163.36 163.36"
+                                        strokeDashoffset={163.36 * (1 - 0.08)}
+                                        strokeLinecap="round"
+                                        transform="rotate(-90 31 31)"
+                                      />
+                                    </Svg>
+                                    <View style={styles.summaryGaugeCenter}>
+                                      <Text style={styles.summaryGaugeText}>8%</Text>
+                                    </View>
                                   </View>
 
-                                  <Text style={styles.legalTitle}>RESIDENTIAL LEASE AGREEMENT</Text>
-                                  <Text style={styles.legalDate}>
-                                    Made on this {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                  {/* Status Texts & Preview Link */}
+                                  <View style={styles.summaryStatusInfo}>
+                                    <Text style={styles.summaryStatusTitle}>Form partly filled</Text>
+                                    <Text style={styles.summaryStatusSubtitle}>
+                                      You can still continue, or go back and add more details.
+                                    </Text>
+                                    <TouchableOpacity
+                                      style={styles.summaryPreviewLink}
+                                      onPress={() => setShowDraftModal(true)}
+                                      activeOpacity={0.7}
+                                    >
+                                      <FileText size={14} color="#111827" strokeWidth={2} />
+                                      <Text style={styles.summaryPreviewLinkText}>Preview draft</Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
+
+                                {/* Black Spotlight Card */}
+                                <View style={styles.summaryHeroCard}>
+                                  <Text style={styles.summaryHeroEyebrow}>Review before you continue</Text>
+                                  <Text style={styles.summaryHeroTitle}>
+                                    {propertyKind === 'apartment'
+                                      ? 'Apartment/Flat'
+                                      : propertyKind === 'house'
+                                        ? 'Independent House/Villa'
+                                        : propertyKind === 'shop'
+                                          ? 'Shop/Retail'
+                                          : propertyKind === 'office'
+                                            ? 'Office Space'
+                                            : propertyKind === 'godown'
+                                              ? 'Godown/Warehouse'
+                                              : 'Industrial Shed'}
+                                  </Text>
+                                  <Text style={styles.summaryHeroSubtitle}>
+                                    {propertyCityName || 'Bangalore'}, {propertyStateName || 'Karnataka'}
                                   </Text>
 
-                                  <View style={styles.clauseBox}>
-                                    <Text style={styles.clauseTitle}>BETWEEN:</Text>
-                                    <Text style={styles.clauseBody}>
-                                      <Text style={{ fontWeight: '700' }}>LESSOR (Landlord):</Text> {ownerName}, Phone: {ownerPhone}
-                                    </Text>
-                                    <Text style={[styles.clauseBody, { marginTop: 6 }]}>
-                                      <Text style={{ fontWeight: '700' }}>LESSEE (Tenant):</Text> {tenantName}, Phone: {tenantPhone}
-                                    </Text>
-                                  </View>
-
-                                  <View style={styles.clauseBox}>
-                                    <Text style={styles.clauseTitle}>DEMISED PREMISES:</Text>
-                                    <Text style={styles.clauseBody}>{propertyAddress}</Text>
-                                  </View>
-
-                                  <View style={styles.clauseBox}>
-                                    <Text style={styles.clauseTitle}>TERMS & CONDITIONS:</Text>
-                                    <Text style={styles.clauseItem}>
-                                      1. <Text style={{ fontWeight: '600' }}>Rent:</Text> The Tenant shall pay a monthly rent of ₹{parseInt(rentAmount).toLocaleString('en-IN')} on or before the 5th of each month.
-                                    </Text>
-                                    <Text style={styles.clauseItem}>
-                                      2. <Text style={{ fontWeight: '600' }}>Security Deposit:</Text> An interest-free refundable deposit of ₹{parseInt(depositAmount).toLocaleString('en-IN')} has been remitted to Landlord.
-                                    </Text>
-                                    <Text style={styles.clauseItem}>
-                                      3. <Text style={{ fontWeight: '600' }}>Duration & Notice:</Text> This agreement is valid for {durationMonths} months, subject to 1 month written notice by either party.
-                                    </Text>
-                                  </View>
-
-                                  <View style={styles.signatureRow}>
-                                    <View style={styles.sigBox}>
-                                      <Text style={styles.sigRole}>Lessor Signature</Text>
-                                      <Text style={styles.sigStatus}>[Aadhaar e-Sign Pending]</Text>
+                                  {/* Stats Capsule */}
+                                  <View style={styles.summaryHeroStatsCapsule}>
+                                    <View style={styles.summaryHeroStatCol}>
+                                      <Text style={styles.summaryHeroStatVal}>
+                                        ₹{monthlyRentInput && monthlyRentInput !== '0' ? monthlyRentInput : '0'}
+                                      </Text>
+                                      <Text style={styles.summaryHeroStatLbl}>Rent / month</Text>
                                     </View>
-                                    <View style={styles.sigBox}>
-                                      <Text style={styles.sigRole}>Lessee Signature</Text>
-                                      <Text style={styles.sigStatus}>[Aadhaar e-Sign Pending]</Text>
+                                    <View style={styles.summaryHeroStatCol}>
+                                      <Text style={styles.summaryHeroStatVal}>
+                                        ₹{refundableDepositInput && refundableDepositInput !== '0' ? refundableDepositInput : '0'}
+                                      </Text>
+                                      <Text style={styles.summaryHeroStatLbl}>Deposit</Text>
+                                    </View>
+                                    <View style={styles.summaryHeroStatCol}>
+                                      <Text style={styles.summaryHeroStatVal}>
+                                        {agreementDurationMonths || '11'} mo
+                                      </Text>
+                                      <Text style={styles.summaryHeroStatLbl}>Duration</Text>
                                     </View>
                                   </View>
                                 </View>
 
-                                <TouchableOpacity
-                                  onPress={handleProceedToPayment}
-                                  style={styles.primaryButton}
-                                  activeOpacity={0.9}
-                                >
-                                  <Text style={styles.primaryButtonText}>Pay Money (₹499) & Order Agreement</Text>
-                                  <ArrowRight size={18} color={colors.textWhite} />
-                                </TouchableOpacity>
+                                {/* Card 1: Parties */}
+                                <View style={styles.summarySectionCard}>
+                                  <View style={styles.summarySectionHeader}>
+                                    <Text style={styles.summarySectionTitle}>Parties</Text>
+                                    <TouchableOpacity
+                                      style={styles.summaryEditBtn}
+                                      onPress={() => setStep('parties')}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Pencil size={12} color="#111827" strokeWidth={2} />
+                                      <Text style={styles.summaryEditBtnText}>Edit</Text>
+                                    </TouchableOpacity>
+                                  </View>
+
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Landlord</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {landlords[0]?.fullName?.trim() || '—'}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Landlord contact</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {landlords[0]?.phone?.trim() ? `+91 ${landlords[0].phone.trim()}` : '—'}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Tenant</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {tenants[0]?.fullName?.trim() || '—'}
+                                    </Text>
+                                  </View>
+                                  <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
+                                    <Text style={styles.summaryRowLabel}>Tenant contact</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {tenants[0]?.phone?.trim() ? `+91 ${tenants[0].phone.trim()}` : '—'}
+                                    </Text>
+                                  </View>
+                                </View>
+
+                                {/* Card 2: Timeline & terms */}
+                                <View style={styles.summarySectionCard}>
+                                  <View style={styles.summarySectionHeader}>
+                                    <Text style={styles.summarySectionTitle}>Timeline & terms</Text>
+                                    <TouchableOpacity
+                                      style={styles.summaryEditBtn}
+                                      onPress={() => setStep('contract')}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Pencil size={12} color="#111827" strokeWidth={2} />
+                                      <Text style={styles.summaryEditBtnText}>Edit</Text>
+                                    </TouchableOpacity>
+                                  </View>
+
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Start date</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {startDateChoice === 'Custom' ? (customStartDate || '—') : (startDateChoice || '—')}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Minimum lock-in</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {lockInMonths || '1'} month(s)
+                                    </Text>
+                                  </View>
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Notice period</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {noticePeriodMonths || '1'} month(s)
+                                    </Text>
+                                  </View>
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Rent includes maintenance</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {rentIncludesMaintenance ? 'Yes' : 'No'}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Maintenance</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {rentIncludesMaintenance
+                                        ? 'Included'
+                                        : maintenanceAmount?.trim()
+                                          ? `₹${maintenanceAmount.trim()}`
+                                          : '—'}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Rent increase</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {increaseRentToggle
+                                        ? rentIncreasePercentage?.trim()
+                                          ? `${rentIncreasePercentage.trim()}%`
+                                          : 'Yes'
+                                        : 'No'}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Stamp paper</Text>
+                                    <Text style={styles.summaryRowValue}>₹{stampPaperAmount || '100'}</Text>
+                                  </View>
+                                  <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
+                                    <Text style={styles.summaryRowLabel}>Deposit paid via</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {depositPaymentModes && depositPaymentModes.length > 0
+                                        ? depositPaymentModes.map(m => m.toUpperCase()).join(', ')
+                                        : '—'}
+                                    </Text>
+                                  </View>
+                                </View>
+
+                                {/* Card 3: Inclusions */}
+                                <View style={styles.summarySectionCard}>
+                                  <View style={styles.summarySectionHeader}>
+                                    <Text style={styles.summarySectionTitle}>Inclusions</Text>
+                                    <TouchableOpacity
+                                      style={styles.summaryEditBtn}
+                                      onPress={() => setStep('contract')}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Pencil size={12} color="#111827" strokeWidth={2} />
+                                      <Text style={styles.summaryEditBtnText}>Edit</Text>
+                                    </TouchableOpacity>
+                                  </View>
+
+                                  <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
+                                    <Text style={styles.summaryRowLabel}>Furnishing</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {(() => {
+                                        const activeFurnishing = Object.entries(itemCounts)
+                                          .filter(([_, count]) => count > 0)
+                                          .map(([item, count]) => `${count} ${item}`);
+                                        const allItems = [...activeFurnishing, ...customItems];
+                                        return allItems.length > 0 ? allItems.join(', ') : 'No items added';
+                                      })()}
+                                    </Text>
+                                  </View>
+                                </View>
+
+                                {/* Card 4: Property */}
+                                <View style={styles.summarySectionCard}>
+                                  <View style={styles.summarySectionHeader}>
+                                    <Text style={styles.summarySectionTitle}>Property</Text>
+                                    <TouchableOpacity
+                                      style={styles.summaryEditBtn}
+                                      onPress={() => setStep('property')}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Pencil size={12} color="#111827" strokeWidth={2} />
+                                      <Text style={styles.summaryEditBtnText}>Edit</Text>
+                                    </TouchableOpacity>
+                                  </View>
+
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Floor / Flat</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {floorNumber || flatNumber
+                                        ? `${floorNumber || ''} / ${flatNumber || ''}`
+                                        : '/'}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryRowLabel}>Building</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {buildingName?.trim() || '—'}
+                                    </Text>
+                                  </View>
+                                  <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
+                                    <Text style={styles.summaryRowLabel}>Locality</Text>
+                                    <Text style={styles.summaryRowValue}>
+                                      {locality?.trim() || '—'}
+                                    </Text>
+                                  </View>
+                                </View>
+
+                                {/* Disclaimer Notice Banner */}
+                                <View style={styles.summaryNoticeBanner}>
+                                  <AlertCircle size={18} color="#D97706" strokeWidth={2} style={{ marginTop: 1 }} />
+                                  <Text style={styles.summaryNoticeText}>
+                                    This creates a draft. Stamping, signing and registration are separate steps.
+                                  </Text>
+                                </View>
                               </View>
                             )}
 
-                            {/* Step 4: Pay Money */}
+                            {/* Step 5: Pay matching media_1794650110665_a151ba42.png */}
                             {step === 'pay' && (
-                              <View style={styles.contentPadding}>
-                                <View style={styles.stepBadge}>
-                                  <Text style={styles.stepBadgeText}>Step 4 of 5: Payment (Stamp Paper & Legal Drafting)</Text>
+                              <View style={[styles.contractContentPadding, { paddingBottom: 110 }]}>
+                                {/* Card 1: Extras for your agreement */}
+                                <View style={styles.paySectionCard}>
+                                  <View style={styles.paySectionHeader}>
+                                    <View style={styles.payHeaderIconBox}>
+                                      <Tag size={18} color="#111827" strokeWidth={2} />
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                      <Text style={styles.paySectionTitle}>Extras for your agreement</Text>
+                                      <Text style={styles.paySectionSubtitle}>Optional services, tap to add</Text>
+                                    </View>
+                                  </View>
+
+                                  {/* Extra 1: One extra original copy */}
+                                  <View style={styles.payItemRow}>
+                                    <View style={[styles.payItemIconBox, { backgroundColor: '#FEF9C3' }]}>
+                                      <FileText size={20} color="#D97706" strokeWidth={2} />
+                                    </View>
+                                    <View style={{ flex: 1, marginHorizontal: 12 }}>
+                                      <Text style={styles.payItemTitle}>One extra original copy</Text>
+                                      <Text style={styles.payItemSubtitle}>
+                                        A second original at half price, one for each party.
+                                      </Text>
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                      <Text style={styles.payItemPrice}>₹249</Text>
+                                      <TouchableOpacity
+                                        style={[
+                                          styles.payAddBtn,
+                                          extraCopy && styles.payAddBtnActive,
+                                        ]}
+                                        onPress={() => setExtraCopy(!extraCopy)}
+                                        activeOpacity={0.8}
+                                      >
+                                        <Text
+                                          style={[
+                                            styles.payAddBtnText,
+                                            extraCopy && styles.payAddBtnTextActive,
+                                          ]}
+                                        >
+                                          {extraCopy ? 'Added' : 'Add'}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </View>
+
+                                  {/* Extra 2: Notarised Agreement */}
+                                  <View style={styles.payItemRow}>
+                                    <View style={[styles.payItemIconBox, { backgroundColor: '#EFF6FF' }]}>
+                                      <ShieldCheck size={20} color="#2563EB" strokeWidth={2} />
+                                    </View>
+                                    <View style={{ flex: 1, marginHorizontal: 12 }}>
+                                      <Text style={styles.payItemTitle}>Notarised Agreement</Text>
+                                      <Text style={styles.payItemSubtitle}>
+                                        Verified and stamped by an official notary, accepted as valid address proof.
+                                      </Text>
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                      <Text style={styles.payItemPrice}>₹350</Text>
+                                      <TouchableOpacity
+                                        style={[
+                                          styles.payAddBtn,
+                                          notarisedAgreement && styles.payAddBtnActive,
+                                        ]}
+                                        onPress={() => setNotarisedAgreement(!notarisedAgreement)}
+                                        activeOpacity={0.8}
+                                      >
+                                        <Text
+                                          style={[
+                                            styles.payAddBtnText,
+                                            notarisedAgreement && styles.payAddBtnTextActive,
+                                          ]}
+                                        >
+                                          {notarisedAgreement ? 'Added' : 'Add'}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </View>
+
+                                  {/* Extra 3: E-Sign Agreement */}
+                                  <View style={[styles.payItemRow, { marginBottom: 0 }]}>
+                                    <View style={[styles.payItemIconBox, { backgroundColor: '#FDF2F8' }]}>
+                                      <PenLine size={20} color="#DB2777" strokeWidth={2} />
+                                    </View>
+                                    <View style={{ flex: 1, marginHorizontal: 12 }}>
+                                      <Text style={styles.payItemTitle}>E-Sign Agreement</Text>
+                                      <Text style={styles.payItemSubtitle}>
+                                        Digitally sign your agreement from anywhere. Valid for soft copy only.
+                                      </Text>
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                      <Text style={styles.payItemPrice}>₹249</Text>
+                                      <TouchableOpacity
+                                        style={[
+                                          styles.payAddBtn,
+                                          eSignAgreement && styles.payAddBtnActive,
+                                        ]}
+                                        onPress={() => setESignAgreement(!eSignAgreement)}
+                                        activeOpacity={0.8}
+                                      >
+                                        <Text
+                                          style={[
+                                            styles.payAddBtnText,
+                                            eSignAgreement && styles.payAddBtnTextActive,
+                                          ]}
+                                        >
+                                          {eSignAgreement ? 'Added' : 'Add'}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </View>
                                 </View>
 
-                                <View style={styles.invoiceCard}>
-                                  <Text style={styles.invoiceTitle}>Payment Breakdown</Text>
-                                  <View style={styles.invoiceRow}>
-                                    <Text style={styles.invoiceLabel}>Official Government e-Stamp Duty (₹100)</Text>
-                                    <Text style={styles.invoiceVal}>₹100.00</Text>
+                                {/* Card 2: Where should we deliver? */}
+                                <View style={styles.paySectionCard}>
+                                  <View style={styles.paySectionHeader}>
+                                    <View style={styles.payHeaderIconBox}>
+                                      <MapPin size={18} color="#111827" strokeWidth={2} />
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                      <Text style={styles.paySectionTitle}>Where should we deliver?</Text>
+                                      <Text style={styles.paySectionSubtitle}>Select an address for the document</Text>
+                                    </View>
                                   </View>
-                                  <View style={styles.invoiceRow}>
-                                    <Text style={styles.invoiceLabel}>Legal Drafting & Lawyer Vetting</Text>
-                                    <Text style={styles.invoiceVal}>₹300.00</Text>
+
+                                  {/* Landlord Address Option */}
+                                  <TouchableOpacity
+                                    style={styles.payDeliveryOption}
+                                    onPress={() => setDeliverToParty('landlord')}
+                                    activeOpacity={0.85}
+                                  >
+                                    <View
+                                      style={[
+                                        styles.payRadioCircle,
+                                        deliverToParty === 'landlord' && styles.payRadioCircleActive,
+                                      ]}
+                                    >
+                                      {deliverToParty === 'landlord' && (
+                                        <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                                      )}
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                      <Text style={styles.payDeliveryTitle}>Landlord</Text>
+                                      <Text style={styles.payDeliverySub}>
+                                        {landlords[0]?.address?.trim() || 'Address not entered'}
+                                      </Text>
+                                    </View>
+                                    <View style={styles.payRoleBadge}>
+                                      <Text style={styles.payRoleBadgeText}>Landlord</Text>
+                                    </View>
+                                  </TouchableOpacity>
+
+                                  {/* Tenant Address Option */}
+                                  <TouchableOpacity
+                                    style={styles.payDeliveryOption}
+                                    onPress={() => setDeliverToParty('tenant')}
+                                    activeOpacity={0.85}
+                                  >
+                                    <View
+                                      style={[
+                                        styles.payRadioCircle,
+                                        deliverToParty === 'tenant' && styles.payRadioCircleActive,
+                                      ]}
+                                    >
+                                      {deliverToParty === 'tenant' && (
+                                        <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                                      )}
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                      <Text style={styles.payDeliveryTitle}>Tenant</Text>
+                                      <Text style={styles.payDeliverySub}>
+                                        {tenants[0]?.address?.trim() || 'Address not entered'}
+                                      </Text>
+                                    </View>
+                                    <View style={styles.payRoleBadge}>
+                                      <Text style={styles.payRoleBadgeText}>Tenant</Text>
+                                    </View>
+                                  </TouchableOpacity>
+
+                                  {/* Add new address button */}
+                                  <TouchableOpacity
+                                    style={styles.payAddAddressBtn}
+                                    onPress={() => {
+                                      alert('Enter address details in Parties step to deliver here.');
+                                    }}
+                                    activeOpacity={0.8}
+                                  >
+                                    <Plus size={16} color="#111827" strokeWidth={2} />
+                                    <Text style={styles.payAddAddressBtnText}>Add new address</Text>
+                                  </TouchableOpacity>
+                                </View>
+
+                                {/* Card 3: Delivery speed */}
+                                <View style={styles.paySectionCard}>
+                                  <View style={styles.paySectionHeader}>
+                                    <View style={styles.payHeaderIconBox}>
+                                      <Truck size={18} color="#111827" strokeWidth={2} />
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                      <Text style={styles.paySectionTitle}>Delivery speed</Text>
+                                      <Text style={styles.paySectionSubtitle}>Choose how fast you need it</Text>
+                                    </View>
                                   </View>
-                                  <View style={styles.invoiceRow}>
-                                    <Text style={styles.invoiceLabel}>Digital Aadhaar e-Sign & Delivery</Text>
-                                    <Text style={styles.invoiceVal}>₹99.00</Text>
-                                  </View>
-                                  <View style={[styles.invoiceRow, styles.invoiceTotalRow]}>
-                                    <Text style={styles.invoiceTotalLabel}>Total Amount Due</Text>
-                                    <Text style={styles.invoiceTotalVal}>₹499.00</Text>
+
+                                  {/* Standard Day Delivery */}
+                                  <TouchableOpacity
+                                    style={styles.payDeliveryOption}
+                                    onPress={() => setDeliverySpeed('standard')}
+                                    activeOpacity={0.85}
+                                  >
+                                    <View
+                                      style={[
+                                        styles.payRadioCircle,
+                                        deliverySpeed === 'standard' && styles.payRadioCircleActive,
+                                      ]}
+                                    >
+                                      {deliverySpeed === 'standard' && (
+                                        <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                                      )}
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
+                                      <Text style={styles.payDeliveryTitle}>Standard Day Delivery</Text>
+                                      <Text style={styles.payDeliverySub}>
+                                        Courier charges apply outside the property city.
+                                      </Text>
+                                    </View>
+                                    <Text style={styles.paySpeedPrice}>₹149</Text>
+                                  </TouchableOpacity>
+
+                                  {/* Next Day Delivery */}
+                                  <TouchableOpacity
+                                    style={styles.payDeliveryOption}
+                                    onPress={() => setDeliverySpeed('next')}
+                                    activeOpacity={0.85}
+                                  >
+                                    <View
+                                      style={[
+                                        styles.payRadioCircle,
+                                        deliverySpeed === 'next' && styles.payRadioCircleActive,
+                                      ]}
+                                    >
+                                      {deliverySpeed === 'next' && (
+                                        <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                                      )}
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
+                                      <Text style={styles.payDeliveryTitle}>Next Day Delivery</Text>
+                                      <Text style={styles.payDeliverySub}>
+                                        Agreement delivered the next day.
+                                      </Text>
+                                    </View>
+                                    <Text style={styles.paySpeedPrice}>₹499</Text>
+                                  </TouchableOpacity>
+
+                                  {/* Notice box */}
+                                  <View style={styles.paySpeedNoticeBox}>
+                                    <Clock size={16} color="#111827" strokeWidth={2} style={{ marginTop: 2 }} />
+                                    <Text style={styles.paySpeedNoticeText}>
+                                      <Text style={{ fontWeight: '700', color: '#111827' }}>
+                                        Submit your draft before 3 PM
+                                      </Text>{' '}
+                                      for same or next day delivery. After 3 PM, processing starts the next working day. Sundays and public holidays are excluded.
+                                    </Text>
                                   </View>
                                 </View>
 
-                                <Text style={styles.subHeading}>Choose Payment Option</Text>
+                                {/* Card 4: Payment summary */}
+                                <View style={styles.paySectionCard}>
+                                  <Text style={styles.paySummaryCardTitle}>Payment summary</Text>
 
-                                <TouchableOpacity
-                                  onPress={() => setPaymentMethod('upi')}
-                                  style={[styles.payCard, paymentMethod === 'upi' && styles.payCardActive]}
-                                  activeOpacity={0.8}
-                                >
-                                  <View style={styles.payRadio}>
-                                    {paymentMethod === 'upi' && <View style={styles.payRadioDot} />}
+                                  <View style={styles.paySummaryRow}>
+                                    <Text style={styles.paySummaryLabel}>Convenience charges</Text>
+                                    <Text style={styles.paySummaryValue}>₹499</Text>
                                   </View>
-                                  <Text style={styles.payTitle}>UPI (Google Pay, PhonePe, Paytm)</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                  onPress={() => setPaymentMethod('card')}
-                                  style={[styles.payCard, paymentMethod === 'card' && styles.payCardActive]}
-                                  activeOpacity={0.8}
-                                >
-                                  <View style={styles.payRadio}>
-                                    {paymentMethod === 'card' && <View style={styles.payRadioDot} />}
+                                  <View style={styles.paySummaryRow}>
+                                    <Text style={styles.paySummaryLabel}>Govt stamp duty</Text>
+                                    <Text style={styles.paySummaryValue}>
+                                      ₹{stampPaperAmount || '100'}
+                                    </Text>
                                   </View>
-                                  <Text style={styles.payTitle}>Credit / Debit Card</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                  onPress={() => setPaymentMethod('netbanking')}
-                                  style={[styles.payCard, paymentMethod === 'netbanking' && styles.payCardActive]}
-                                  activeOpacity={0.8}
-                                >
-                                  <View style={styles.payRadio}>
-                                    {paymentMethod === 'netbanking' && <View style={styles.payRadioDot} />}
+                                  <View style={styles.paySummaryRow}>
+                                    <Text style={styles.paySummaryLabel}>
+                                      {deliverySpeed === 'next' ? 'Next day delivery' : 'Standard delivery'}
+                                    </Text>
+                                    <Text style={styles.paySummaryValue}>
+                                      ₹{deliverySpeed === 'next' ? '499' : '149'}
+                                    </Text>
                                   </View>
-                                  <Text style={styles.payTitle}>Net Banking</Text>
-                                </TouchableOpacity>
+                                  {extraCopy && (
+                                    <View style={styles.paySummaryRow}>
+                                      <Text style={styles.paySummaryLabel}>One extra original copy</Text>
+                                      <Text style={styles.paySummaryValue}>₹249</Text>
+                                    </View>
+                                  )}
+                                  {notarisedAgreement && (
+                                    <View style={styles.paySummaryRow}>
+                                      <Text style={styles.paySummaryLabel}>Notarised Agreement</Text>
+                                      <Text style={styles.paySummaryValue}>₹350</Text>
+                                    </View>
+                                  )}
+                                  {eSignAgreement && (
+                                    <View style={styles.paySummaryRow}>
+                                      <Text style={styles.paySummaryLabel}>E-Sign Agreement</Text>
+                                      <Text style={styles.paySummaryValue}>₹249</Text>
+                                    </View>
+                                  )}
 
-                                <TouchableOpacity
-                                  onPress={handlePay}
-                                  style={styles.primaryButton}
-                                  activeOpacity={0.9}
-                                >
-                                  <Text style={styles.primaryButtonText}>Pay ₹499 & Order Agreement</Text>
-                                  <ArrowRight size={18} color={colors.textWhite} />
-                                </TouchableOpacity>
+                                  <View style={styles.paySummaryTotalRow}>
+                                    <Text style={styles.paySummaryTotalLabel}>Total amount</Text>
+                                    <Text style={styles.paySummaryTotalValue}>
+                                      ₹{
+                                        499 +
+                                        parseInt(stampPaperAmount || '100', 10) +
+                                        (deliverySpeed === 'next' ? 499 : 149) +
+                                        (extraCopy ? 249 : 0) +
+                                        (notarisedAgreement ? 350 : 0) +
+                                        (eSignAgreement ? 249 : 0)
+                                      }
+                                    </Text>
+                                  </View>
+                                </View>
                               </View>
                             )}
 
@@ -2167,58 +2671,94 @@ export default function RentalAgreementScreen() {
                               </View>
                             )}
 
-                            {/* Step 6: Agreement Received / Completed */}
+                            {/* Step: Payment Successful matching media_1794650594700_d053962f.jpg */}
                             {step === 'completed' && (
-                              <View style={styles.contentPadding}>
-                                <View style={styles.successIconCircle}>
-                                  <CheckCircle2 size={44} color={colors.secondary} />
+                              <View style={styles.successScreenWrap}>
+                                {/* Top Mint Glow with Green Check Outline */}
+                                <View style={styles.successGlowHalo}>
+                                  <View style={styles.successCheckCircle}>
+                                    <Check size={22} color="#16A34A" strokeWidth={3.5} />
+                                  </View>
                                 </View>
-                                <Text style={styles.successTitle}>Agreement Received & Completed!</Text>
-                                <Text style={styles.successSub}>
-                                  Order <Text style={{ fontWeight: '700', color: colors.primary }}>#RA-2026-90412</Text> is active. The legally sealed agreement is ready to download and sign.
+
+                                {/* Title & Subtitle */}
+                                <Text style={styles.successMainTitle}>Payment Successful</Text>
+                                <Text style={styles.successMainSub}>
+                                  Your rental agreement document is ready. You can download it now.
                                 </Text>
 
-                                <View style={styles.statusBox}>
-                                  <View style={styles.statusRow}>
-                                    <CheckCircle2 size={16} color={colors.secondary} />
-                                    <Text style={styles.statusText}>e-Stamp Paper Generated & Sealed</Text>
-                                  </View>
-                                  <View style={styles.statusRow}>
-                                    <CheckCircle2 size={16} color={colors.secondary} />
-                                    <Text style={styles.statusText}>Digital e-Sign link dispatched to {ownerPhone} and {tenantPhone}</Text>
-                                  </View>
-                                  <View style={styles.statusRow}>
-                                    <CheckCircle2 size={16} color={colors.secondary} />
-                                    <Text style={styles.statusText}>Valid across India for HRA & address proof</Text>
-                                  </View>
-                                </View>
-
+                                {/* Download Document Button */}
                                 <TouchableOpacity
+                                  style={styles.successDownloadBtn}
                                   onPress={handleDownload}
-                                  style={styles.downloadBtn}
-                                  activeOpacity={0.85}
+                                  activeOpacity={0.88}
                                 >
-                                  <Download size={18} color={colors.textWhite} />
-                                  <Text style={styles.downloadBtnText}>
-                                    {downloadSuccess ? 'Downloaded!' : 'Download Agreement (PDF)'}
+                                  <Download size={18} color="#FFFFFF" strokeWidth={2.2} />
+                                  <Text style={styles.successDownloadBtnText}>
+                                    {downloadSuccess ? 'Downloaded!' : 'Download Document'}
                                   </Text>
                                 </TouchableOpacity>
 
-                                <TouchableOpacity
-                                  onPress={() => alert('Agreement shared via WhatsApp & Email!')}
-                                  style={styles.shareBtn}
-                                  activeOpacity={0.8}
-                                >
-                                  <Share2 size={16} color={colors.primary} />
-                                  <Text style={styles.shareBtnText}>Share Agreement Link</Text>
-                                </TouchableOpacity>
+                                {/* Document delivery Card */}
+                                <View style={styles.successDeliveryCard}>
+                                  <View style={styles.successDeliveryCardHeader}>
+                                    <Truck size={18} color="#111827" strokeWidth={2} />
+                                    <Text style={styles.successDeliveryCardTitle}>Document delivery</Text>
+                                  </View>
 
+                                  <View style={styles.successDeliveryRow}>
+                                    <Text style={styles.successDeliveryLabel}>Delivery type</Text>
+                                    <Text style={styles.successDeliveryValue}>
+                                      {deliverySpeed === 'next' ? 'Next Day Delivery' : 'Standard Delivery'}
+                                    </Text>
+                                  </View>
+
+                                  <View style={styles.successDeliveryRow}>
+                                    <Text style={styles.successDeliveryLabel}>Expected by</Text>
+                                    <Text style={styles.successDeliveryValue}>14 Nov 2026</Text>
+                                  </View>
+
+                                  <View style={styles.successDeliveryRow}>
+                                    <Text style={styles.successDeliveryLabel}>Delivering to</Text>
+                                    <Text style={styles.successDeliveryValue}>
+                                      {deliverToParty === 'landlord'
+                                        ? `Landlord, ${landlords[0]?.address?.trim() || 'Address not entered'}`
+                                        : `Tenant, ${tenants[0]?.address?.trim() || 'Address not entered'}`}
+                                    </Text>
+                                  </View>
+
+                                  <View style={styles.successDeliveryRow}>
+                                    <Text style={styles.successDeliveryLabel}>Order amount</Text>
+                                    <Text style={styles.successDeliveryValue}>
+                                      ₹{
+                                        499 +
+                                        parseInt(stampPaperAmount || '100', 10) +
+                                        (deliverySpeed === 'next' ? 499 : 149) +
+                                        (extraCopy ? 249 : 0) +
+                                        (notarisedAgreement ? 350 : 0) +
+                                        (eSignAgreement ? 249 : 0)
+                                      }
+                                    </Text>
+                                  </View>
+
+                                  <View style={[styles.successDeliveryRow, { borderBottomWidth: 0 }]}>
+                                    <Text style={styles.successDeliveryLabel}>Agreement ID</Text>
+                                    <Text style={styles.successDeliveryValue}>SP-RA-260418</Text>
+                                  </View>
+                                </View>
+
+                                {/* Notice below card */}
+                                <Text style={styles.successFooterNotice}>
+                                  Your original document will be delivered to the selected address. Updates are sent to the phone number and email you provided.
+                                </Text>
+
+                                {/* Done Button */}
                                 <TouchableOpacity
+                                  style={styles.successDoneBtn}
                                   onPress={() => setTab('home')}
-                                  style={styles.homeReturnBtn}
-                                  activeOpacity={0.8}
+                                  activeOpacity={0.88}
                                 >
-                                  <Text style={styles.homeReturnBtnText}>Back to Home</Text>
+                                  <Text style={styles.successDoneBtnText}>Done</Text>
                                 </TouchableOpacity>
                               </View>
                             )}
@@ -2263,23 +2803,644 @@ export default function RentalAgreementScreen() {
                             </View>
                           )}
 
+                          
+                          
+                          {/* Sticky Bottom Bar for Step: Pay */}
+                          {step === 'pay' && (
+                            <View style={styles.introBottomBar}>
+                              <TouchableOpacity
+                                style={styles.introStartBtn}
+                                onPress={handlePay}
+                                activeOpacity={0.88}
+                              >
+                                <Text style={styles.introStartBtnText}>
+                                  Make payment · ₹{
+                                    499 +
+                                    parseInt(stampPaperAmount || '100', 10) +
+                                    (deliverySpeed === 'next' ? 499 : 149) +
+                                    (extraCopy ? 249 : 0) +
+                                    (notarisedAgreement ? 350 : 0) +
+                                    (eSignAgreement ? 249 : 0)
+                                  }
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+  
+                          {/* Sticky Bottom Bar for Step: Preview / Summary */}
+                          {step === 'preview' && (
+                            <View style={styles.introBottomBar}>
+                              <TouchableOpacity
+                                style={styles.introStartBtn}
+                                onPress={() => setStep('pay')}
+                                activeOpacity={0.88}
+                              >
+                                <Text style={styles.introStartBtnText}>Continue to checkout</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+  
                           {/* Sticky Bottom Bar for Step: Parties */}
                           {step === 'parties' && (
                             <View style={styles.introBottomBar}>
                               <TouchableOpacity
                                 style={styles.introStartBtn}
-                                onPress={() => setStep('preview')}
+                                onPress={() => {
+                                  if (activePartyTab === 'landlord') {
+                                    setActivePartyTab('tenant');
+                                    setActiveTenantIndex(0);
+                                  } else {
+                                    setStep('preview');
+                                  }
+                                }}
                                 activeOpacity={0.88}
                               >
                                 <Text style={styles.introStartBtnText}>Continue</Text>
                               </TouchableOpacity>
                             </View>
                           )}
-                        </View>
+                        
+      {/* Draft Preview Modal */}
+      <Modal
+        visible={showDraftModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowDraftModal(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#ECEEF5' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: '#111827' }}>Draft Agreement Preview</Text>
+            <TouchableOpacity
+              onPress={() => setShowDraftModal(false)}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={20} color="#111827" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ flex: 1, padding: 16 }}>
+            <View style={styles.stampPaper}>
+              <View style={styles.stampHeader}>
+                <Text style={styles.stampGovText}>GOVERNMENT OF INDIA · NON-JUDICIAL</Text>
+                <Text style={styles.stampCertNo}>Certificate No: IN-DL84920492819241K</Text>
+                <Text style={styles.stampValue}>E-STAMP VALUE: ₹{stampPaperAmount || '100'}.00</Text>
+              </View>
+              <Text style={styles.legalTitle}>RESIDENTIAL LEASE AGREEMENT</Text>
+              <Text style={styles.legalDate}>
+                Made on this {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </Text>
+              <View style={styles.clauseBox}>
+                <Text style={styles.clauseTitle}>LESSOR (LANDLORD):</Text>
+                <Text style={styles.clauseBody}>
+                  {landlords[0]?.fullName?.trim() || ownerName}, Phone: {landlords[0]?.phone?.trim() || ownerPhone}
+                </Text>
+              </View>
+              <View style={styles.clauseBox}>
+                <Text style={styles.clauseTitle}>LESSEE (TENANT):</Text>
+                <Text style={styles.clauseBody}>
+                  {tenants[0]?.fullName?.trim() || tenantName}, Phone: {tenants[0]?.phone?.trim() || tenantPhone}
+                </Text>
+              </View>
+              <View style={styles.clauseBox}>
+                <Text style={styles.clauseTitle}>PREMISES:</Text>
+                <Text style={styles.clauseBody}>
+                  {buildingName ? `${buildingName}, ` : ''}{locality ? `${locality}, ` : ''}{propertyCityName || 'Bangalore'}, {propertyStateName || 'Karnataka'}
+                </Text>
+              </View>
+              <View style={styles.clauseBox}>
+                <Text style={styles.clauseTitle}>TERMS:</Text>
+                <Text style={styles.clauseItem}>• Monthly Rent: ₹{monthlyRentInput || '0'}</Text>
+                <Text style={styles.clauseItem}>• Refundable Deposit: ₹{refundableDepositInput || '0'}</Text>
+                <Text style={styles.clauseItem}>• Duration: {agreementDurationMonths || '11'} months</Text>
+                <Text style={styles.clauseItem}>• Notice Period: {noticePeriodMonths || '1'} month(s)</Text>
+              </View>
+            </View>
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+  </View>
                         );
 }
 
                         const styles = StyleSheet.create({
+
+  successScreenWrap: {
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 30 : 20,
+    paddingBottom: 40,
+    backgroundColor: '#ECEEF5',
+  },
+  successGlowHalo: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: 20,
+  },
+  successCheckCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 3,
+    borderColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successMainTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  successMainSub: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 8,
+    paddingHorizontal: 24,
+  },
+  successDownloadBtn: {
+    backgroundColor: '#000000',
+    borderRadius: 30,
+    paddingVertical: 16,
+    marginTop: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  successDownloadBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  successDeliveryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  successDeliveryCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  successDeliveryCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  successDeliveryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  successDeliveryLabel: {
+    fontSize: 13.5,
+    color: '#6B7280',
+  },
+  successDeliveryValue: {
+    fontSize: 13.5,
+    color: '#111827',
+    fontWeight: '500',
+    textAlign: 'right',
+    flexShrink: 1,
+    marginLeft: 12,
+  },
+  successFooterNotice: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 18,
+    paddingHorizontal: 16,
+  },
+  successDoneBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 30,
+    paddingVertical: 16,
+    marginTop: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successDoneBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+
+
+  paySectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  paySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  payHeaderIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paySectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  paySectionSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  payItemRow: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  payItemIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payItemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  payItemSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  payItemPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 6,
+  },
+  payAddBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payAddBtnActive: {
+    backgroundColor: '#111827',
+    borderColor: '#111827',
+  },
+  payAddBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  payAddBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  payDeliveryOption: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  payRadioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payRadioCircleActive: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  payDeliveryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  payDeliverySub: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  payRoleBadge: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  payRoleBadgeText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  payAddAddressBtn: {
+    borderWidth: 1,
+    borderColor: '#111827',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 2,
+  },
+  payAddAddressBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  paySpeedPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  paySpeedNoticeBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+    marginTop: 2,
+  },
+  paySpeedNoticeText: {
+    fontSize: 11.5,
+    color: '#6B7280',
+    lineHeight: 16,
+    flex: 1,
+  },
+  paySummaryCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 14,
+  },
+  paySummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  paySummaryLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  paySummaryValue: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  paySummaryTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    paddingTop: 14,
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paySummaryTotalLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  paySummaryTotalValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+  },
+
+
+  contractStepDot: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '700',
+    marginHorizontal: 1,
+  },
+  summaryStatusCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  summaryGaugeWrap: {
+    width: 62,
+    height: 62,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryGaugeCenter: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryGaugeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  summaryStatusInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  summaryStatusTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 3,
+  },
+  summaryStatusSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  summaryPreviewLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 2,
+  },
+  summaryPreviewLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  summaryHeroCard: {
+    backgroundColor: '#000000',
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 14,
+  },
+  summaryHeroEyebrow: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  summaryHeroTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  summaryHeroSubtitle: {
+    fontSize: 13,
+    color: '#D1D5DB',
+    marginBottom: 16,
+  },
+  summaryHeroStatsCapsule: {
+    backgroundColor: '#1E1E22',
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  summaryHeroStatCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  summaryHeroStatVal: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 3,
+  },
+  summaryHeroStatLbl: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  summarySectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  summarySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  summarySectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  summaryEditBtn: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  summaryEditBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  summaryRowLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '400',
+  },
+  summaryRowValue: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  summaryNoticeBanner: {
+    backgroundColor: '#FEF9C3',
+    borderColor: '#FEF08A',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  summaryNoticeText: {
+    fontSize: 12,
+    color: '#92400E',
+    flex: 1,
+    lineHeight: 17,
+  },
+
                           container: {
                           flex: 1,
                         backgroundColor: '#ECEEF5',

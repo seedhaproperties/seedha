@@ -14,12 +14,24 @@ export type UserProfile = {
   role?: UserRole;
 };
 
+export interface FlatmatesFilterOptions {
+  gender: 'All' | 'Male' | 'Female' | 'Anyone';
+  budgetMax: number;
+  locations: string[];
+  bhk: string[];
+  propertyType: string[];
+  furnishing: string[];
+  parking: string | null;
+}
+
 export interface FilterOptions {
   bhk: string[];
   propertyType: string[];
   furnishing: string[];
   parking: string | null;
   verifiedOnly: boolean;
+  budgetMax?: number;
+  locations?: string[];
 }
 
 const defaultAdminRequests: AdminItem[] = [
@@ -201,6 +213,8 @@ interface AppContextType {
   login: (email: string, pass: string, requestedRole?: UserRole) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
   activeFilters: FilterOptions;
   setFilters: (filters: FilterOptions) => void;
+  flatmatesFilters: FlatmatesFilterOptions;
+  setFlatmatesFilters: (filters: FlatmatesFilterOptions) => void;
   adminRequests: AdminItem[];
   loginAdmin: (passcode: string) => boolean;
   logoutAdmin: () => void;
@@ -228,11 +242,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     parking: null,
     verifiedOnly: false,
   });
+  const [flatmatesFilters, setFlatmatesFiltersState] = useState<FlatmatesFilterOptions>({
+    gender: 'All',
+    budgetMax: 100000,
+    locations: [],
+    bhk: [],
+    propertyType: [],
+    furnishing: [],
+    parking: null,
+  });
 
   const isGuest = !isAuthenticated || !user;
 
   const setFilters = useCallback((filters: FilterOptions) => {
     setActiveFilters(filters);
+  }, []);
+
+  const setFlatmatesFilters = useCallback((filters: FlatmatesFilterOptions) => {
+    setFlatmatesFiltersState(filters);
   }, []);
 
   // Restore stored session on mount
@@ -485,6 +512,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       push, pop, setTab, toggleSaved, currentScreen,
       signIn, signOut, login,
       activeFilters, setFilters,
+      flatmatesFilters, setFlatmatesFilters,
       adminRequests, loginAdmin, logoutAdmin, addAdminRequest, updateAdminRequest,
     }}>
       {children}
