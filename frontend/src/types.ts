@@ -93,6 +93,8 @@ export type ScreenName =
   | 'helpSupport'
   | 'accountSettings'
   | 'privacySecurity'
+  | 'rentHomes'
+  | 'flatmates'
   | 'ownerVerification'
   | 'adminPortal'
   | 'visitRating';

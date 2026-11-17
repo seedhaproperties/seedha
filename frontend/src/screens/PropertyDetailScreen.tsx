@@ -8,12 +8,17 @@ import {
   StyleSheet,
   Platform,
   Share,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import {
   ChevronLeft,
   Heart,
   Share2,
   ShieldCheck,
+  CheckCircle,
+  Droplets,
+  Trees,
   MapPin,
   BedDouble,
   Bath,
@@ -54,6 +59,10 @@ const AMENITY_ICONS: Record<string, (color: string) => React.ReactNode> = {
   CCTV: (c) => <Video size={13} color={c} />,
 };
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function PropertyDetailScreen() {
   const { currentScreen, push, pop, toggleSaved, savedIds, requireAuth } = useApp();
   const propertyParam = currentScreen?.params?.property as Property | undefined;
@@ -64,13 +73,63 @@ export default function PropertyDetailScreen() {
     return null;
   }
 
+  // Detect the exact flow (buy, rent, flatmates)
+  const explicitFlow = currentScreen.params?.flow as string | undefined;
+
+  // Strict flow isolation:
+  // Flatmates is true ONLY when opened from Flatmates flow or explicit roomType/fm- id
+  const isFlatmate =
+    explicitFlow === 'flatmates' ||
+    (property as any).roomType !== undefined ||
+    (property.id && property.id.startsWith('fm-'));
+
+  // Rent is true when opened from Rent flow or rental listing type (and NOT flatmates)
+  const isRent =
+    !isFlatmate &&
+    (explicitFlow === 'rent' ||
+      property.listingType === 'rent' ||
+      (property.priceLabel && property.priceLabel.toLowerCase().includes('/month')) ||
+      (property.priceLabel && property.priceLabel.toLowerCase().includes('/mo')) ||
+      property.price <= 100000);
+
+  // Buy is true when not rent and not flatmates
+  const isBuy = !isRent && !isFlatmate;
+
   const [activeImg, setActiveImg] = useState(0);
   const isSaved = savedIds ? savedIds.has(property.id) : false;
 
-  // Accordion states: ALL COLLAPSED BY DEFAULT
+  // Accordion states: Property Basics expanded by default on Rent; others collapsed
   const [basicsOpen, setBasicsOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+
+  // Helper to toggle accordions smoothly with LayoutAnimation
+  const toggleAccordion = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
+    if (Platform.OS !== 'web') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    setter((prev) => !prev);
+  };
+
+
+  // Selected flatmate modal state
+  const [selectedFlatmate, setSelectedFlatmate] = useState<{
+    name: string;
+    firstName: string;
+    age: number;
+    role: string;
+    gender: string;
+    profession: string;
+    phone: string;
+    email: string;
+    tags: string[];
+    initial: string;
+    about?: string;
+  } | null>(null);
+
+  // Description Read More / Read Less toggle
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
 
   // Owner Details Modal state
   const [ownerModalVisible, setOwnerModalVisible] = useState(false);
@@ -114,7 +173,29 @@ export default function PropertyDetailScreen() {
   const handleContactOwner = () => {
     requireAuth(
       () => {
-        push({ name: 'chat', params: { property } });
+        if (isFlatmate) {
+          push({
+            name: 'chat',
+            params: {
+              property,
+              flow: 'flatmates',
+              flatmate: {
+                name: 'Rohit',
+                firstName: 'Rohit',
+                age: 27,
+                role: 'Software engineer · Male',
+                gender: 'Male',
+                profession: 'Software engineer',
+                phone: '+91 99175 57138',
+                email: 'rohit@gmail.com',
+                tags: ['Non-smoker', 'Vegetarian', 'Early riser'],
+                initial: 'R',
+              },
+            },
+          });
+        } else {
+          push({ name: 'chat', params: { property, flow: isRent ? 'rent' : 'buy' } });
+        }
       },
       undefined,
       'Contact Owner'
@@ -224,11 +305,13 @@ export default function PropertyDetailScreen() {
 
             <View style={styles.priceRow}>
               <Text style={styles.priceText}>
-                {property.priceLabel || `₹${property.price.toLocaleString('en-IN')}`}
+                {property.priceLabel || `₹${property.price.toLocaleString('en-IN')}${!isBuy ? '/month' : ''}`}
               </Text>
-              <Text style={styles.emiText}>
-                EMI ~ ₹{emiMonthly.toLocaleString('en-IN')}/mo
-              </Text>
+              {isBuy && (
+                <Text style={styles.emiText}>
+                  EMI ~ ₹{emiMonthly.toLocaleString('en-IN')}/mo
+                </Text>
+              )}
             </View>
           </View>
 
@@ -236,7 +319,7 @@ export default function PropertyDetailScreen() {
           <View style={styles.overviewBar}>
             <View style={styles.overviewItem}>
               <BedDouble size={18} color="#1E293B" strokeWidth={2} />
-              <Text style={styles.overviewText}>{property.bedrooms || 3} Beds</Text>
+              <Text style={styles.overviewText}>{isBuy ? (property.bedrooms || 3) : (property.bedrooms || 2)} Beds</Text>
             </View>
             <View style={styles.overviewItem}>
               <Bath size={18} color="#1E293B" strokeWidth={2} />
@@ -244,11 +327,11 @@ export default function PropertyDetailScreen() {
             </View>
             <View style={styles.overviewItem}>
               <Square size={18} color="#1E293B" strokeWidth={2} />
-              <Text style={styles.overviewText}>{property.area || 1450} sq.ft</Text>
+              <Text style={styles.overviewText}>{isBuy ? (property.area || 1450) + ' sq.ft' : (property.area || 1200) + ' sqft'}</Text>
             </View>
             <View style={styles.overviewItem}>
               <Building2 size={18} color="#1E293B" strokeWidth={2} />
-              <Text style={styles.overviewText}>{property.floor || '8th'} Floor</Text>
+              <Text style={styles.overviewText}>{isBuy ? (property.floor || '8th') : (property.floor || 'Ground')} Floor</Text>
             </View>
           </View>
 
@@ -260,25 +343,24 @@ export default function PropertyDetailScreen() {
                 <View style={styles.specCell}>
                   <Text style={styles.specKey}>Type</Text>
                   <Text style={styles.specVal}>
-                    {property.propertyType
-                      ? property.propertyType.charAt(0).toUpperCase() +
-                      property.propertyType.slice(1)
-                      : 'Apartment'}
+                    {isBuy
+                      ? (property.propertyType ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1) : 'Apartment')
+                      : (property.propertyType ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1) : 'House')}
                   </Text>
                 </View>
                 <View style={styles.specCell}>
                   <Text style={styles.specKey}>Parking</Text>
                   <Text style={styles.specVal}>
-                    {property.parking ? 'Available' : 'Not Available'}
+                    {property.parking !== undefined ? (property.parking ? 'Available' : 'None') : 'Available'}
                   </Text>
                 </View>
                 <View style={styles.specCell}>
                   <Text style={styles.specKey}>Facing</Text>
-                  <Text style={styles.specVal}>{property.facing || 'East'}</Text>
+                  <Text style={styles.specVal}>{isBuy ? (property.facing || 'East') : (property.facing || 'North-East')}</Text>
                 </View>
                 <View style={styles.specCell}>
                   <Text style={styles.specKey}>Total Floors</Text>
-                  <Text style={styles.specVal}>{property.totalFloors || 12}</Text>
+                  <Text style={styles.specVal}>{isBuy ? (property.totalFloors || 12) : (property.totalFloors || 2)}</Text>
                 </View>
               </View>
 
@@ -287,22 +369,19 @@ export default function PropertyDetailScreen() {
                   <Text style={styles.specKey}>Furnishing</Text>
                   <Text style={styles.specVal}>
                     {property.furnishing
-                      ? property.furnishing
-                        .split('-')
-                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                        .join(' ')
-                      : 'Semi-Furnished'}
+                      ? property.furnishing.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                      : 'Semi Furnished'}
                   </Text>
                 </View>
                 <View style={styles.specCell}>
-                  <Text style={styles.specKey}>Current Property condition</Text>
+                  <Text style={styles.specKey}>Current Property Condition</Text>
                   <Text style={styles.specVal}>
-                    {property.possessionDate || 'Ready to Move'}
+                    {isBuy ? 'Ready to Move' : 'Tenant In notice period'}
                   </Text>
                 </View>
                 <View style={styles.specCell}>
                   <Text style={styles.specKey}>Built Year</Text>
-                  <Text style={styles.specVal}>{property.yearBuilt || 2020}</Text>
+                  <Text style={styles.specVal}>{isBuy ? (property.yearBuilt || 2020) : (property.yearBuilt || 2024)}</Text>
                 </View>
                 <View style={styles.specCell}>
                   <Text style={styles.specKey}>Balconies</Text>
@@ -312,24 +391,68 @@ export default function PropertyDetailScreen() {
             </View>
           </View>
 
+          {/* ── 3b. Highlighted Light-Purple Price Details Card (For Rent & Flatmates) ── */}
+          {(isRent || isFlatmate) && (
+            <View style={styles.rentPriceHighlightCard}>
+              <Text style={styles.rentPriceCardHeading}>Rental Details</Text>
+              <View style={styles.rentPriceCardRow}>
+                <View style={styles.rentPriceCardItem}>
+                  <Text style={styles.rentPriceLabel}>Security Deposit</Text>
+                  <Text style={styles.rentPriceValue}>
+                    {property.deposit
+                      ? `₹${property.deposit.toLocaleString('en-IN')}`
+                      : '₹45,000'}
+                  </Text>
+                </View>
+                <View style={styles.rentPriceCardDivider} />
+                <View style={styles.rentPriceCardItem}>
+                  <Text style={styles.rentPriceLabel}>Maintenance</Text>
+                  <Text style={styles.rentPriceValue}>
+                    {property.maintenance
+                      ? `₹${property.maintenance.toLocaleString('en-IN')}/mo`
+                      : '₹1,500/mo'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           {/* ── 4. About Property ── */}
           <View style={styles.sectionBlock}>
             <Text style={styles.sectionHeaderTitle}>About Property</Text>
-            <Text style={styles.aboutDescription}>
-              {property.description ||
-                'A beautifully designed 3 BHK apartment in the heart of Madhurawada with stunning sea views. The apartment features premium fittings, spacious rooms, and a modern kitchen. Located in a gated community with 24/7 security.'}
+            <Text
+              style={styles.aboutDescription}
+              numberOfLines={isBuy ? undefined : isRent ? undefined : isDescExpanded ? undefined : 3}
+            >
+              {isBuy
+                ? (property.description ||
+                   'A beautifully designed 3 BHK apartment in the heart of Madhurawada with stunning sea views. This apartment features premium fittings, spacious rooms, and a modern kitchen. Located in a gated community with 24/7 security.')
+                : isRent
+                ? 'Spacious 2 BHK independent house in a peaceful residential area of Gajuwaka. Perfect for families. Close to schools, hospitals and markets.'
+                : (property.description || 'Spacious accommodation with modern amenities.')}
             </Text>
+            {!isBuy && !isRent && (
+              <TouchableOpacity
+                onPress={() => setIsDescExpanded(!isDescExpanded)}
+                style={styles.readMoreBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.readMoreText}>
+                  {isDescExpanded ? 'Read Less' : 'Read More'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* ── 5. Complete Listing Details (Accordions) ── */}
           <View style={styles.sectionBlock}>
             <Text style={styles.sectionHeaderTitle}>Complete Listing Details</Text>
 
-            {/* Accordion 1: Property Basics (Collapsed by default) */}
+            {/* Accordion 1: Property Basics */}
             <View style={styles.accordionContainer}>
               <TouchableOpacity
                 style={styles.accordionHeader}
-                onPress={() => setBasicsOpen(!basicsOpen)}
+                onPress={() => toggleAccordion(setBasicsOpen)}
                 activeOpacity={0.8}
               >
                 <Text style={styles.accordionHeaderTitle}>Property Basics</Text>
@@ -345,15 +468,16 @@ export default function PropertyDetailScreen() {
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Property type</Text>
                     <Text style={styles.tableValue}>
-                      {property.propertyType
-                        ? property.propertyType.charAt(0).toUpperCase() +
-                        property.propertyType.slice(1)
-                        : 'Villa'}
+                      {isBuy
+                        ? (property.propertyType ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1) : 'Apartment')
+                        : isRent
+                        ? 'House'
+                        : 'Apartment'}
                     </Text>
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>BHK</Text>
-                    <Text style={styles.tableValue}>{property.bedrooms || 3} BHK</Text>
+                    <Text style={styles.tableValue}>{isBuy ? (property.bedrooms || 3) : (property.bedrooms || 2)} BHK</Text>
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Bathrooms</Text>
@@ -367,17 +491,14 @@ export default function PropertyDetailScreen() {
                     <Text style={styles.tableKey}>Furnishing</Text>
                     <Text style={styles.tableValue}>
                       {property.furnishing
-                        ? property.furnishing
-                          .split('-')
-                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                          .join(' ')
-                        : 'Semi-Furnished'}
+                        ? property.furnishing.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                        : 'Semi Furnished'}
                     </Text>
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Parking</Text>
                     <Text style={styles.tableValue}>
-                      {property.parking ? '1 Slot' : 'None'}
+                      {isBuy ? '1 Car' : property.parking ? '1 Car & Bike' : 'None'}
                     </Text>
                   </View>
                   <View style={styles.tableRow}>
@@ -386,39 +507,39 @@ export default function PropertyDetailScreen() {
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Floor number</Text>
-                    <Text style={styles.tableValue}>{property.floor || '8th'}</Text>
+                    <Text style={styles.tableValue}>{isBuy ? (property.floor || '8th') : (property.floor || 'Ground')}</Text>
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Total floors</Text>
-                    <Text style={styles.tableValue}>{property.totalFloors || 12}</Text>
+                    <Text style={styles.tableValue}>{isBuy ? (property.totalFloors || 12) : (property.totalFloors || 2)}</Text>
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Facing direction</Text>
-                    <Text style={styles.tableValue}>{property.facing || 'East'}</Text>
+                    <Text style={styles.tableValue}>{isBuy ? (property.facing || 'East') : (property.facing || 'North')}</Text>
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Current condition</Text>
                     <Text style={styles.tableValue}>
-                      {property.possessionDate || 'Ready to Move'}
+                      {isBuy ? 'Ready to move' : isRent ? 'Ready to move' : property.possessionDate || 'Ready to Move'}
                     </Text>
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Super built-up area</Text>
-                    <Text style={styles.tableValue}>1,750 sq.ft</Text>
+                    <Text style={styles.tableValue}>{isBuy ? '1750 sq.ft' : '1400 sq.ft'}</Text>
                   </View>
                   <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
                     <Text style={styles.tableKey}>Carpet area</Text>
-                    <Text style={styles.tableValue}>{property.area || 1450} sq.ft</Text>
+                    <Text style={styles.tableValue}>{isBuy ? (property.area ? property.area + ' sq.ft' : '1450 sq.ft') : (property.area || 1200) + ' sq.ft'}</Text>
                   </View>
                 </View>
               )}
             </View>
 
-            {/* Accordion 2: Location & Visit Schedule (Collapsed by default) */}
+            {/* Accordion 2: Location & Visit Schedule */}
             <View style={[styles.accordionContainer, { marginTop: 10 }]}>
               <TouchableOpacity
                 style={styles.accordionHeader}
-                onPress={() => setLocationOpen(!locationOpen)}
+                onPress={() => toggleAccordion(setLocationOpen)}
                 activeOpacity={0.8}
               >
                 <Text style={styles.accordionHeaderTitle}>Location & Visit Schedule</Text>
@@ -437,23 +558,15 @@ export default function PropertyDetailScreen() {
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Locality</Text>
-                    <Text style={styles.tableValue}>Madhurawada</Text>
+                    <Text style={styles.tableValue}>{property.location?.split(',')[0] || 'Gajuwaka'}</Text>
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Street / Area</Text>
-                    <Text style={styles.tableValue}>IT SEZ Road</Text>
+                    <Text style={styles.tableValue}>Main Residential Enclave</Text>
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Landmark</Text>
-                    <Text style={styles.tableValue}>Near Apollo Clinic</Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Average price/sq.ft</Text>
-                    <Text style={styles.tableValue}>₹5,862 /sq.ft</Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Property possession</Text>
-                    <Text style={styles.tableValue}>Owner property</Text>
+                    <Text style={styles.tableValue}>Near Apollo Clinic & Market</Text>
                   </View>
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Visit Availability</Text>
@@ -467,14 +580,16 @@ export default function PropertyDetailScreen() {
               )}
             </View>
 
-            {/* Accordion 3: Price & Availability (Collapsed by default) */}
+            {/* Accordion 3: Rent & Availability */}
             <View style={[styles.accordionContainer, { marginTop: 10 }]}>
               <TouchableOpacity
                 style={styles.accordionHeader}
-                onPress={() => setPriceOpen(!priceOpen)}
+                onPress={() => toggleAccordion(setPriceOpen)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.accordionHeaderTitle}>Price & Availability</Text>
+                <Text style={styles.accordionHeaderTitle}>
+                  {!isBuy ? 'Rent & Availability' : 'Price & Availability'}
+                </Text>
                 {priceOpen ? (
                   <ChevronDown size={18} color="#64748B" />
                 ) : (
@@ -485,36 +600,105 @@ export default function PropertyDetailScreen() {
               {priceOpen && (
                 <View style={styles.accordionBody}>
                   <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Expected price</Text>
+                    <Text style={styles.tableKey}>{!isBuy ? 'Monthly rent' : 'Expected price'}</Text>
                     <Text style={styles.tableValue}>
-                      {property.priceLabel || `₹${property.price.toLocaleString('en-IN')}`}
+                      {property.priceLabel || `₹${property.price.toLocaleString('en-IN')}${!isBuy ? '/month' : ''}`}
                     </Text>
                   </View>
+                  {(isRent || isFlatmate) && (
+                    <View style={styles.tableRow}>
+                      <Text style={styles.tableKey}>Security deposit</Text>
+                      <Text style={styles.tableValue}>
+                        {property.deposit ? `₹${property.deposit.toLocaleString('en-IN')}` : '₹45,000'}
+                      </Text>
+                    </View>
+                  )}
+                  {(isRent || isFlatmate) && (
+                    <View style={styles.tableRow}>
+                      <Text style={styles.tableKey}>Maintenance</Text>
+                      <Text style={styles.tableValue}>
+                        {property.maintenance ? `₹${property.maintenance.toLocaleString('en-IN')}/mo` : '₹1,500/mo'}
+                      </Text>
+                    </View>
+                  )}
                   <View style={styles.tableRow}>
                     <Text style={styles.tableKey}>Price negotiable</Text>
                     <Text style={styles.tableValue}>Yes</Text>
                   </View>
                   <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
                     <Text style={styles.tableKey}>Available From</Text>
-                    <Text style={styles.tableValue}>Ready to Move</Text>
+                    <Text style={styles.tableValue}>Immediately</Text>
                   </View>
                 </View>
               )}
             </View>
+
+            {/* Accordion 4: Flatmate Preferences (Flatmates ONLY) */}
+            {isFlatmate && (
+              <View style={[styles.accordionContainer, { marginTop: 10 }]}>
+                <TouchableOpacity
+                  style={styles.accordionHeader}
+                  onPress={() => toggleAccordion(setTermsOpen)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.accordionHeaderTitle}>Flatmate Preferences</Text>
+                  {termsOpen ? (
+                    <ChevronDown size={18} color="#64748B" />
+                  ) : (
+                    <ChevronRight size={18} color="#64748B" />
+                  )}
+                </TouchableOpacity>
+
+                {termsOpen && (
+                  <View style={styles.accordionBody}>
+                    <View style={styles.tableRow}>
+                      <Text style={styles.tableKey}>Gender preference</Text>
+                      <Text style={styles.tableValue}>Any</Text>
+                    </View>
+                    <View style={styles.tableRow}>
+                      <Text style={styles.tableKey}>Preferred Age</Text>
+                      <Text style={styles.tableValue}>25</Text>
+                    </View>
+                    <View style={styles.tableRow}>
+                      <Text style={styles.tableKey}>Occupation</Text>
+                      <Text style={styles.tableValue}>Any</Text>
+                    </View>
+                    <View style={styles.tableRow}>
+                      <Text style={styles.tableKey}>Pets allowed</Text>
+                      <Text style={styles.tableValue}>No</Text>
+                    </View>
+                    <View style={styles.tableRow}>
+                      <Text style={styles.tableKey}>Smoking allowed</Text>
+                      <Text style={styles.tableValue}>No</Text>
+                    </View>
+                    <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
+                      <Text style={styles.tableKey}>Food preference</Text>
+                      <Text style={styles.tableValue}>Vegetarian</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* ── 6. Amenities ── */}
           <View style={styles.sectionBlock}>
             <Text style={styles.sectionHeaderTitle}>Amenities</Text>
             <View style={styles.amenitiesWrap}>
-              {(property.amenities && property.amenities.length > 0
-                ? property.amenities
-                : ['Lift', 'Security', 'Parking', 'Power Backup', 'Gym', 'Swimming Pool', 'Club House', 'CCTV']
+              {(isBuy
+                ? ['Lift', 'Security', 'Parking', 'Power Backup', 'Gym', 'Swimming Pool', 'Club House', 'CCTV']
+                : ['Parking', 'Water Supply', 'Power Backup', 'Garden', 'Security']
               ).map((amenity) => {
-                const getIcon = AMENITY_ICONS[amenity] || ((c: string) => <ShieldCheck size={13} color={c} />);
+                let iconElement = <ShieldCheck size={13} color="#475569" />;
+                if (amenity === 'Parking') iconElement = <Car size={13} color="#475569" />;
+                else if (amenity === 'Water Supply') iconElement = <CheckCircle size={13} color="#475569" />;
+                else if (amenity === 'Power Backup') iconElement = <CheckCircle size={13} color="#475569" />;
+                else if (amenity === 'Garden') iconElement = <CheckCircle size={13} color="#475569" />;
+                else if (amenity === 'Security') iconElement = <Shield size={13} color="#475569" />;
+                else if (AMENITY_ICONS[amenity]) iconElement = AMENITY_ICONS[amenity]('#475569') as any;
                 return (
                   <View key={amenity} style={styles.amenityChip}>
-                    {getIcon('#475569')}
+                    {iconElement}
                     <Text style={styles.amenityText}>{amenity}</Text>
                   </View>
                 );
@@ -522,96 +706,190 @@ export default function PropertyDetailScreen() {
             </View>
           </View>
 
-          {/* ── 6b. Owner Declaration Section ── */}
-          <View style={styles.declarationCard}>
-            <View style={styles.declarationHeaderRow}>
-              <Text style={styles.declarationTitle}>Owner Declaration</Text>
-              <View style={styles.declarationBadge}>
-                <Text style={styles.declarationBadgeText}>Declared by owner</Text>
-              </View>
-            </View>
-            <Text style={styles.declarationSubtitle}>
-              Information provided by the person who posted this property.
-            </Text>
-
-            <View style={styles.declarationBody}>
-              <View style={styles.declarationRow}>
-                <Text style={styles.declarationLabel}>Owner name</Text>
-                <Text style={styles.declarationValue}>
-                  {property.ownerName?.replace(/\s*\(.*\)/, '') || 'Rajesh Kumar'}
-                </Text>
+          {/* ── Your Future Flatmates Section (Flatmates ONLY) ── */}
+          {isFlatmate && (
+            <View style={styles.flatmatesCardContainer}>
+              <View style={styles.flatmatesHeaderRow}>
+                <Text style={styles.flatmatesHeaderTitle}>Your future flatmates</Text>
+                <TouchableOpacity onPress={() => push({ name: 'flatmates' })}> 
+                  <Text style={styles.flatmatesViewMore}>2 living here</Text>
+                </TouchableOpacity>
               </View>
 
-              <View style={styles.declarationRow}>
-                <Text style={styles.declarationLabel}>Posted as</Text>
-                <Text style={styles.declarationValue}>
-                  {property.ownerType
-                    ? property.ownerType.charAt(0).toUpperCase() + property.ownerType.slice(1)
-                    : 'Owner'}
-                </Text>
-              </View>
-
-              <View style={styles.declarationRow}>
-                <Text style={styles.declarationLabel}>Ownership</Text>
-                <Text style={styles.declarationValue}>
-                  Purchased - {property.yearBuilt || 2024}
-                </Text>
-              </View>
-
-              <View style={styles.declarationRow}>
-                <Text style={styles.declarationLabel}>Loan on property</Text>
-                <Text style={styles.declarationValue}>No loan</Text>
-              </View>
-
-              <View style={styles.declarationRow}>
-                <Text style={styles.declarationLabel}>Property tax paid</Text>
-                <Text style={styles.declarationValue}>Yes</Text>
-              </View>
-
-              <View style={styles.declarationRow}>
-                <Text style={styles.declarationLabel}>Pending dues</Text>
-                <Text style={styles.declarationValue}>No</Text>
-              </View>
-
-              <View style={[styles.declarationRow, { borderBottomWidth: 0 }]}>
-                <Text style={styles.declarationLabel}>Court case</Text>
-                <Text style={styles.declarationValue}>None</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* ── 7. Compact Owner Details Card (Matching Reference 2) ── */}
-          <View style={styles.ownerCard}>
-            <Text style={styles.ownerCardTitle}>Owner Details</Text>
-            <View style={styles.ownerRow}>
-              <Image
-                source={{
-                  uri:
-                    property.ownerAvatar ||
-                    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&auto=format',
-                }}
-                style={styles.ownerAvatar}
-              />
-              <View style={styles.ownerTextStack}>
-                <Text style={styles.ownerNameText}>{property.ownerName || 'Rajesh Kumar'}</Text>
-                <View style={styles.ratingAndBadgeRow}>
-                  <View style={styles.starsRow}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star key={star} size={11} color="#F59E0B" fill="#F59E0B" />
-                    ))}
+              {/* Flatmate 1 */}
+              <View style={styles.flatmateRowCard}>
+                <View style={styles.flatmateAvatarCircle}>
+                  <Text style={styles.flatmateAvatarInitial}>R</Text>
+                </View>
+                <View style={styles.flatmateContentCol}>
+                  <View style={styles.flatmateNameRow}>
+                    <Text style={styles.flatmateName}>Rohit, 27</Text>
+                    <TouchableOpacity
+                      style={styles.flatmateViewBtn}
+                      activeOpacity={0.8}
+                      onPress={() =>
+                        setSelectedFlatmate({
+                          name: 'Rohit, 27',
+                          firstName: 'Rohit',
+                          age: 27,
+                          role: 'Software engineer · Male',
+                          gender: 'Male',
+                          profession: 'Software engineer',
+                          phone: '+91 99175 57138',
+                          email: 'rohit@gmail.com',
+                          tags: ['Non-smoker', 'Vegetarian', 'Early riser'],
+                          initial: 'R',
+                          about: 'Software engineer working in tech. Quiet, clean, and organized. Enjoys running and reading on weekends.',
+                        })
+                      }
+                    >
+                      <Text style={styles.flatmateViewBtnText}>View details</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.verifiedOwnerBadgeText}>Verified owner</Text>
+                  <Text style={styles.flatmateOccupation}>Software engineer · Male</Text>
+                  <View style={styles.flatmateTagsRow}>
+                    <View style={styles.flatmateTag}><Text style={styles.flatmateTagText}>Non-smoker</Text></View>
+                    <View style={styles.flatmateTag}><Text style={styles.flatmateTagText}>Vegetarian</Text></View>
+                    <View style={styles.flatmateTag}><Text style={styles.flatmateTagText}>Early riser</Text></View>
+                  </View>
                 </View>
               </View>
-              <TouchableOpacity
-                style={styles.viewDetailsBtn}
-                onPress={() => setOwnerModalVisible(true)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.viewDetailsBtnText}>View details</Text>
-              </TouchableOpacity>
+
+              {/* Flatmate 2 */}
+              <View style={[styles.flatmateRowCard, { marginTop: 12 }]}>
+                <View style={[styles.flatmateAvatarCircle, { backgroundColor: '#1E293B' }]}>
+                  <Text style={styles.flatmateAvatarInitial}>S</Text>
+                </View>
+                <View style={styles.flatmateContentCol}>
+                  <View style={styles.flatmateNameRow}>
+                    <Text style={styles.flatmateName}>Sameer, 26</Text>
+                    <TouchableOpacity
+                      style={styles.flatmateViewBtn}
+                      activeOpacity={0.8}
+                      onPress={() =>
+                        setSelectedFlatmate({
+                          name: 'Sameer, 26',
+                          firstName: 'Sameer',
+                          age: 26,
+                          role: 'Product designer · Male',
+                          gender: 'Male',
+                          profession: 'Product designer',
+                          phone: '+91 98452 31980',
+                          email: 'sameer@gmail.com',
+                          tags: ['Non-smoker', 'Non-vegetarian'],
+                          initial: 'S',
+                          about: 'UI/UX product designer at a fintech startup. Friendly, loves music and minimalist living spaces.',
+                        })
+                      }
+                    >
+                      <Text style={styles.flatmateViewBtnText}>View details</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.flatmateOccupation}>Product designer · Male</Text>
+                  <View style={styles.flatmateTagsRow}>
+                    <View style={styles.flatmateTag}><Text style={styles.flatmateTagText}>Non-smoker</Text></View>
+                    <View style={styles.flatmateTag}><Text style={styles.flatmateTagText}>Non-vegetarian</Text></View>
+                  </View>
+                </View>
+              </View>
             </View>
-          </View>
+          )}
+
+          {/* ── Owner Declaration & Owner Details (Buy Property Flow Only) ── */}
+          {isBuy && (
+            <>
+              {/* Owner Declaration Section */}
+              <View style={styles.declarationCard}>
+                <View style={styles.declarationHeaderRow}>
+                  <Text style={styles.declarationTitle}>Owner Declaration</Text>
+                  <View style={styles.declarationBadge}>
+                    <Text style={styles.declarationBadgeText}>Declared by owner</Text>
+                  </View>
+                </View>
+                <Text style={styles.declarationSubtitle}>
+                  Information provided by the person who posted this property.
+                </Text>
+
+                <View style={styles.declarationBody}>
+                  <View style={styles.declarationRow}>
+                    <Text style={styles.declarationLabel}>Owner name</Text>
+                    <Text style={styles.declarationValue}>
+                      {property.ownerName?.replace(/\s*\(.*\)/, '') || 'Rajesh Kumar'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.declarationRow}>
+                    <Text style={styles.declarationLabel}>Posted as</Text>
+                    <Text style={styles.declarationValue}>
+                      {property.ownerType
+                        ? property.ownerType.charAt(0).toUpperCase() + property.ownerType.slice(1)
+                        : 'Owner'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.declarationRow}>
+                    <Text style={styles.declarationLabel}>Ownership</Text>
+                    <Text style={styles.declarationValue}>
+                      Purchased - {property.yearBuilt || 2020}
+                    </Text>
+                  </View>
+
+                  <View style={styles.declarationRow}>
+                    <Text style={styles.declarationLabel}>Loan on property</Text>
+                    <Text style={styles.declarationValue}>No loan</Text>
+                  </View>
+
+                  <View style={styles.declarationRow}>
+                    <Text style={styles.declarationLabel}>Property tax paid</Text>
+                    <Text style={styles.declarationValue}>Yes</Text>
+                  </View>
+
+                  <View style={styles.declarationRow}>
+                    <Text style={styles.declarationLabel}>Pending dues</Text>
+                    <Text style={styles.declarationValue}>No</Text>
+                  </View>
+
+                  <View style={[styles.declarationRow, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.declarationLabel}>Court case</Text>
+                    <Text style={styles.declarationValue}>None</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Owner Details Section */}
+              <View style={styles.ownerCard}>
+                <Text style={styles.ownerCardTitle}>Owner Details</Text>
+                <View style={styles.ownerRow}>
+                  <Image
+                    source={{
+                      uri:
+                        property.ownerAvatar ||
+                        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&auto=format',
+                    }}
+                    style={styles.ownerAvatar}
+                  />
+                  <View style={styles.ownerTextStack}>
+                    <Text style={styles.ownerNameText}>{property.ownerName || 'Rajesh Kumar'}</Text>
+                    <View style={styles.ratingAndBadgeRow}>
+                      <View style={styles.starsRow}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star key={star} size={11} color="#F59E0B" fill="#F59E0B" />
+                        ))}
+                      </View>
+                      <Text style={styles.verifiedOwnerBadgeText}>Verified owner</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.viewDetailsBtn}
+                    onPress={() => setOwnerModalVisible(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.viewDetailsBtnText}>View details</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </>
+          )}
 
           {/* ── 8. Nearby Places Section (Matching Reference 2) ── */}
           <View style={styles.sectionBlock}>
@@ -652,7 +930,7 @@ export default function PropertyDetailScreen() {
         <View style={styles.bottomSubRow}>
           <TouchableOpacity
             style={styles.compareBtn}
-            onPress={() => push({ name: 'compare', params: { property } })}
+            onPress={() => push({ name: 'compare', params: { property, flow: isFlatmate ? 'flatmates' : isRent ? 'rent' : 'buy' } })}
             activeOpacity={0.8}
           >
             <Layers size={14} color="#64748B" strokeWidth={2} />
@@ -679,6 +957,120 @@ export default function PropertyDetailScreen() {
           <Text style={styles.bookVisitBtnText}>Book a Visit</Text>
         </TouchableOpacity>
       </View>
+      {/* ── Flatmate Profile Details Modal (Flatmates Only) ── */}
+      <Modal
+        visible={Boolean(isFlatmate && selectedFlatmate)}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedFlatmate(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setSelectedFlatmate(null)}
+        >
+          <View style={styles.flatmatePopupContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalHeaderTitle}>Flatmate details</Text>
+              <TouchableOpacity
+                onPress={() => setSelectedFlatmate(null)}
+                style={styles.closeBtn}
+                activeOpacity={0.7}
+              >
+                <X size={18} color="#475569" strokeWidth={2.4} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedFlatmate && (
+              <>
+                {/* Profile Header */}
+                <View style={styles.modalProfileRow}>
+                  <View style={styles.flatmateAvatarBox}>
+                    <Text style={styles.flatmateAvatarBoxInitial}>{selectedFlatmate.initial}</Text>
+                  </View>
+                  <View style={styles.modalProfileText}>
+                    <Text style={styles.modalOwnerName}>{selectedFlatmate.name}</Text>
+                    <Text style={styles.modalOwnerRole}>{selectedFlatmate.role}</Text>
+                  </View>
+                </View>
+
+                {/* Contact Box (Phone & Email) */}
+                <View style={styles.flatmateContactBox}>
+                  {/* Phone Row */}
+                  <View style={styles.contactItemRow}>
+                    <View style={styles.contactIconCircle}>
+                      <Phone size={14} color="#1E293B" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.contactTextColumn}>
+                      <Text style={styles.contactFieldLabel}>Phone</Text>
+                      <Text style={styles.contactFieldValue}>{selectedFlatmate.phone}</Text>
+                    </View>
+                  </View>
+
+                  {/* Email Row */}
+                  <View style={[styles.contactItemRow, { marginTop: 12 }]}>
+                    <View style={styles.contactIconCircle}>
+                      <Mail size={14} color="#1E293B" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.contactTextColumn}>
+                      <Text style={styles.contactFieldLabel}>Email</Text>
+                      <Text style={styles.contactFieldValue}>{selectedFlatmate.email}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Profession Section */}
+                <View style={{ marginTop: 18 }}>
+                  <Text style={styles.flatmateFieldHeader}>Profession</Text>
+                  <Text style={styles.flatmateFieldValue}>{selectedFlatmate.profession}</Text>
+                </View>
+
+                {/* Habits Section */}
+                <View style={{ marginTop: 16 }}>
+                  <Text style={styles.flatmateFieldHeader}>Habits</Text>
+                  <View style={styles.flatmateTagsRow}>
+                    {selectedFlatmate.tags.map((t) => (
+                      <View key={t} style={styles.flatmateHabitChip}>
+                        <Text style={styles.flatmateHabitChipText}>{t}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Chat with Flatmate Button */}
+                <TouchableOpacity
+                  style={styles.chatWithFlatmateBtn}
+                  onPress={() => {
+                    const mate = selectedFlatmate;
+                    setSelectedFlatmate(null);
+                    requireAuth(
+                      () => {
+                        push({
+                          name: 'chat',
+                          params: {
+                            property,
+                            flow: 'flatmates',
+                            flatmate: mate,
+                          },
+                        });
+                      },
+                      undefined,
+                      `Chat with ${mate.firstName}`
+                    );
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <MessageCircle size={16} color="#FFFFFF" strokeWidth={2} />
+                  <Text style={styles.chatWithFlatmateBtnText}>
+                    Chat with {selectedFlatmate.firstName}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* ── 10. Owner Details Bottom Sheet Modal ── */}
       <Modal
         visible={ownerModalVisible}
@@ -1233,6 +1625,147 @@ const styles = StyleSheet.create({
   },
 
   /* ── Fixed Bottom Bar ── */
+  flatmatesCardContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    marginBottom: 20,
+  },
+  flatmatesHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  flatmatesHeaderTitle: {
+    fontFamily: 'PlusJakartaSans-Bold',
+    fontSize: 15,
+    color: '#0F172A',
+  },
+  flatmatesViewMore: {
+    fontFamily: 'PlusJakartaSans-Medium',
+    fontSize: 12,
+    color: '#64748B',
+  },
+  flatmateRowCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+  },
+  flatmateAvatarCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  flatmateAvatarInitial: {
+    color: '#FFFFFF',
+    fontFamily: 'PlusJakartaSans-Bold',
+    fontSize: 15,
+  },
+  flatmateContentCol: {
+    flex: 1,
+  },
+  flatmateNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  flatmateName: {
+    fontFamily: 'PlusJakartaSans-Bold',
+    fontSize: 14,
+    color: '#0F172A',
+  },
+  flatmateViewBtn: {
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  flatmateViewBtnText: {
+    fontFamily: 'PlusJakartaSans-Medium',
+    fontSize: 11,
+    color: '#334155',
+  },
+  flatmateOccupation: {
+    fontFamily: 'PlusJakartaSans-Regular',
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  flatmateTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  flatmateTag: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  flatmateTagText: {
+    fontFamily: 'PlusJakartaSans-Regular',
+    fontSize: 11,
+    color: '#475569',
+  },
+  rentPriceHighlightCard: {
+    backgroundColor: '#FAF5FF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  rentPriceCardHeading: {
+    fontFamily: 'PlusJakartaSans-SemiBold',
+    fontSize: 13,
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  rentPriceCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 32,
+  },
+  rentPriceCardItem: {
+    // column item
+  },
+  rentPriceCardDivider: {
+    width: 0,
+    height: 0,
+  },
+  rentPriceLabel: {
+    fontFamily: 'PlusJakartaSans-Regular',
+    fontSize: 11.5,
+    color: '#94A3B8',
+    marginBottom: 4,
+  },
+  rentPriceValue: {
+    fontFamily: 'PlusJakartaSans-SemiBold',
+    fontSize: 14,
+    color: '#1E293B',
+  },
+  readMoreBtn: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  readMoreText: {
+    fontFamily: 'PlusJakartaSans-SemiBold',
+    fontSize: 13,
+    color: '#6366F1',
+  },
   bottomBarContainer: {
     paddingHorizontal: 16,
     paddingTop: 10,
@@ -1295,6 +1828,74 @@ const styles = StyleSheet.create({
   },
 
   /* ── Owner Details Bottom Sheet Modal ── */
+  flatmatePopupContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+  },
+  flatmateAvatarBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  flatmateAvatarBoxInitial: {
+    color: '#FFFFFF',
+    fontFamily: 'PlusJakartaSans-Bold',
+    fontSize: 22,
+  },
+  flatmateContactBox: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 18,
+  },
+  flatmateFieldHeader: {
+    fontFamily: 'PlusJakartaSans-SemiBold',
+    fontSize: 12.5,
+    color: '#1E293B',
+    marginBottom: 4,
+  },
+  flatmateFieldValue: {
+    fontFamily: 'PlusJakartaSans-Regular',
+    fontSize: 13,
+    color: '#64748B',
+  },
+  flatmateHabitChip: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  flatmateHabitChipText: {
+    fontFamily: 'PlusJakartaSans-Medium',
+    fontSize: 12,
+    color: '#334155',
+  },
+  chatWithFlatmateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000000',
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 8,
+    marginTop: 22,
+  },
+  chatWithFlatmateBtnText: {
+    color: '#FFFFFF',
+    fontFamily: 'PlusJakartaSans-Bold',
+    fontSize: 14,
+  },
+
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',

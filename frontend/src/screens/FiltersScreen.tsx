@@ -28,31 +28,64 @@ const FURNISHING_OPTIONS = ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'];
 
 const PARKING_OPTIONS = ['Available', 'Not Required'];
 
+const GENDER_OPTIONS = ['All', 'Male', 'Female', 'Anyone'] as const;
+type GenderOption = typeof GENDER_OPTIONS[number];
+
 const MIN_BUDGET = 5000;
 const MAX_BUDGET = 100000;
 
 export default function FiltersScreen() {
-  const { pop, activeFilters, setFilters } = useApp();
+  const { currentScreen, pop, activeFilters, setFilters, flatmatesFilters, setFlatmatesFilters } = useApp();
+
+  // Check if opened from Flatmates page
+  const isFlatmatesScope = (currentScreen.params as any)?.scope === 'flatmates';
+
+  // Flatmates-specific Gender Preference state
+  const [gender, setGender] = useState<GenderOption>(
+    flatmatesFilters?.gender ?? 'All'
+  );
 
   // Budget State (₹5,000 to ₹100,000+)
-  const [budget, setBudget] = useState<number>(activeFilters?.budgetMax ?? MAX_BUDGET);
+  const [budget, setBudget] = useState<number>(
+    isFlatmatesScope
+      ? (flatmatesFilters?.budgetMax ?? MAX_BUDGET)
+      : (activeFilters?.budgetMax ?? MAX_BUDGET)
+  );
 
   // Locations selection (multiple allowed)
   const [selectedLocations, setSelectedLocations] = useState<string[]>(
-    activeFilters?.locations || []
+    isFlatmatesScope
+      ? (flatmatesFilters?.locations || [])
+      : (activeFilters?.locations || [])
   );
 
   // BHK Configuration
-  const [bhk, setBhk] = useState<string[]>(activeFilters?.bhk || []);
+  const [bhk, setBhk] = useState<string[]>(
+    isFlatmatesScope
+      ? (flatmatesFilters?.bhk || [])
+      : (activeFilters?.bhk || [])
+  );
 
   // Property Type
-  const [propertyType, setPropertyType] = useState<string[]>(activeFilters?.propertyType || []);
+  const [propertyType, setPropertyType] = useState<string[]>(
+    isFlatmatesScope
+      ? (flatmatesFilters?.propertyType || [])
+      : (activeFilters?.propertyType || [])
+  );
 
   // Furnishing
-  const [furnishing, setFurnishing] = useState<string[]>(activeFilters?.furnishing || []);
+  const [furnishing, setFurnishing] = useState<string[]>(
+    isFlatmatesScope
+      ? (flatmatesFilters?.furnishing || [])
+      : (activeFilters?.furnishing || [])
+  );
 
   // Parking (single-select toggle)
-  const [parking, setParking] = useState<string | null>(activeFilters?.parking ?? null);
+  const [parking, setParking] = useState<string | null>(
+    isFlatmatesScope
+      ? (flatmatesFilters?.parking ?? null)
+      : (activeFilters?.parking ?? null)
+  );
 
   // Toggle helper for multi-select arrays
   const toggleSelection = (arr: string[], setArr: (val: string[]) => void, item: string) => {
@@ -118,15 +151,27 @@ export default function FiltersScreen() {
   };
 
   const handleApply = () => {
-    setFilters({
-      bhk,
-      propertyType,
-      furnishing,
-      parking,
-      verifiedOnly: activeFilters?.verifiedOnly ?? false,
-      budgetMax: budget,
-      locations: selectedLocations,
-    });
+    if (isFlatmatesScope) {
+      setFlatmatesFilters({
+        gender,
+        budgetMax: budget,
+        locations: selectedLocations,
+        bhk,
+        propertyType,
+        furnishing,
+        parking,
+      });
+    } else {
+      setFilters({
+        bhk,
+        propertyType,
+        furnishing,
+        parking,
+        verifiedOnly: activeFilters?.verifiedOnly ?? false,
+        budgetMax: budget,
+        locations: selectedLocations,
+      });
+    }
     pop();
   };
 
@@ -150,6 +195,34 @@ export default function FiltersScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Gender Preference Section (Visible for Flatmates) ── */}
+        {isFlatmatesScope && (
+          <View style={styles.genderSection}>
+            <View style={styles.chipsContainer}>
+              {GENDER_OPTIONS.map((g) => {
+                const isSelected = gender === g;
+                return (
+                  <TouchableOpacity
+                    key={g}
+                    style={[styles.genderChip, isSelected && styles.genderChipActive]}
+                    onPress={() => setGender(g)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.genderChipText,
+                        isSelected && styles.genderChipTextActive,
+                      ]}
+                    >
+                      {g}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {/* ── 1. Monthly Budget Section ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
@@ -475,6 +548,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#94A3B8',
+  },
+
+  /* ── Gender Chips (Flatmates) ── */
+  genderSection: {
+    marginBottom: 20,
+  },
+  genderChip: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  genderChipActive: {
+    backgroundColor: '#0F172A',
+  },
+  genderChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  genderChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 
   /* ── Chips ── */
