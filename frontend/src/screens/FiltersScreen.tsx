@@ -1,128 +1,336 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 'react-native';
-import { ChevronLeft, X } from 'lucide-react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  PanResponder,
+  Platform,
+} from 'react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
-import { colors } from '../theme/colors';
+
+const LOCATIONS = [
+  'Hyderabad',
+  'Vizag',
+  'Bangalore',
+  'Chennai',
+  'Mumbai',
+  'Delhi NCR',
+];
+
+const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'];
+
+const PROPERTY_TYPES = ['Apartment', 'Villa', 'House', 'PG', 'Hostel'];
+
+const FURNISHING_OPTIONS = ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'];
+
+const PARKING_OPTIONS = ['Available', 'Not Required'];
+
+const MIN_BUDGET = 5000;
+const MAX_BUDGET = 100000;
 
 export default function FiltersScreen() {
   const { pop, activeFilters, setFilters } = useApp();
+
+  // Budget State (₹5,000 to ₹100,000+)
+  const [budget, setBudget] = useState<number>(activeFilters?.budgetMax ?? MAX_BUDGET);
+
+  // Locations selection (multiple allowed)
+  const [selectedLocations, setSelectedLocations] = useState<string[]>(
+    activeFilters?.locations || []
+  );
+
+  // BHK Configuration
   const [bhk, setBhk] = useState<string[]>(activeFilters?.bhk || []);
+
+  // Property Type
   const [propertyType, setPropertyType] = useState<string[]>(activeFilters?.propertyType || []);
+
+  // Furnishing
   const [furnishing, setFurnishing] = useState<string[]>(activeFilters?.furnishing || []);
+
+  // Parking (single-select toggle)
   const [parking, setParking] = useState<string | null>(activeFilters?.parking ?? null);
-  const [verifiedOnly, setVerifiedOnly] = useState(activeFilters?.verifiedOnly ?? false);
 
-  const activeCount = bhk.length + propertyType.length + furnishing.length + (parking ? 1 : 0) + (verifiedOnly ? 1 : 0);
-
-  const toggle = (arr: string[], set: (a: string[]) => void, val: string) => {
-    set(arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]);
+  // Toggle helper for multi-select arrays
+  const toggleSelection = (arr: string[], setArr: (val: string[]) => void, item: string) => {
+    setArr(arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item]);
   };
 
-  const FilterChip = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.chip, active ? styles.activeChip : styles.inactiveChip]}
-      activeOpacity={0.8}
-    >
-      <Text style={[styles.chipText, active ? styles.activeChipText : styles.inactiveChipText]}>{label}</Text>
-    </TouchableOpacity>
-  );
+  // Slider layout & drag handling
+  const [trackWidth, setTrackWidth] = useState(0);
+  const trackRef = useRef<any>(null);
+  const trackLayoutRef = useRef<{ pageX: number; width: number }>({ pageX: 0, width: 0 });
+
+  const latestBudget = useRef(budget);
+  latestBudget.current = budget;
+
+  const currentRatio = Math.max(0, Math.min(1, (budget - MIN_BUDGET) / (MAX_BUDGET - MIN_BUDGET)));
+
+  const handlePositionChange = useCallback((clientX: number) => {
+    const { pageX, width } = trackLayoutRef.current;
+    const w = width > 0 ? width : trackWidth;
+    if (w <= 0) return;
+
+    const offsetX = clientX - pageX;
+    const ratio = Math.max(0, Math.min(1, offsetX / w));
+    // Step by 5000
+    const rawVal = MIN_BUDGET + ratio * (MAX_BUDGET - MIN_BUDGET);
+    const step = 5000;
+    const stepped = Math.round((rawVal - MIN_BUDGET) / step) * step + MIN_BUDGET;
+    const clamped = Math.max(MIN_BUDGET, Math.min(MAX_BUDGET, stepped));
+    setBudget(clamped);
+  }, [trackWidth]);
+
+  const measureTrack = useCallback(() => {
+    if (trackRef.current && (trackRef.current as any).measure) {
+      (trackRef.current as any).measure(
+        (_x: number, _y: number, width: number, _height: number, pageX: number) => {
+          if (width > 0) {
+            trackLayoutRef.current = { pageX, width };
+            setTrackWidth(width);
+          }
+        }
+      );
+    }
+  }, []);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        handlePositionChange(evt.nativeEvent.pageX);
+      },
+      onPanResponderMove: (evt) => {
+        handlePositionChange(evt.nativeEvent.pageX);
+      },
+    })
+  ).current;
+
+  // Format budget text for header display: e.g. "Up to ₹100K+" or "Up to ₹45K"
+  const getBudgetText = () => {
+    if (budget >= MAX_BUDGET) return '₹100K+';
+    const inK = Math.round(budget / 1000);
+    return `₹${inK}K`;
+  };
+
+  const handleApply = () => {
+    setFilters({
+      bhk,
+      propertyType,
+      furnishing,
+      parking,
+      verifiedOnly: activeFilters?.verifiedOnly ?? false,
+      budgetMax: budget,
+      locations: selectedLocations,
+    });
+    pop();
+  };
+
+  const handleCancel = () => {
+    pop();
+  };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* ── Top Header ── */}
       <View style={styles.header}>
-        <View style={styles.headerTitleRow}>
-          <TouchableOpacity onPress={pop} style={styles.backCircle} activeOpacity={0.8}>
-            <ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2.5} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Filters {activeCount > 0 ? `(${activeCount})` : ''}
-          </Text>
-        </View>
-        {activeCount > 0 ? (
-          <TouchableOpacity
-            onPress={() => { setBhk([]); setPropertyType([]); setFurnishing([]); setParking(null); setVerifiedOnly(false); }}
-            style={styles.clearRow}
-          >
-            <X size={13} color={colors.textSecondary} />
-            <Text style={styles.clearText}>Clear All</Text>
-          </TouchableOpacity>
-        ) : null}
+        <TouchableOpacity onPress={pop} style={styles.backCircleBtn} activeOpacity={0.8}>
+          <ChevronLeft size={20} color="#1A1C1A" strokeWidth={2.4} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Filters</Text>
       </View>
 
-      <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-        {/* BHK */}
-        <View style={styles.sectionPadding}>
-          <Text style={styles.sectionHeading}>BHK Configuration</Text>
-          <View style={styles.chipWrap}>
-            {['1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK'].map(b => (
-              <FilterChip key={b} label={b} active={bhk.includes(b)} onPress={() => toggle(bhk, setBhk, b)} />
-            ))}
-          </View>
-        </View>
-
-        {/* Property Type */}
-        <View style={styles.sectionPadding}>
-          <Text style={styles.sectionHeading}>Property Type</Text>
-          <View style={styles.chipWrap}>
-            {['Apartment', 'Villa', 'House', 'Plot', 'Office', 'Shop'].map(t => (
-              <FilterChip key={t} label={t} active={propertyType.includes(t)} onPress={() => toggle(propertyType, setPropertyType, t)} />
-            ))}
-          </View>
-        </View>
-
-        {/* Furnishing */}
-        <View style={styles.sectionPadding}>
-          <Text style={styles.sectionHeading}>Furnishing</Text>
-          <View style={styles.chipWrap}>
-            {['Unfurnished', 'Semi-Furnished', 'Fully Furnished'].map(f => (
-              <FilterChip key={f} label={f} active={furnishing.includes(f)} onPress={() => toggle(furnishing, setFurnishing, f)} />
-            ))}
-          </View>
-        </View>
-
-        {/* Parking */}
-        <View style={styles.sectionPadding}>
-          <Text style={styles.sectionHeading}>Parking</Text>
-          <View style={styles.chipWrap}>
-            {['Available', 'Not Required'].map(p => (
-              <FilterChip key={p} label={p} active={parking === p} onPress={() => setParking(parking === p ? null : p)} />
-            ))}
-          </View>
-        </View>
-
-        {/* Verified Switch */}
-        <View style={styles.sectionPadding}>
-          <View style={styles.switchRow}>
-            <View>
-              <Text style={styles.switchTitle}>Verified Properties Only</Text>
-              <Text style={styles.switchSub}>Show only owner-verified listings</Text>
+      {/* ── Scrollable Filter Content ── */}
+      <ScrollView
+        style={styles.scrollArea}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── 1. Monthly Budget Section ── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Monthly Budget</Text>
+            <View style={styles.budgetDisplay}>
+              <Text style={styles.upToLabel}>Up to </Text>
+              <Text style={styles.budgetValue}>{getBudgetText()}</Text>
             </View>
-            <Switch
-              value={verifiedOnly}
-              onValueChange={setVerifiedOnly}
-              trackColor={{ false: colors.tertiary, true: colors.primary }}
-              thumbColor={colors.surface}
-            />
+          </View>
+
+          {/* Slider Container Card */}
+          <View style={styles.sliderCard}>
+            <View
+              ref={trackRef}
+              style={styles.sliderTrackWrapper}
+              onLayout={(e) => {
+                const { width } = e.nativeEvent.layout;
+                setTrackWidth(width);
+                measureTrack();
+              }}
+              {...panResponder.panHandlers}
+            >
+              <View style={styles.sliderTrack}>
+                {/* Inactive Track */}
+                <View style={styles.trackBackground} />
+                {/* Active Track */}
+                <View
+                  style={[
+                    styles.trackActive,
+                    { width: `${Math.round(currentRatio * 100)}%` },
+                  ]}
+                />
+              </View>
+
+              {/* Slider Thumb */}
+              <View
+                style={[
+                  styles.sliderThumb,
+                  {
+                    left: `${Math.max(0, Math.min(96, currentRatio * 100))}%`,
+                  },
+                ]}
+              />
+            </View>
+
+            {/* Min and Max Labels */}
+            <View style={styles.sliderMinMaxRow}>
+              <Text style={styles.minMaxText}>₹5K</Text>
+              <Text style={styles.minMaxText}>₹100K+</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── 2. Location Section ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Location</Text>
+          <View style={styles.chipsContainer}>
+            {LOCATIONS.map((loc) => {
+              const isSelected = selectedLocations.includes(loc);
+              return (
+                <TouchableOpacity
+                  key={loc}
+                  style={[styles.chip, isSelected && styles.chipActive]}
+                  onPress={() => toggleSelection(selectedLocations, setSelectedLocations, loc)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                    {loc}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={styles.helperText}>Select one or more cities.</Text>
+        </View>
+
+        {/* ── 3. BHK Configuration Section ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>BHK</Text>
+          <View style={styles.chipsContainer}>
+            {BHK_OPTIONS.map((item) => {
+              const isSelected = bhk.includes(item);
+              return (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.chip, isSelected && styles.chipActive]}
+                  onPress={() => toggleSelection(bhk, setBhk, item)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ── 4. Property Type Section ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Property Type</Text>
+          <View style={styles.chipsContainer}>
+            {PROPERTY_TYPES.map((item) => {
+              const isSelected = propertyType.includes(item);
+              return (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.chip, isSelected && styles.chipActive]}
+                  onPress={() => toggleSelection(propertyType, setPropertyType, item)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ── 5. Furnishing Section ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Furnishing</Text>
+          <View style={styles.chipsContainer}>
+            {FURNISHING_OPTIONS.map((item) => {
+              const isSelected = furnishing.includes(item);
+              return (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.chip, isSelected && styles.chipActive]}
+                  onPress={() => toggleSelection(furnishing, setFurnishing, item)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ── 6. Parking Section ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Parking</Text>
+          <View style={styles.chipsContainer}>
+            {PARKING_OPTIONS.map((item) => {
+              const isSelected = parking === item;
+              return (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.chip, isSelected && styles.chipActive]}
+                  onPress={() => setParking(parking === item ? null : item)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       </ScrollView>
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={pop} style={styles.cancelButton} activeOpacity={0.8}>
-          <Text style={styles.cancelButtonText}>Cancel</Text>
-        </TouchableOpacity>
+      {/* ── Fixed Bottom Actions ── */}
+      <View style={styles.footerContainer}>
         <TouchableOpacity
-          onPress={() => {
-            setFilters({ bhk, propertyType, furnishing, parking, verifiedOnly });
-            pop();
-          }}
-          style={styles.applyButton}
+          style={styles.cancelBtn}
+          onPress={handleCancel}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.cancelBtnText}>Cancel</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.viewResultsBtn}
+          onPress={handleApply}
           activeOpacity={0.9}
         >
-          <Text style={styles.applyButtonText}>Apply Filters {activeCount > 0 ? `(${activeCount})` : ''}</Text>
+          <Text style={styles.viewResultsBtnText}>View Results</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -132,145 +340,223 @@ export default function FiltersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F8F9FA',
   },
+
+  /* ── Header ── */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 10,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    backgroundColor: '#F8F9FA',
   },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.tertiaryBg,
+  backCircleBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: colors.textPrimary,
-    marginLeft: 10,
+    color: '#1E293B',
+    marginLeft: 14,
+    letterSpacing: -0.2,
   },
-  clearRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  clearText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginLeft: 2,
-  },
+
+  /* ── Scroll Area ── */
   scrollArea: {
     flex: 1,
   },
-  sectionPadding: {
+  scrollContent: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
-  sectionHeading: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
+
+  /* ── Sections ── */
+  section: {
+    marginBottom: 22,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 10,
   },
-  chipWrap: {
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 10,
+    letterSpacing: -0.1,
+  },
+  budgetDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  upToLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '400',
+  },
+  budgetValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+
+  /* ── Slider Card ── */
+  sliderCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    paddingBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  sliderTrackWrapper: {
+    height: 24,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  sliderTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  trackBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#E2E8F0',
+  },
+  trackActive: {
+    height: '100%',
+    backgroundColor: '#0F172A',
+    borderRadius: 4,
+  },
+  sliderThumb: {
+    position: 'absolute',
+    top: 2,
+    marginLeft: -10,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#000000',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  sliderMinMaxRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  minMaxText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
+
+  /* ── Chips ── */
+  chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  activeChip: {
-    backgroundColor: colors.primary,
-  },
-  inactiveChip: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.tertiary,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
     elevation: 1,
+  },
+  chipActive: {
+    backgroundColor: '#0F172A',
   },
   chipText: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
     fontWeight: '600',
   },
-  activeChipText: {
-    color: colors.textWhite,
-  },
-  inactiveChipText: {
-    color: colors.textPrimary,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    elevation: 1,
-  },
-  switchTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  switchSub: {
+  helperText: {
     fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
+    color: '#94A3B8',
+    marginTop: 8,
+    fontWeight: '400',
   },
-  footer: {
+
+  /* ── Fixed Footer ── */
+  footerContainer: {
     flexDirection: 'row',
-    padding: 16,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: 10,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    backgroundColor: '#F8F9FA',
+    gap: 12,
   },
-  cancelButton: {
+  cancelBtn: {
     flex: 1,
     height: 48,
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  cancelButtonText: {
+  cancelBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: '#475569',
   },
-  applyButton: {
+  viewResultsBtn: {
     flex: 2,
     height: 48,
+    backgroundColor: '#000000',
     borderRadius: 14,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  applyButtonText: {
+  viewResultsBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.textWhite,
+    color: '#FFFFFF',
   },
 });
