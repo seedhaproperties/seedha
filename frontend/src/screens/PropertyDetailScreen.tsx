@@ -96,7 +96,7 @@ export default function PropertyDetailScreen() {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         navigator.clipboard.writeText(text);
       }
-    } catch {}
+    } catch { }
     setCopiedType(type);
     setTimeout(() => {
       setCopiedType(null);
@@ -108,7 +108,7 @@ export default function PropertyDetailScreen() {
       await Share.share({
         message: `${property.title} in ${property.location} for ${property.priceLabel} on Seedha Properties!`,
       });
-    } catch {}
+    } catch { }
   };
 
   const handleContactOwner = () => {
@@ -262,7 +262,7 @@ export default function PropertyDetailScreen() {
                   <Text style={styles.specVal}>
                     {property.propertyType
                       ? property.propertyType.charAt(0).toUpperCase() +
-                        property.propertyType.slice(1)
+                      property.propertyType.slice(1)
                       : 'Apartment'}
                   </Text>
                 </View>
@@ -288,9 +288,9 @@ export default function PropertyDetailScreen() {
                   <Text style={styles.specVal}>
                     {property.furnishing
                       ? property.furnishing
-                          .split('-')
-                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                          .join(' ')
+                        .split('-')
+                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                        .join(' ')
                       : 'Semi-Furnished'}
                   </Text>
                 </View>
@@ -347,7 +347,7 @@ export default function PropertyDetailScreen() {
                     <Text style={styles.tableValue}>
                       {property.propertyType
                         ? property.propertyType.charAt(0).toUpperCase() +
-                          property.propertyType.slice(1)
+                        property.propertyType.slice(1)
                         : 'Villa'}
                     </Text>
                   </View>
@@ -368,9 +368,9 @@ export default function PropertyDetailScreen() {
                     <Text style={styles.tableValue}>
                       {property.furnishing
                         ? property.furnishing
-                            .split('-')
-                            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                            .join(' ')
+                          .split('-')
+                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                          .join(' ')
                         : 'Semi-Furnished'}
                     </Text>
                   </View>
