@@ -9,6 +9,8 @@ import {
   StyleSheet,
   Platform,
   Modal,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
 import {
   ChevronLeft,
@@ -20,6 +22,9 @@ import {
   MapPin,
   ShieldCheck,
   Compass,
+  AlertCircle,
+  ExternalLink,
+  X,
 } from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import { properties } from '../data/properties';
@@ -53,6 +58,16 @@ export default function BuyPropertiesScreen() {
   const [selectedLocation, setSelectedLocation] = useState<string>('All');
   const [showSortModal, setShowSortModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+
+  // GPS / Google Maps Location modal & feedback states
+  const [locationStatus, setLocationStatus] = useState<
+    'idle' | 'requesting' | 'success' | 'denied' | 'error'
+  >('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number } | null>(
+    null
+  );
+  const [showGpsModal, setShowGpsModal] = useState(false);
 
   // Default Buy Properties prioritised to match the 4 cards in the reference image
   const buyProperties = useMemo(() => {
@@ -164,7 +179,64 @@ export default function BuyPropertiesScreen() {
   }, [buyProperties, selectedTab, selectedLocation, searchQuery, selectedSort, activeFilters]);
 
   const handleCardPress = (property: Property) => {
-    push({ name: 'propertyDetail', params: { property } });
+    push({ name: 'propertyDetail', params: { property, flow: 'buy' } });
+  };
+
+  // ── Handle Click on "Location" Button: Browser Geolocation & Google Maps ──
+  const handleLocationClick = () => {
+    setLocationStatus('requesting');
+    setErrorMessage('');
+    setShowGpsModal(true);
+
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setCurrentCoords({ latitude: lat, longitude: lng });
+          setLocationStatus('success');
+
+          // Open Google Maps centered at current GPS coordinates with pin marker
+          const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+          Linking.openURL(mapsUrl).catch(() => {});
+        },
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            setLocationStatus('denied');
+            setErrorMessage(
+              'Location permission was denied. Please allow location access in your browser or device settings to view properties near your current position.'
+            );
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            setLocationStatus('error');
+            setErrorMessage(
+              'GPS location information is currently unavailable from your device. Please ensure location services are enabled.'
+            );
+          } else if (error.code === error.TIMEOUT) {
+            setLocationStatus('error');
+            setErrorMessage(
+              'The request to access your current location timed out. Please try again.'
+            );
+          } else {
+            setLocationStatus('error');
+            setErrorMessage(
+              error.message || 'Unable to retrieve your current location. Please try again.'
+            );
+          }
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      );
+    } else {
+      // Fallback if Geolocation API is not supported in the current environment
+      setLocationStatus('error');
+      setErrorMessage(
+        'Geolocation is not supported by your browser or device environment.'
+      );
+    }
+  };
+
+  const handleOpenGoogleMapsUrl = (lat: number, lng: number) => {
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    Linking.openURL(mapsUrl).catch(() => {});
   };
 
   return (
@@ -252,16 +324,14 @@ export default function BuyPropertiesScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Right: Location Selection Option */}
+        {/* Right: Location Option (Requests GPS & opens Google Maps) */}
         <TouchableOpacity
           style={styles.locationBtn}
-          onPress={() => setShowLocationModal(true)}
+          onPress={handleLocationClick}
           activeOpacity={0.75}
         >
           <Compass size={16} color="#1E293B" strokeWidth={2.2} />
-          <Text style={styles.locationText}>
-            {selectedLocation === 'All' ? 'location' : selectedLocation}
-          </Text>
+          <Text style={styles.locationText}>location</Text>
         </TouchableOpacity>
       </View>
 
@@ -460,6 +530,139 @@ export default function BuyPropertiesScreen() {
                 );
               })}
             </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── GPS / Current Location Modal (Location Permission & Google Maps) ── */}
+      <Modal
+        visible={showGpsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGpsModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.gpsBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowGpsModal(false)}
+        >
+          <View style={styles.gpsModalCard} onStartShouldSetResponder={() => true}>
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.gpsCloseBtn}
+              onPress={() => setShowGpsModal(false)}
+              activeOpacity={0.7}
+            >
+              <X size={18} color="#64748B" />
+            </TouchableOpacity>
+
+            {/* Requesting / Fetching State */}
+            {locationStatus === 'requesting' && (
+              <View style={styles.gpsContentBlock}>
+                <View style={styles.gpsIconCircle}>
+                  <ActivityIndicator size="large" color="#0F172A" />
+                </View>
+                <Text style={styles.gpsTitle}>Detecting Your Location</Text>
+                <Text style={styles.gpsDesc}>
+                  Please allow location access in your browser or device prompt to view nearby properties on Google Maps.
+                </Text>
+              </View>
+            )}
+
+            {/* Success State */}
+            {locationStatus === 'success' && currentCoords && (
+              <View style={styles.gpsContentBlock}>
+                <View style={[styles.gpsIconCircle, { backgroundColor: '#DCFCE7' }]}>
+                  <MapPin size={32} color="#16A34A" />
+                </View>
+                <Text style={styles.gpsTitle}>Location Found!</Text>
+                <Text style={styles.gpsDesc}>
+                  Opening your current location on Google Maps:
+                </Text>
+                <Text style={styles.gpsCoordsText}>
+                  {currentCoords.latitude.toFixed(5)}° N, {currentCoords.longitude.toFixed(5)}° E
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.gpsPrimaryBtn}
+                  onPress={() =>
+                    handleOpenGoogleMapsUrl(currentCoords.latitude, currentCoords.longitude)
+                  }
+                  activeOpacity={0.85}
+                >
+                  <ExternalLink size={16} color="#FFFFFF" />
+                  <Text style={styles.gpsPrimaryBtnText}>Open in Google Maps</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.gpsSecondaryBtn}
+                  onPress={() => setShowGpsModal(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.gpsSecondaryBtnText}>Back to Properties</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Denied State */}
+            {locationStatus === 'denied' && (
+              <View style={styles.gpsContentBlock}>
+                <View style={[styles.gpsIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                  <AlertCircle size={32} color="#DC2626" />
+                </View>
+                <Text style={styles.gpsTitle}>Location Permission Denied</Text>
+                <Text style={styles.gpsDesc}>
+                  {errorMessage ||
+                    'Location access was blocked. To see properties near you, please grant location permission in your browser or device settings.'}
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.gpsPrimaryBtn}
+                  onPress={handleLocationClick}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.gpsPrimaryBtnText}>Try Again</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.gpsSecondaryBtn}
+                  onPress={() => setShowGpsModal(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.gpsSecondaryBtnText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Error State */}
+            {locationStatus === 'error' && (
+              <View style={styles.gpsContentBlock}>
+                <View style={[styles.gpsIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                  <AlertCircle size={32} color="#D97706" />
+                </View>
+                <Text style={styles.gpsTitle}>Unable to Retrieve Location</Text>
+                <Text style={styles.gpsDesc}>
+                  {errorMessage ||
+                    'Could not determine your GPS location. Please check your internet connection or location services.'}
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.gpsPrimaryBtn}
+                  onPress={handleLocationClick}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.gpsPrimaryBtnText}>Retry</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.gpsSecondaryBtn}
+                  onPress={() => setShowGpsModal(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.gpsSecondaryBtnText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -858,5 +1061,105 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  /* ── GPS / Current Location Modal Styles ── */
+  gpsBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  gpsModalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  gpsCloseBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  gpsContentBlock: {
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  gpsIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  gpsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  gpsDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 16,
+    paddingHorizontal: 10,
+  },
+  gpsCoordsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0F172A',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 20,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  gpsPrimaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#0F172A',
+    width: '100%',
+    paddingVertical: 13,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  gpsPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  gpsSecondaryBtn: {
+    width: '100%',
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gpsSecondaryBtnText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

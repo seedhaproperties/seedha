@@ -67,20 +67,86 @@ const QUICK_REPLIES = [
 export default function ChatScreen() {
   const { currentScreen, pop, push } = useApp();
   const property = (currentScreen.params?.property as Property) || properties[0];
+  const flatmateParam = currentScreen.params?.flatmate as
+    | {
+        name: string;
+        firstName?: string;
+        age?: number;
+        role?: string;
+        gender?: string;
+        profession?: string;
+        phone?: string;
+        email?: string;
+        tags?: string[];
+        initial?: string;
+      }
+    | undefined;
 
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
-  const [inputText, setInputText] = useState('');
-  const scrollViewRef = useRef<any>(null);
+  const flowParam = currentScreen.params?.flow as string | undefined;
+  const isFlatmateChat =
+    flowParam === 'flatmates' ||
+    Boolean(flatmateParam) ||
+    Boolean(currentScreen.params?.flatmateName) ||
+    (property as any).roomType !== undefined ||
+    (property.id && property.id.startsWith('fm-')) ||
+    (property.description && property.description.toLowerCase().includes('flatmate'));
 
-  const ownerName = property.ownerName || 'Rajesh Kumar';
+  // Flatmate profile details
+  const flatmateName =
+    flatmateParam?.firstName ||
+    flatmateParam?.name?.split(',')[0]?.trim() ||
+    (currentScreen.params?.flatmateName as string) ||
+    'Rohit';
+
+  const flatmateInitial = flatmateParam?.initial || flatmateName.charAt(0).toUpperCase();
+
+  const flatmatePhone = flatmateParam?.phone || '+91 99175 57138';
+
+  const chatPartnerName = isFlatmateChat ? flatmateName : property.ownerName || 'Rajesh Kumar';
+
   const ownerAvatar =
     property.ownerAvatar ||
     'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&auto=format';
 
+  // Initial messages tailored for flatmate or owner
+  const initialChatMessages: Message[] = isFlatmateChat
+    ? [
+        {
+          id: '1',
+          text: 'Hi! I am interested in this flatmate listing. Can you share more details?',
+          from: 'user',
+          time: '10:30 AM',
+        },
+        {
+          id: '2',
+          text: `Hello! Thank you for reaching out. Yes, the room is available in our flat. It is a quiet, comfortable space with great roommates.`,
+          from: 'owner',
+          time: '10:32 AM',
+        },
+        {
+          id: '3',
+          text: 'Is the rent negotiable?',
+          from: 'user',
+          time: '10:33 AM',
+        },
+        {
+          id: '4',
+          text: 'We can discuss that when you come over to see the flat and meet us!',
+          from: 'owner',
+          time: '10:35 AM',
+        },
+      ]
+    : INITIAL_MESSAGES;
+
+  const [messages, setMessages] = useState<Message[]>(initialChatMessages);
+  const [inputText, setInputText] = useState('');
+  const scrollViewRef = useRef<any>(null);
+
   const handleCall = () => {
-    const phoneNumber = '+919853424560';
-    Linking.openURL(`tel:${phoneNumber}`).catch(() => {
-      Alert.alert('Phone Call', 'Calling +91 98534 24560');
+    const rawNumber = isFlatmateChat ? flatmatePhone : '+919853424560';
+    const cleanNumber = rawNumber.replace(/\s+/g, '');
+    Linking.openURL(`tel:${cleanNumber}`).catch(() => {
+      Alert.alert('Phone Call', `Calling ${rawNumber}`);
     });
   };
 
@@ -118,11 +184,17 @@ export default function ChatScreen() {
         hour12: true,
       });
 
-      const replies = [
-        'Sure, let me check the schedule and get back to you shortly.',
-        'Yes, you can schedule a physical site visit anytime between 10 AM to 6 PM.',
-        'We can certainly discuss that during a property visit.',
-      ];
+      const replies = isFlatmateChat
+        ? [
+            `Sounds good! Happy to show you around the room and apartment.`,
+            `Sure thing, feel free to drop by anytime this weekend!`,
+            `Yes, all amenities including high-speed internet and washing machine are included.`,
+          ]
+        : [
+            'Sure, let me check the schedule and get back to you shortly.',
+            'Yes, you can schedule a physical site visit anytime between 10 AM to 6 PM.',
+            'We can certainly discuss that during a property visit.',
+          ];
       const randomReply = replies[Math.floor(Math.random() * replies.length)];
 
       const ownerReply: Message = {
@@ -148,10 +220,16 @@ export default function ChatScreen() {
           <ChevronLeft size={20} color="#1E293B" strokeWidth={2.4} />
         </TouchableOpacity>
 
-        <Image source={{ uri: ownerAvatar }} style={styles.headerAvatar} />
+        {isFlatmateChat ? (
+          <View style={styles.headerFlatmateAvatar}>
+            <Text style={styles.headerFlatmateInitial}>{flatmateInitial}</Text>
+          </View>
+        ) : (
+          <Image source={{ uri: ownerAvatar }} style={styles.headerAvatar} />
+        )}
 
         <View style={styles.headerInfoCol}>
-          <Text style={styles.headerOwnerName}>{ownerName}</Text>
+          <Text style={styles.headerOwnerName}>{chatPartnerName}</Text>
           <Text style={styles.headerOnlineStatus}>Online</Text>
         </View>
 
@@ -224,12 +302,18 @@ export default function ChatScreen() {
                 isUser ? styles.userMessageRow : styles.ownerMessageRow,
               ]}
             >
-              {/* Owner Avatar on Left */}
+              {/* Partner Avatar on Left */}
               {!isUser && (
-                <Image
-                  source={{ uri: ownerAvatar }}
-                  style={styles.bubbleOwnerAvatar}
-                />
+                isFlatmateChat ? (
+                  <View style={styles.bubbleFlatmateAvatar}>
+                    <Text style={styles.bubbleFlatmateInitial}>{flatmateInitial}</Text>
+                  </View>
+                ) : (
+                  <Image
+                    source={{ uri: ownerAvatar }}
+                    style={styles.bubbleOwnerAvatar}
+                  />
+                )
               )}
 
               <View
@@ -359,6 +443,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerFlatmateAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  headerFlatmateInitial: {
+    color: '#FFFFFF',
+    fontFamily: 'PlusJakartaSans-Bold',
+    fontSize: 16,
+  },
+  bubbleFlatmateAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    marginTop: 2,
+  },
+  bubbleFlatmateInitial: {
+    color: '#FFFFFF',
+    fontFamily: 'PlusJakartaSans-Bold',
+    fontSize: 12,
   },
   headerAvatar: {
     width: 40,

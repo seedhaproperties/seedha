@@ -86,6 +86,8 @@ export type ScreenName =
   | 'compare'
   | 'savedProperties'
   | 'buyProperties'
+  | 'rentHomes'
+  | 'flatmates'
   | 'ownerVerification'
   | 'adminPortal'
   | 'visitRating';
