@@ -39,8 +39,8 @@ import {
 } from 'lucide-react-native';
 import { Modal } from 'react-native';
 import { useApp } from '../context/AppContext';
-import type { Property } from '../types';
 import { properties } from '../data/properties';
+import type { Property } from '../types';
 
 // Amenity Icons map
 const AMENITY_ICONS: Record<string, (color: string) => React.ReactNode> = {
@@ -56,7 +56,13 @@ const AMENITY_ICONS: Record<string, (color: string) => React.ReactNode> = {
 
 export default function PropertyDetailScreen() {
   const { currentScreen, push, pop, toggleSaved, savedIds, requireAuth } = useApp();
-  const property = (currentScreen.params?.property as Property) || properties[0];
+  const propertyParam = currentScreen?.params?.property as Property | undefined;
+  const propertyId = (currentScreen?.params?.id || currentScreen?.params?.propertyId) as string | undefined;
+  const property = propertyParam || properties.find((p) => p.id === propertyId) || properties[0];
+
+  if (!property) {
+    return null;
+  }
 
   const [activeImg, setActiveImg] = useState(0);
   const isSaved = savedIds ? savedIds.has(property.id) : false;
@@ -77,7 +83,7 @@ export default function PropertyDetailScreen() {
   const ownerEmail = 'rajesh.kumar@gmail.com';
 
   // EMI & Calculations
-  const emiMonthly = Math.round(property.price * 0.00624);
+  const emiMonthly = Math.round((property.price || 0) * 0.00624);
 
   // Images list fallback
   const images =
