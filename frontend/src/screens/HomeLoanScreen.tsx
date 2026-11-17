@@ -1170,7 +1170,7 @@ const CustomSlider: React.FC<SliderProps> = ({
   onChange,
 }) => {
   const [trackWidth, setTrackWidth] = useState(0);
-  const trackRef = useRef<View>(null);
+  const trackRef = useRef<any>(null);
   const trackLayoutRef = useRef<{ pageX: number; width: number }>({ pageX: 0, width: 0 });
 
   // Keep track of latest props & state in refs for PanResponder callbacks
@@ -1196,8 +1196,8 @@ const CustomSlider: React.FC<SliderProps> = ({
   };
 
   const measureTrack = useCallback(() => {
-    if (trackRef.current) {
-      trackRef.current.measure((_x, _y, width, _height, pageX) => {
+    if (trackRef.current && typeof trackRef.current.measure === 'function') {
+      trackRef.current.measure((_x: number, _y: number, width: number, _height: number, pageX: number) => {
         if (width > 0) {
           trackLayoutRef.current = { pageX, width };
           setTrackWidth(width);

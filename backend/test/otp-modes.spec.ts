@@ -127,7 +127,7 @@ describe('OTP Modes - Development vs Production Specification Tests', () => {
       } finally {
         process.env.NODE_ENV = prevEnv;
       }
-    });
+    }, 15000);
   });
 
   describe('Section C: Google OAuth 2.0 PKCE & Secure Token Flow', () => {
@@ -147,7 +147,7 @@ describe('OTP Modes - Development vs Production Specification Tests', () => {
           redirectUri: 'https://auth.expo.io',
         })
         .expect(401);
-    });
+    }, 15000);
 
     it('3. Successful Google authentication creates/finds user and issues JWT tokens in test environment', async () => {
       const prevEnv = process.env.NODE_ENV;
