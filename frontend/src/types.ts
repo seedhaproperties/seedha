@@ -85,6 +85,7 @@ export type ScreenName =
   | 'postProperty'
   | 'compare'
   | 'savedProperties'
+  | 'buyProperties'
   | 'ownerVerification'
   | 'adminPortal'
   | 'visitRating';
