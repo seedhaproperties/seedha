@@ -88,8 +88,7 @@ export default function ChatScreen() {
     Boolean(flatmateParam) ||
     Boolean(currentScreen.params?.flatmateName) ||
     (property as any).roomType !== undefined ||
-    (property.id && property.id.startsWith('fm-')) ||
-    (property.description && property.description.toLowerCase().includes('flatmate'));
+    (property.id && property.id.startsWith('fm-'));
 
   // Flatmate profile details
   const flatmateName =

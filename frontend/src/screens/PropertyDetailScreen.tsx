@@ -69,11 +69,15 @@ export default function PropertyDetailScreen() {
 
   // Detect the exact flow (buy, rent, flatmates)
   const explicitFlow = currentScreen.params?.flow as string | undefined;
+
+  // Strict flow isolation:
+  // Flatmates is true ONLY when opened from Flatmates flow or explicit roomType/fm- id
   const isFlatmate =
     explicitFlow === 'flatmates' ||
     (property as any).roomType !== undefined ||
-    (property.description && property.description.toLowerCase().includes('flatmate'));
+    (property.id && property.id.startsWith('fm-'));
 
+  // Rent is true when opened from Rent flow or rental listing type (and NOT flatmates)
   const isRent =
     !isFlatmate &&
     (explicitFlow === 'rent' ||
@@ -82,6 +86,7 @@ export default function PropertyDetailScreen() {
       (property.priceLabel && property.priceLabel.toLowerCase().includes('/mo')) ||
       property.price <= 100000);
 
+  // Buy is true when not rent and not flatmates
   const isBuy = !isRent && !isFlatmate;
 
   const [activeImg, setActiveImg] = useState(0);
@@ -622,8 +627,8 @@ export default function PropertyDetailScreen() {
               )}
             </View>
 
-            {/* Accordion 4: Terms & Preferences */}
-            {(isFlatmate || isRent) && (
+            {/* Accordion 4: Flatmate Preferences (Flatmates ONLY) */}
+            {isFlatmate && (
               <View style={[styles.accordionContainer, { marginTop: 10 }]}>
                 <TouchableOpacity
                   style={styles.accordionHeader}
@@ -695,8 +700,8 @@ export default function PropertyDetailScreen() {
             </View>
           </View>
 
-          {/* ── Your Future Flatmates Section ── */}
-          {(isFlatmate || isRent) && (
+          {/* ── Your Future Flatmates Section (Flatmates ONLY) ── */}
+          {isFlatmate && (
             <View style={styles.flatmatesCardContainer}>
               <View style={styles.flatmatesHeaderRow}>
                 <Text style={styles.flatmatesHeaderTitle}>Your future flatmates</Text>
