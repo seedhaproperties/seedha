@@ -22,6 +22,7 @@ import FiltersScreen from './screens/FiltersScreen';
 import SearchScreen from './screens/SearchScreen';
 import CompareScreen from './screens/CompareScreen';
 import AdminPortalScreen from './screens/AdminPortalScreen';
+import BuyPropertiesScreen from './screens/BuyPropertiesScreen';
 import PaymentsScreen from './screens/PaymentsScreen';
 import LandingScreen from './screens/LandingScreen';
 import SplashScreen from './screens/SplashScreen';
@@ -86,6 +87,7 @@ function ScreenRouter() {
       case 'adminPortal': return <AdminPortalScreen />;
       case 'savedProperties': return <ExploreScreen />;
       case 'compare': return <CompareScreen />;
+      case 'buyProperties': return <BuyPropertiesScreen />;
       // Admin Operations Flow
       case 'adminLogin': return <AdminLoginScreen />;
       case 'adminDashboard': return <AdminDashboardScreen />;

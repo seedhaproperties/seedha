@@ -1,27 +1,60 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { ChevronLeft, Calendar, Clock, MapPin, CheckCircle2, CalendarPlus, Navigation, Star, ArrowRight } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+  Linking,
+} from 'react-native';
+import {
+  ChevronLeft,
+  Calendar,
+  Clock,
+  MapPin,
+  Check,
+  Send,
+  Navigation,
+} from 'lucide-react-native';
 import { useApp } from '../context/AppContext';
 import type { Property } from '../types';
-import colors from '../theme/colors';
+import { properties } from '../data/properties';
 
-const timeSlots = [
-  '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
-  '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM',
+const TIME_SLOTS = [
+  '9:00 AM',
+  '10:00 AM',
+  '11:00 AM',
+  '12:00 PM',
+  '2:00 PM',
+  '3:00 PM',
+  '4:00 PM',
+  '5:00 PM',
+  '6:00 PM',
 ];
 
 const getDates = () => {
   const dates = [];
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  for (let i = 1; i <= 7; i++) {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  for (let i = 0; i < 7; i++) {
     const d = new Date();
     d.setDate(d.getDate() + i);
     dates.push({
       day: days[d.getDay()],
       date: d.getDate(),
       month: months[d.getMonth()],
-      full: d.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+      full: d.toLocaleDateString('en-IN', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
     });
   }
   return dates;
@@ -31,219 +64,439 @@ type Step = 'date' | 'time' | 'confirm' | 'success';
 
 export default function BookVisitScreen() {
   const { currentScreen, pop, setTab } = useApp();
-  const property = currentScreen.params?.property as Property;
+  const property = (currentScreen.params?.property as Property) || properties[0];
+
   const [step, setStep] = useState<Step>('date');
-  const [selectedDate, setSelectedDate] = useState<number | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedDateIndex, setSelectedDateIndex] = useState<number>(4); // default 4 (Wed)
+  const [selectedTime, setSelectedTime] = useState<string | null>('2:00 PM'); // default 2:00 PM as shown in reference
   const [loading, setLoading] = useState(false);
-  const [rating, setRating] = useState<number>(0);
-  const [ratingSubmitted, setRatingSubmitted] = useState<boolean>(false);
-  const [selectedTag, setSelectedTag] = useState<string>('');
+
   const dates = getDates();
 
   const handleConfirm = () => {
     setLoading(true);
-    setTimeout(() => { setLoading(false); setStep('success'); }, 800);
+    setTimeout(() => {
+      setLoading(false);
+      setStep('success');
+    }, 800);
   };
 
+  const handleAddToCalendar = () => {
+    const title = encodeURIComponent(`Property Visit: ${property.title}`);
+    const details = encodeURIComponent(
+      `Visit to ${property.title} located at ${property.location}. Scheduled time: ${selectedTime}`
+    );
+    const location = encodeURIComponent(property.location);
+    // Google Calendar template URL works across web, Android, and iOS browsers
+    const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}`;
+    Linking.openURL(gCalUrl).catch(() => {});
+  };
+
+  const handleGetDirections = () => {
+    const query = encodeURIComponent(`${property.title}, ${property.location}`);
+    const mapUrl = Platform.select({
+      ios: `maps:0,0?q=${query}`,
+      android: `geo:0,0?q=${query}`,
+      default: `https://www.google.com/maps/search/?api=1&query=${query}`,
+    });
+    Linking.openURL(mapUrl || `https://www.google.com/maps/search/?api=1&query=${query}`).catch(() => {
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`).catch(() => {});
+    });
+  };
+
+  // ── Success Step ──
   if (step === 'success') {
     return (
-      <ScrollView contentContainerStyle={styles.successContainer} showsVerticalScrollIndicator={false}>
-        <View style={styles.successBadgeCircle}>
-          <CheckCircle2 size={40} color={colors.secondary} />
-        </View>
-        <Text style={styles.successTitle}>Visit Confirmed!</Text>
-        <Text style={styles.successSubtitle}>
-          Your visit has been scheduled. You'll receive a confirmation on your phone.
-        </Text>
+      <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.successContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Green Checkmark Circle */}
+          <View style={styles.successBadgeCircle}>
+            <Check size={28} color="#16A34A" strokeWidth={3} />
+          </View>
 
-        <View style={styles.confirmationCard}>
-          <View style={styles.rowCenter}>
-            <Image source={{ uri: property.image }} style={styles.propertyThumb} />
-            <View style={styles.propertyMeta}>
-              <Text style={styles.propertyTitle}>{property.title}</Text>
-              <View style={styles.locationRow}>
-                <MapPin size={11} color={colors.textMuted} />
-                <Text style={styles.locationText}>{property.location}</Text>
+          <Text style={styles.successTitle}>Visit Confirmed!</Text>
+          <Text style={styles.successSubtitle}>
+            Your visit has been scheduled. You'll receive a confirmation on your phone.
+          </Text>
+
+          {/* Property & Visit Details Card */}
+          <View style={styles.confirmationCard}>
+            <View style={styles.confirmationCardHeader}>
+              <Image
+                source={{ uri: property.image }}
+                style={styles.propertyThumb}
+                resizeMode="cover"
+              />
+              <View style={styles.propertyMeta}>
+                <Text style={styles.confirmedPropertyTitle} numberOfLines={1}>
+                  {property.title}
+                </Text>
+                <View style={styles.locationRow}>
+                  <MapPin size={12} color="#94A3B8" />
+                  <Text style={styles.locationText} numberOfLines={1}>
+                    {property.location}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.visitTimeDetails}>
+              <View style={styles.timeDetailRow}>
+                <Calendar size={14} color="#64748B" />
+                <Text style={styles.visitTimeText}>
+                  {dates[selectedDateIndex]?.full}
+                </Text>
+              </View>
+              <View style={[styles.timeDetailRow, { marginTop: 8 }]}>
+                <Clock size={14} color="#64748B" />
+                <Text style={styles.visitTimeText}>{selectedTime}</Text>
               </View>
             </View>
           </View>
-          <View style={styles.visitTimeDetails}>
-            <View style={styles.rowCenter}>
-              <Calendar size={14} color={colors.primary} />
-              <Text style={styles.visitTimeText}>{dates[selectedDate!]?.full}</Text>
-            </View>
-            <View style={[styles.rowCenter, { marginTop: 4 }]}>
-              <Clock size={14} color={colors.primary} />
-              <Text style={styles.visitTimeText}>{selectedTime}</Text>
-            </View>
-          </View>
-        </View>
 
-        {/* Optional Rating Component */}
-        <View style={styles.ratingCard}>
-          <Text style={styles.ratingTitle}>Rate Your Experience (Optional)</Text>
-          <Text style={styles.ratingSub}>How was the scheduling and property selection flow?</Text>
-
-          {/* Star selector */}
-          <View style={styles.starsRow}>
-            {[1, 2, 3, 4, 5].map(star => (
-              <TouchableOpacity
-                key={star}
-                onPress={() => setRating(star)}
-                activeOpacity={0.7}
-                style={styles.starTouch}
-              >
-                <Star
-                  size={26}
-                  fill={star <= rating ? colors.warning : 'transparent'}
-                  color={star <= rating ? colors.warning : colors.border}
-                  strokeWidth={1.8}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Quick tags */}
-          <View style={styles.tagsRow}>
-            {['Smooth Booking', 'Great Location', 'Clear Details', 'Quick Process'].map(tag => (
-              <TouchableOpacity
-                key={tag}
-                onPress={() => setSelectedTag(tag === selectedTag ? '' : tag)}
-                style={[styles.rateTag, selectedTag === tag && styles.rateTagActive]}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.rateTagText, selectedTag === tag && styles.rateTagTextActive]}>
-                  {tag}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {ratingSubmitted ? (
-            <View style={styles.ratingThankYou}>
-              <CheckCircle2 size={16} color={colors.secondary} />
-              <Text style={styles.ratingThankYouText}>Thank you for your rating!</Text>
-            </View>
-          ) : (
+          {/* Action Buttons: Add to Calendar & Get Directions */}
+          <View style={styles.actionRow}>
             <TouchableOpacity
-              onPress={() => setRatingSubmitted(true)}
-              disabled={rating === 0}
-              style={[styles.submitRatingBtn, rating === 0 && { opacity: 0.5 }]}
+              onPress={handleAddToCalendar}
+              style={styles.addToCalendarBtn}
               activeOpacity={0.85}
             >
-              <Text style={styles.submitRatingBtnText}>Submit Rating</Text>
+              <Calendar size={15} color="#000000" strokeWidth={2} />
+              <Text style={styles.addToCalendarBtnText}>Add to Calendar</Text>
             </TouchableOpacity>
-          )}
-        </View>
 
-        <View style={styles.actionRow}>
-          <TouchableOpacity onPress={() => setTab('home')} style={styles.backHomeBtn} activeOpacity={0.85}>
-            <Text style={styles.backHomeBtnText}>Back to Home</Text>
+            <TouchableOpacity
+              onPress={handleGetDirections}
+              style={styles.getDirectionsBtn}
+              activeOpacity={0.85}
+            >
+              <Navigation size={15} color="#FFFFFF" strokeWidth={2} />
+              <Text style={styles.getDirectionsBtnText}>Get Directions</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Back to Property text button */}
+          <TouchableOpacity
+            onPress={pop}
+            style={styles.backPropertyTextBtn}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.backPropertyTextBtnText}>Back to Property</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={pop} style={styles.backPropertyBtn} activeOpacity={0.8}>
-            <Text style={styles.backPropertyBtnText}>View Property</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* ── 1. Top Header ── */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={step === 'date' ? pop : () => setStep(step === 'confirm' ? 'time' : 'date')}
-          style={styles.backCircle}
+          style={styles.backCircleBtn}
           activeOpacity={0.8}
         >
-          <ChevronLeft size={20} color={colors.primary} strokeWidth={2.5} />
+          <ChevronLeft size={20} color="#1E293B" strokeWidth={2.4} />
         </TouchableOpacity>
-        <View style={styles.headerColumn}>
+        <View style={styles.headerTextCol}>
           <Text style={styles.headerTitle}>Book a Visit</Text>
-          <Text style={styles.headerSub}>{property.title}</Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {property.title}
+          </Text>
         </View>
       </View>
 
-      <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
-        {step === 'date' && (
-          <View style={styles.stepSection}>
-            <Text style={styles.stepTitle}>Select a Date</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateScroll}>
-              {dates.map((d, i) => (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => setSelectedDate(i)}
-                  style={[styles.dateCard, selectedDate === i ? styles.selectedDateCard : styles.unselectedDateCard]}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.dayText, selectedDate === i ? styles.selectedText : styles.unselectedText]}>{d.day}</Text>
-                  <Text style={[styles.dateNumber, selectedDate === i ? styles.selectedText : styles.unselectedText]}>{d.date}</Text>
-                  <Text style={[styles.monthText, selectedDate === i ? styles.selectedText : styles.unselectedText]}>{d.month}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+      {/* ── 2. Three-Step Progress Indicator ── */}
+      <View style={styles.progressRow}>
+        {/* Step 1: Date */}
+        <TouchableOpacity
+          style={styles.stepItem}
+          onPress={() => setStep('date')}
+          activeOpacity={0.8}
+        >
+          {step === 'time' || step === 'confirm' ? (
+            <View style={styles.stepBadgeCheck}>
+              <Check size={14} color="#16A34A" strokeWidth={3} />
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.stepBadge,
+                styles.stepBadgeActive,
+              ]}
+            >
+              <Text style={styles.stepBadgeTextActive}>1</Text>
+            </View>
+          )}
+          <Text
+            style={[
+              styles.stepLabel,
+              styles.stepLabelInactive,
+            ]}
+          >
+            Date
+          </Text>
+        </TouchableOpacity>
 
-        {step === 'time' && (
-          <View style={styles.stepSection}>
-            <Text style={styles.stepTitle}>Select a Time Slot</Text>
-            <Text style={styles.selectedDateSub}>{dates[selectedDate!]?.full}</Text>
-            <View style={styles.timeGrid}>
-              {timeSlots.map(time => (
-                <TouchableOpacity
-                  key={time}
-                  onPress={() => setSelectedTime(time)}
-                  style={[styles.timeSlotCard, selectedTime === time ? styles.selectedDateCard : styles.unselectedDateCard]}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.timeSlotText, selectedTime === time ? styles.selectedText : styles.unselectedText]}>{time}</Text>
-                </TouchableOpacity>
-              ))}
+        <View style={styles.stepLine} />
+
+        {/* Step 2: Time */}
+        <TouchableOpacity
+          style={styles.stepItem}
+          onPress={() => setStep('time')}
+          activeOpacity={0.8}
+        >
+          {step === 'confirm' ? (
+            <View style={styles.stepBadgeCheck}>
+              <Check size={14} color="#16A34A" strokeWidth={3} />
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.stepBadge,
+                step === 'time' ? styles.stepBadgeActive : styles.stepBadgeInactive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.stepBadgeText,
+                  step === 'time'
+                    ? styles.stepBadgeTextActive
+                    : styles.stepBadgeTextInactive,
+                ]}
+              >
+                2
+              </Text>
+            </View>
+          )}
+          <Text
+            style={[
+              styles.stepLabel,
+              step === 'time' ? styles.stepLabelActive : styles.stepLabelInactive,
+            ]}
+          >
+            Time
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.stepLine} />
+
+        {/* Step 3: Confirm */}
+        <View style={styles.stepItem}>
+          <View
+            style={[
+              styles.stepBadge,
+              step === 'confirm'
+                ? styles.stepBadgeActive
+                : styles.stepBadgeInactive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.stepBadgeText,
+                step === 'confirm'
+                  ? styles.stepBadgeTextActive
+                  : styles.stepBadgeTextInactive,
+              ]}
+            >
+              3
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.stepLabel,
+              step === 'confirm'
+                ? styles.stepLabelActive
+                : styles.stepLabelInactive,
+            ]}
+          >
+            Confirm
+          </Text>
+        </View>
+      </View>
+
+      {/* ── 3. Step Content Body ── */}
+      <ScrollView
+        style={styles.scrollBody}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Step 1: Select Date */}
+        {step === 'date' && (
+          <View style={styles.stepContainer}>
+            <Text style={styles.sectionHeading}>Select a Date</Text>
+
+            {/* Horizontal Date Cards */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.datesScroll}
+            >
+              {dates.map((d, i) => {
+                const isSelected = selectedDateIndex === i;
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => setSelectedDateIndex(i)}
+                    style={[
+                      styles.dateCard,
+                      isSelected ? styles.dateCardSelected : styles.dateCardUnselected,
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        isSelected ? styles.textSelected : styles.textUnselected,
+                      ]}
+                    >
+                      {d.day}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.dateNumber,
+                        isSelected ? styles.textSelected : styles.textUnselected,
+                      ]}
+                    >
+                      {d.date}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.monthText,
+                        isSelected ? styles.textSelected : styles.textUnselected,
+                      ]}
+                    >
+                      {d.month}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Tip Callout */}
+            <View style={styles.tipCard}>
+              <Text style={styles.tipText}>
+                💡 Tip: Weekday visits tend to be less crowded
+              </Text>
             </View>
           </View>
         )}
 
+        {/* Step 2: Select Time */}
+        {step === 'time' && (
+          <View style={styles.stepContainer}>
+            <Text style={styles.sectionHeading}>Select a Time Slot</Text>
+            <Text style={styles.sectionSubheading}>
+              {dates[selectedDateIndex]?.full}
+            </Text>
+
+            <View style={styles.timeGrid}>
+              {TIME_SLOTS.map((time) => {
+                const isSelected = selectedTime === time;
+                return (
+                  <TouchableOpacity
+                    key={time}
+                    onPress={() => setSelectedTime(time)}
+                    style={[
+                      styles.timeSlotCard,
+                      isSelected ? styles.timeSlotSelected : styles.timeSlotUnselected,
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.timeSlotText,
+                        isSelected ? styles.timeTextSelected : styles.timeTextUnselected,
+                      ]}
+                    >
+                      {time}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Step 3: Confirm Details */}
         {step === 'confirm' && (
-          <View style={styles.stepSection}>
-            <Text style={styles.stepTitle}>Confirm Your Visit</Text>
-            <View style={styles.confirmCard}>
-              <Image source={{ uri: property.image }} style={styles.confirmImage} />
-              <View style={styles.confirmBody}>
-                <Text style={styles.propertyTitle}>{property.title}</Text>
-                <Text style={styles.locationText}>{property.location}</Text>
-                <View style={styles.confirmTimeRow}>
-                  <Text style={styles.visitTimeText}>
-                    {dates[selectedDate!]?.day}, {dates[selectedDate!]?.date} {dates[selectedDate!]?.month} at {selectedTime}
-                  </Text>
+          <View style={styles.stepContainer}>
+            <Text style={styles.sectionHeading}>Confirm Your Visit</Text>
+
+            {/* Property Summary Card */}
+            <View style={styles.confirmPreviewCard}>
+              <Image
+                source={{ uri: property.image }}
+                style={styles.confirmImg}
+                resizeMode="cover"
+              />
+              <View style={styles.confirmInfo}>
+                <Text style={styles.confirmTitle}>{property.title}</Text>
+                <View style={styles.confirmLocationRow}>
+                  <MapPin size={12} color="#94A3B8" />
+                  <Text style={styles.confirmLocationText}>{property.location}</Text>
+                </View>
+
+                {/* Date & Time Separate Chips Row */}
+                <View style={styles.confirmCardsRow}>
+                  <View style={styles.confirmChip}>
+                    <View style={styles.confirmChipIconBox}>
+                      <Calendar size={14} color="#64748B" />
+                    </View>
+                    <View>
+                      <Text style={styles.confirmChipLabel}>Date</Text>
+                      <Text style={styles.confirmChipValue}>
+                        {dates[selectedDateIndex]?.day}, {dates[selectedDateIndex]?.date}{' '}
+                        {dates[selectedDateIndex]?.month}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.confirmChip}>
+                    <View style={styles.confirmChipIconBox}>
+                      <Clock size={14} color="#64748B" />
+                    </View>
+                    <View>
+                      <Text style={styles.confirmChipLabel}>Time</Text>
+                      <Text style={styles.confirmChipValue}>{selectedTime}</Text>
+                    </View>
+                  </View>
                 </View>
               </View>
+            </View>
+
+            {/* Yellow Information Notice */}
+            <View style={styles.yellowNoticeCard}>
+              <Text style={styles.yellowNoticeText}>
+                Please bring a valid ID proof for the visit. The owner will be notified of your booking.
+              </Text>
             </View>
           </View>
         )}
       </ScrollView>
 
-      {/* Bottom Action */}
+      {/* ── 4. Fixed Bottom Action Button ── */}
       <View style={styles.footerContainer}>
         <TouchableOpacity
-          disabled={(step === 'date' && selectedDate === null) || (step === 'time' && !selectedTime) || loading}
+          disabled={loading}
           onPress={() => {
             if (step === 'date') setStep('time');
             else if (step === 'time') setStep('confirm');
             else handleConfirm();
           }}
-          style={[
-            styles.submitButton,
-            ((step === 'date' && selectedDate === null) || (step === 'time' && !selectedTime)) ? styles.disabledButton : null,
-          ]}
+          style={styles.continueBtn}
           activeOpacity={0.9}
         >
           {loading ? (
-            <ActivityIndicator color={colors.textWhite} />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.submitButtonText}>{step === 'confirm' ? 'Confirm Visit' : 'Continue'}</Text>
+            <Text style={styles.continueBtnText}>
+              {step === 'confirm' ? 'Confirm Visit' : 'Continue'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -254,345 +507,474 @@ export default function BookVisitScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F1F5F9',
   },
+
+  /* ── Header ── */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 10,
-    backgroundColor: colors.background,
+    paddingBottom: 12,
+    backgroundColor: '#F1F5F9',
   },
-  backCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
+  backCircleBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: colors.tertiary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  headerColumn: {
-    marginLeft: 10,
+  headerTextCol: {
+    marginLeft: 14,
+    flex: 1,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.primary,
+    color: '#1E293B',
+    letterSpacing: -0.2,
   },
-  headerSub: {
+  headerSubtitle: {
+    fontSize: 11.5,
+    color: '#64748B',
+    marginTop: 1,
+  },
+
+  /* ── 3-Step Progress Indicator ── */
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: '#F1F5F9',
+  },
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stepBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBadgeCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBadgeActive: {
+    backgroundColor: '#000000',
+  },
+  stepBadgeInactive: {
+    backgroundColor: '#E2E8F0',
+  },
+  stepBadgeText: {
     fontSize: 11,
-    color: colors.textSecondary,
+    fontWeight: '700',
   },
+  stepBadgeTextActive: {
+    color: '#FFFFFF',
+  },
+  stepBadgeTextInactive: {
+    color: '#94A3B8',
+  },
+  stepLabel: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  stepLabelActive: {
+    color: '#0F172A',
+  },
+  stepLabelInactive: {
+    color: '#94A3B8',
+  },
+  stepLine: {
+    width: 32,
+    height: 1.5,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 8,
+  },
+
+  /* ── Body Content ── */
   scrollBody: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
-  stepSection: {
-    paddingVertical: 12,
+  stepContainer: {
+    paddingVertical: 4,
   },
-  stepTitle: {
-    fontSize: 16,
+  sectionHeading: {
+    fontSize: 15,
     fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 12,
+    color: '#0F172A',
+    marginBottom: 14,
+    letterSpacing: -0.2,
   },
-  selectedDateSub: {
+  sectionSubheading: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: '#64748B',
     marginBottom: 12,
   },
-  dateScroll: {
-    gap: 8,
+
+  /* ── Date Cards ── */
+  datesScroll: {
+    gap: 10,
+    paddingBottom: 16,
   },
   dateCard: {
     width: 60,
-    paddingVertical: 12,
-    borderRadius: 14,
+    height: 92,
+    borderRadius: 18,
     alignItems: 'center',
-  },
-  selectedDateCard: {
-    backgroundColor: colors.primary,
-  },
-  unselectedDateCard: {
-    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
     elevation: 1,
-    borderWidth: 1,
-    borderColor: colors.tertiary,
+  },
+  dateCardSelected: {
+    backgroundColor: '#000000',
+  },
+  dateCardUnselected: {
+    backgroundColor: '#FFFFFF',
   },
   dayText: {
     fontSize: 11,
     fontWeight: '500',
+    marginBottom: 4,
   },
   dateNumber: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '800',
-    marginVertical: 2,
+    marginBottom: 2,
   },
   monthText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '500',
   },
-  selectedText: {
-    color: colors.textWhite,
+  textSelected: {
+    color: '#FFFFFF',
   },
-  unselectedText: {
-    color: colors.textSecondary,
+  textUnselected: {
+    color: '#334155',
   },
+
+  /* ── Tip Card ── */
+  tipCard: {
+    backgroundColor: '#EAE7E1',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 6,
+  },
+  tipText: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '500',
+  },
+
+  /* ── Time Slots Grid ── */
   timeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   timeSlotCard: {
     width: '31%',
-    paddingVertical: 12,
-    borderRadius: 12,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  timeSlotSelected: {
+    backgroundColor: '#000000',
+  },
+  timeSlotUnselected: {
+    backgroundColor: '#FFFFFF',
   },
   timeSlotText: {
     fontSize: 13,
     fontWeight: '600',
   },
-  confirmCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
+  timeTextSelected: {
+    color: '#FFFFFF',
+  },
+  timeTextUnselected: {
+    color: '#334155',
+  },
+
+  /* ── Confirm Step Card ── */
+  confirmPreviewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
     elevation: 2,
-    borderWidth: 1,
-    borderColor: colors.tertiary,
+    marginBottom: 16,
   },
-  confirmImage: {
+  confirmImg: {
     width: '100%',
-    height: 140,
+    height: 180,
+    backgroundColor: '#CBD5E1',
   },
-  confirmBody: {
-    padding: 14,
-  },
-  propertyTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  locationText: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  confirmTimeRow: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.tertiaryLight,
-  },
-  footerContainer: {
+  confirmInfo: {
     padding: 16,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.tertiary,
   },
-  submitButton: {
+  confirmTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  confirmLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 16,
+  },
+  confirmLocationText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  confirmCardsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  confirmChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    gap: 8,
+  },
+  confirmChipIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  confirmChipLabel: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginBottom: 1,
+  },
+  confirmChipValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  yellowNoticeCard: {
+    backgroundColor: '#FEF9C3',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#FEF08A',
+  },
+  yellowNoticeText: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: '#854D0E',
+    fontWeight: '500',
+  },
+
+  /* ── Fixed Bottom Footer ── */
+  footerContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    backgroundColor: '#F1F5F9',
+  },
+  continueBtn: {
     height: 48,
     borderRadius: 14,
-    backgroundColor: colors.primary,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  disabledButton: {
-    backgroundColor: colors.tertiaryDark,
-    opacity: 0.5,
-  },
-  submitButtonText: {
-    fontSize: 15,
+  continueBtnText: {
+    fontSize: 14,
     fontWeight: '700',
-    color: colors.textWhite,
+    color: '#FFFFFF',
   },
+
+  /* ── Success Screen Styles ── */
   successContainer: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    backgroundColor: colors.background,
+    paddingHorizontal: 20,
+    paddingTop: 80,
+    paddingBottom: 40,
   },
   successBadgeCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: colors.secondaryBg,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   successTitle: {
     fontSize: 22,
-    fontWeight: '800',
-    color: colors.primary,
+    fontWeight: '700',
+    color: '#1E293B',
     marginBottom: 8,
+    textAlign: 'center',
   },
   successSubtitle: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: '#64748B',
     textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
   confirmationCard: {
     width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
     elevation: 2,
-    borderWidth: 1,
-    borderColor: colors.tertiary,
+  },
+  confirmationCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   propertyThumb: {
-    width: 50,
-    height: 50,
-    borderRadius: 10,
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#CBD5E1',
   },
   propertyMeta: {
-    marginLeft: 10,
+    marginLeft: 12,
     flex: 1,
+    justifyContent: 'center',
+  },
+  confirmedPropertyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 3,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    gap: 3,
+  },
+  locationText: {
+    fontSize: 11.5,
+    color: '#64748B',
   },
   visitTimeDetails: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.tertiaryLight,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 12,
+    marginTop: 12,
+  },
+  timeDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   visitTimeText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-    marginLeft: 6,
-  },
-  rowCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingCard: {
-    width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    alignItems: 'center',
-  },
-  ratingTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  ratingSub: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 14,
-  },
-  starTouch: {
-    padding: 4,
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-    marginBottom: 14,
-  },
-  rateTag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  rateTagActive: {
-    backgroundColor: colors.primaryBg,
-    borderColor: colors.primary,
-  },
-  rateTagText: {
-    fontSize: 11,
-    color: colors.textSecondary,
     fontWeight: '500',
-  },
-  rateTagTextActive: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  submitRatingBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  submitRatingBtnText: {
-    color: colors.textWhite,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  ratingThankYou: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.secondaryBg,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  ratingThankYouText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.secondary,
+    color: '#334155',
+    marginLeft: 8,
   },
   actionRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 20,
-    marginBottom: 30,
     width: '100%',
+    marginBottom: 20,
   },
-  backHomeBtn: {
+  addToCalendarBtn: {
     flex: 1,
-    height: 48,
+    height: 46,
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    backgroundColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: '#000000',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
-  backHomeBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textWhite,
-  },
-  backPropertyBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backPropertyBtnText: {
-    fontSize: 14,
+  addToCalendarBtnText: {
+    color: '#000000',
+    fontSize: 13,
     fontWeight: '600',
-    color: colors.textSecondary,
+  },
+  getDirectionsBtn: {
+    flex: 1,
+    height: 46,
+    backgroundColor: '#000000',
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  getDirectionsBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  backPropertyTextBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  backPropertyTextBtnText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '500',
   },
 });
