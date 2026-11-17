@@ -116,6 +116,16 @@ const AMENITY_ITEMS = [
 export default function CompareScreen() {
   const { currentScreen, pop, push } = useApp();
   const propParam = currentScreen.params?.property as Property | undefined;
+  const flowParam = currentScreen.params?.flow as string | undefined;
+
+  // Identify whether Compare was opened from the Flatmates flow
+  const isFlatmatesCompare =
+    flowParam === 'flatmates' ||
+    (propParam && (
+      (propParam as any).roomType !== undefined ||
+      (propParam.id && propParam.id.startsWith('fm-')) ||
+      (propParam.description && propParam.description.toLowerCase().includes('flatmate'))
+    ));
 
   // Property A is retained automatically from params or defaults to first property
   const [propertyA, setPropertyA] = useState<Property>(propParam ?? properties[0]);
@@ -136,8 +146,14 @@ export default function CompareScreen() {
     return p.amenities.some((a) => a.toLowerCase().includes(nameLower));
   };
 
-  // Category Badge: Green "For Sale" badge for every property in the selection list
+  // Category Badge:
+  // - In Flatmates compare flow: every property displays purple "For Rent" badge
+  // - In Buy compare flow: EVERY property remains strictly "For Sale" (green)
   const getCategoryBadgeInfo = (_p: Property) => {
+    if (isFlatmatesCompare) {
+      return { label: 'For Rent', bgColor: '#8B5CF6', textColor: '#FFFFFF' };
+    }
+    // In Buy: all properties remain For Sale
     return { label: 'For Sale', bgColor: '#16A34A', textColor: '#FFFFFF' };
   };
 
