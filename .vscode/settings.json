@@ -1,0 +1,17 @@
+{
+  "java.import.exclusions": [
+    "**/node_modules/**",
+    "**/.gradle/**",
+    "**/build/**",
+    "**/android/build/**",
+    "**/app/build/**"
+  ],
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.gradle/**": true,
+    "**/build/**": true,
+    "**/android/build/**": true,
+    "**/app/build/**": true
+  },
+  "java.autobuild.enabled": false
+}

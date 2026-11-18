@@ -19,15 +19,19 @@ export const getApiBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim() !== '') {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
   }
-  if (typeof window !== 'undefined' && window.location?.origin) {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal && window.location.port !== '4000') {
+      return `http://${window.location.hostname}:4000/api/v1`;
+    }
     return `${window.location.origin}/api/v1`;
   }
   const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
-  if (hostUri) {
-    const protocol = hostUri.includes('exp.direct') ? 'https' : 'http';
-    return `${protocol}://${hostUri}/api/v1`;
+  if (hostUri && hostUri.includes('exp.direct')) {
+    return `https://${hostUri}/api/v1`;
   }
-  return 'http://127.0.0.1:4000/api/v1';
+  const host = getHost();
+  return `http://${host}:4000/api/v1`;
 };
 
 let currentAuthToken: string | null = null;
@@ -88,7 +92,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     if (err.name === 'AbortError') {
       throw new Error('Connection timed out. Please check your network and make sure the server is reachable.');
     }
-    console.warn(`[API] fetch to ${url} failed:`, err.message);
+    // Suppress console spam for expected 401 checks (e.g. /auth/me for unauthenticated visitors)
+    if (path !== '/auth/me') {
+      console.warn(`[API] fetch to ${url} failed:`, err.message);
+    }
     throw err;
   }
 }

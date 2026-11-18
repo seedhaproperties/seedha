@@ -33,9 +33,10 @@ import { useApp } from '../../context/AppContext';
 export default function ProfileScreen() {
   const { push, pop, user, isAdmin, signOut, isAuthenticated, requireAuth, setTab } = useApp();
 
-  const displayName = user?.name || 'Aarav Varma';
-  const displayPhone = user?.phone || '+91 98765 43210';
-  const roleLabel = user?.role || 'OWNER';
+  const displayName = user?.name || (isAuthenticated ? 'Seedha User' : 'Guest User');
+  const displayPhone = user?.phone || (isAuthenticated ? '+91 98765 43210' : 'Sign in to access your account');
+  const roleLabel = user?.role || (isAuthenticated ? 'USER' : 'GUEST');
+  const displayEmail = user?.email || (isAuthenticated ? 'user@seedhaproperties.com' : 'Browse properties, listings & more');
 
   return (
     <View style={styles.container}>
@@ -72,15 +73,23 @@ export default function ProfileScreen() {
         <View style={styles.userProfileCard}>
           {/* Avatar with Verified Badge */}
           <View style={styles.avatarContainer}>
-            <Image
-              source={{
-                uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&h=160&fit=crop&crop=faces&auto=format',
-              }}
-              style={styles.avatarImage}
-            />
-            <View style={styles.verifiedBadge}>
-              <CheckCircle2 size={16} color="#FFFFFF" strokeWidth={2.2} />
-            </View>
+            {isAuthenticated ? (
+              <>
+                <Image
+                  source={{
+                    uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&h=160&fit=crop&crop=faces&auto=format',
+                  }}
+                  style={styles.avatarImage}
+                />
+                <View style={styles.verifiedBadge}>
+                  <CheckCircle2 size={16} color="#FFFFFF" strokeWidth={2.2} />
+                </View>
+              </>
+            ) : (
+              <View style={[styles.avatarImage, { backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center' }]}>
+                <User size={32} color="#FFFFFF" strokeWidth={2} />
+              </View>
+            )}
           </View>
 
           {/* User Details */}
@@ -93,22 +102,27 @@ export default function ProfileScreen() {
             </View>
 
             <Text style={styles.userPhone}>{displayPhone}</Text>
-
-            <Text style={styles.userEmail}>
-              aarav.varma@
-              <Text style={styles.brandYellow}>seedha</Text>
-              .com
-            </Text>
+            <Text style={styles.userEmail}>{displayEmail}</Text>
           </View>
 
-          {/* Edit Pencil Button */}
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => push({ name: 'personalInformation' })}
-            activeOpacity={0.8}
-          >
-            <Pencil size={15} color="#CBD5E1" strokeWidth={2} />
-          </TouchableOpacity>
+          {/* Edit Pencil Button or Sign In Button */}
+          {isAuthenticated ? (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => push({ name: 'personalInformation' })}
+              activeOpacity={0.8}
+            >
+              <Pencil size={15} color="#CBD5E1" strokeWidth={2} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.editButton, { width: 'auto', paddingHorizontal: 12, borderRadius: 12 }]}
+              onPress={() => requireAuth(undefined, { name: 'profile' }, 'Profile')}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>Log In</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -319,12 +333,18 @@ export default function ProfileScreen() {
         {/* Logout / Switch Role Option */}
         <TouchableOpacity
           style={styles.logoutButton}
-          onPress={() => signOut()}
+          onPress={() => {
+            if (isAuthenticated) {
+              signOut();
+            } else {
+              requireAuth(undefined, { name: 'profile' }, 'Profile');
+            }
+          }}
           activeOpacity={0.8}
         >
           <LogOut size={16} color="#64748B" strokeWidth={2} />
           <Text style={styles.logoutText}>
-            {isAuthenticated ? 'Sign Out / Switch Profile' : 'Sign In with Mobile OTP'}
+            {isAuthenticated ? 'Sign Out / Switch Profile' : 'Sign In with Email / Mobile'}
           </Text>
         </TouchableOpacity>
 

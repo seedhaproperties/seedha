@@ -14,11 +14,8 @@ export default function SplashScreen() {
   const ringOpacity = useRef(new Animated.Value(0.3)).current;
 
   const navigateNext = () => {
-    if (isAuthenticated) {
-      setTab('home');
-    } else {
-      push({ name: 'mobileLogin' });
-    }
+    // Guest browsing allowed: navigate to home page without forced login
+    setTab('home');
   };
 
   useEffect(() => {

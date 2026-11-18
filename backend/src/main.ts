@@ -13,6 +13,11 @@ async function bootstrap() {
     credentials: true,
   });
 
+  app.use((_req: any, res: any, next: any) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    next();
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

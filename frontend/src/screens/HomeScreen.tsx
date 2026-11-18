@@ -62,7 +62,7 @@ const POPULAR_LOCATIONS = [
 ];
 
 export default function HomeScreen() {
-  const { push, savedIds, toggleSaved, notifications, setTab, isAuthenticated, requireAuth } = useApp();
+  const { push, savedIds, toggleSaved, notifications, setTab, isAuthenticated, requireAuth, user } = useApp();
   const [activeCategory, setActiveCategory] = useState('buy');
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
@@ -129,7 +129,11 @@ export default function HomeScreen() {
     }
 
     if (target) {
-      handleProtectedNavigate(target, title);
+      if (key === 'buy' || key === 'rent' || key === 'commercial' || key === 'flatmates') {
+        push(target);
+      } else {
+        handleProtectedNavigate(target, title);
+      }
     }
   };
 
@@ -179,13 +183,26 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.profileAvatar}
-            onPress={() => handleProtectedNavigate({ name: 'profile' }, 'Profile')}
+            onPress={() => {
+              if (isAuthenticated) {
+                push({ name: 'profile' });
+              } else {
+                requireAuth(undefined, { name: 'profile' }, 'Profile');
+              }
+            }}
             activeOpacity={0.8}
           >
-            <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&auto=format' }}
-              style={styles.avatarImg}
-            />
+            {isAuthenticated && user ? (
+              <View style={styles.avatarInitialsBox}>
+                <Text style={styles.avatarInitialsText}>
+                  {(user.name || 'U').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.guestAvatarBox}>
+                <User size={18} color="#0F172A" strokeWidth={2.2} />
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -195,7 +212,7 @@ export default function HomeScreen() {
         <View style={styles.searchPill}>
           <TouchableOpacity
             style={styles.searchInputArea}
-            onPress={() => handleProtectedNavigate({ name: 'search' }, 'Search')}
+            onPress={() => push({ name: 'search' })}
             activeOpacity={0.85}
           >
             <Search size={17} color="#747874" strokeWidth={2.2} />
@@ -856,6 +873,25 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     backgroundColor: '#09130E',
     overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitialsBox: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#0F172A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitialsText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  guestAvatarBox: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },

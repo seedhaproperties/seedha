@@ -50,7 +50,7 @@ export function isNitroAvailable(): boolean {
   }
 
   try {
-    if (typeof (global as any).NitroModulesProxy !== 'undefined') {
+    if (typeof (globalThis as any).NitroModulesProxy !== 'undefined') {
       return true;
     }
     const module = TurboModuleRegistry?.get?.('NitroModules');
@@ -99,202 +99,230 @@ function ensureConfigured(): void {
  * Loads the official Google Identity Services (GIS) SDK script on Web.
  */
 function loadGsiScript(): Promise<void> {
-    if (typeof window === 'undefined') return Promise.resolve();
-    if ((window as any).google?.accounts?.oauth2 || (window as any).google?.accounts?.id) {
-      return Promise.resolve();
-    }
-
-    return new Promise((resolve, reject) => {
-      const existing = document.getElementById('google-gsi-client');
-      if (existing) {
-        existing.addEventListener('load', () => resolve());
-        existing.addEventListener('error', () => reject(new Error('Failed to load Google Identity Services SDK')));
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.id = 'google-gsi-client';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load Google Identity Services SDK'));
-      document.head.appendChild(script);
-    });
+  if (typeof window === 'undefined') return Promise.resolve();
+  if ((window as any).google?.accounts?.oauth2 || (window as any).google?.accounts?.id) {
+    return Promise.resolve();
   }
 
-  /**
-   * Initiates Native Google Sign-In (Android/iOS) or Google Identity Services (Web)
-   */
-  export async function startGoogleSignIn(): Promise<GoogleAuthResult> {
-    const webClientId = getGoogleWebClientId();
-
-    if (!webClientId || webClientId.includes('YOUR_GOOGLE_CLIENT_ID')) {
-      return {
-        success: false,
-        error: 'Google Sign-In is not configured yet. Please use Mobile Number OTP.',
-      };
+  return new Promise((resolve, reject) => {
+    const existing = document.getElementById('google-gsi-client');
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', () => reject(new Error('Failed to load Google Identity Services SDK')));
+      return;
     }
 
-    // ── Web Platform: Official Google Identity Services (GIS) ──
-    if (Platform.OS === 'web') {
-      try {
-        await loadGsiScript();
-        const google = (window as any).google;
+    const script = document.createElement('script');
+    script.id = 'google-gsi-client';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Google Identity Services SDK'));
+    document.head.appendChild(script);
+  });
+}
 
-        if (!google?.accounts) {
-          throw new Error('Google Identity Services SDK could not be initialized');
-        }
+/**
+ * Initiates Native Google Sign-In (Android/iOS) or Google Identity Services (Web)
+ */
+export async function startGoogleSignIn(): Promise<GoogleAuthResult> {
+  const webClientId = getGoogleWebClientId();
 
-        return new Promise<GoogleAuthResult>((resolve) => {
-          if (google.accounts.oauth2?.initTokenClient) {
-            try {
-              const tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: webClientId,
-                scope: 'openid profile email',
-                prompt: 'select_account',
-                callback: (tokenResponse: any) => {
-                  if (tokenResponse?.error) {
-                    if (tokenResponse.error === 'access_denied') {
-                      resolve({ success: false, canceled: true });
-                    } else {
-                      resolve({
-                        success: false,
-                        error: tokenResponse.error_description || tokenResponse.error,
-                      });
-                    }
-                    return;
-                  }
-                  if (tokenResponse?.access_token) {
-                    resolve({
-                      success: true,
-                      accessToken: tokenResponse.access_token,
-                    });
-                    return;
-                  }
-                  resolve({ success: false, error: 'No access token received from Google' });
-                },
-                error_callback: (err: any) => {
-                  if (err?.type === 'popup_closed') {
-                    resolve({ success: false, canceled: true });
-                  } else {
-                    resolve({
-                      success: false,
-                      error: err?.message || 'Google Sign-In window was closed',
-                    });
-                  }
-                },
-              });
+  if (!webClientId || webClientId.includes('YOUR_GOOGLE_CLIENT_ID')) {
+    return {
+      success: false,
+      error: 'Google Sign-In is not configured yet. Please use Mobile Number OTP.',
+    };
+  }
 
-              tokenClient.requestAccessToken({ prompt: 'select_account' });
-              return;
-            } catch (initErr: any) {
-              console.warn('[GoogleAuth] Web GIS initTokenClient error:', initErr.message);
-            }
+  // ── Web Platform: Official Google Identity Services (GIS) ──
+  if (Platform.OS === 'web') {
+    try {
+      await loadGsiScript();
+      const google = (window as any).google;
+
+      if (!google?.accounts) {
+        throw new Error('Google Identity Services SDK could not be initialized');
+      }
+
+      return new Promise<GoogleAuthResult>((resolve) => {
+        let hasResolved = false;
+        const safeResolve = (res: GoogleAuthResult) => {
+          if (!hasResolved) {
+            hasResolved = true;
+            resolve(res);
           }
+        };
 
-          if (google.accounts.id) {
+        // Setup ID token listener via Google Identity Services
+        if (google.accounts.id) {
+          try {
             google.accounts.id.initialize({
               client_id: webClientId,
               callback: (res: any) => {
                 if (res?.credential) {
-                  resolve({ success: true, idToken: res.credential });
+                  safeResolve({ success: true, idToken: res.credential });
                 } else {
-                  resolve({ success: false, error: 'Google did not return credentials' });
+                  safeResolve({ success: false, error: 'Google did not return credentials' });
                 }
               },
+              auto_select: false,
+              cancel_on_tap_outside: true,
             });
-            google.accounts.id.prompt((notification: any) => {
-              if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                resolve({
-                  success: false,
-                  error: 'Google Sign-In prompt was skipped or blocked by the browser. Please use Mobile OTP.',
-                });
-              }
-            });
-            return;
+          } catch (initIdErr) {
+            console.warn('[GoogleAuth] GIS id.initialize notice:', initIdErr);
           }
+        }
 
-          resolve({ success: false, error: 'Google authentication service is unavailable' });
-        });
+        if (google.accounts.oauth2?.initTokenClient) {
+          try {
+            const popupTimeout = setTimeout(() => {
+              safeResolve({
+                success: false,
+                canceled: true,
+                error: 'Google Sign-In popup closed or canceled. Please use Mobile OTP or Password.',
+              });
+            }, 45000);
+
+            const tokenClient = google.accounts.oauth2.initTokenClient({
+              client_id: webClientId,
+              scope: 'openid profile email',
+              prompt: 'select_account',
+              callback: (tokenResponse: any) => {
+                clearTimeout(popupTimeout);
+                if (tokenResponse?.error) {
+                  if (tokenResponse.error === 'access_denied') {
+                    safeResolve({ success: false, canceled: true });
+                  } else {
+                      safeResolve({
+                        success: false,
+                        error: tokenResponse.error_description || tokenResponse.error,
+                    });
+                  }
+                  return;
+                }
+                if (tokenResponse?.access_token) {
+                    safeResolve({
+                      success: true,
+                      accessToken: tokenResponse.access_token,
+                  });
+                  return;
+                }
+                safeResolve({ success: false, error: 'No access token received from Google' });
+              },
+              error_callback: (err: any) => {
+                clearTimeout(popupTimeout);
+                if (err?.type === 'popup_closed') {
+                  safeResolve({ success: false, canceled: true });
+                } else {
+                    safeResolve({
+                      success: false,
+                      error: err?.message || 'Google Sign-In window was closed',
+                    });
+          }
+                },
+      });
+
+      tokenClient.requestAccessToken({ prompt: 'select_account' });
+      return;
+    } catch (initErr: any) {
+      console.warn('[GoogleAuth] Web GIS initTokenClient error:', initErr.message);
+    }
+  }
+
+  if (google.accounts.id) {
+    google.accounts.id.prompt((notification: any) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          safeResolve({
+            success: false,
+            error: 'Google Sign-In prompt was skipped or blocked by the browser. Please use Mobile OTP or Password.',
+          });
+        }
+            });
+    return;
+  }
+
+  safeResolve({ success: false, error: 'Google authentication service is unavailable' });
+});
       } catch (err: any) {
-        console.warn('[GoogleAuth] Web GIS Error:', err.message);
-        return {
-          success: false,
-          error: err.message || 'Failed to start Google Sign-In on Web',
-        };
-      }
+  console.warn('[GoogleAuth] Web GIS Error:', err.message);
+  return {
+    success: false,
+    error: err.message || 'Failed to start Google Sign-In on Web',
+  };
+}
     }
 
-    // ── Native Mobile Platform (Android / iOS): Native Google Sign-In ──
-    const nitro = getNitroGoogleSignIn();
-    if (!nitro || !nitro.GoogleOneTapSignIn) {
-      return {
-        success: false,
-        error:
-          'Google One Tap sign-in requires an Android Development APK. In Expo Go, please sign in with your mobile number (use test OTP 123456).',
-      };
-    }
+// ── Native Mobile Platform (Android / iOS): Native Google Sign-In ──
+const nitro = getNitroGoogleSignIn();
+if (!nitro || !nitro.GoogleOneTapSignIn) {
+  return {
+    success: false,
+    error:
+      'Google One Tap sign-in requires an Android Development APK. In Expo Go, please sign in with your mobile number (use test OTP 123456).',
+  };
+}
 
+try {
+  const {
+    GoogleOneTapSignIn,
+    isSuccessResponse,
+    isCancelledResponse,
+  } = nitro;
+
+  ensureConfigured();
+
+  // Check Google Play Services availability on Android
+  if (Platform.OS === 'android') {
     try {
-      const {
-        GoogleOneTapSignIn,
-        isSuccessResponse,
-        isCancelledResponse,
-    } = nitro;
-
-    ensureConfigured();
-
-    // Check Google Play Services availability on Android
-    if (Platform.OS === 'android') {
-      try {
-        await GoogleOneTapSignIn.checkPlayServices(true);
-      } catch (psErr: any) {
-        console.warn('[GoogleAuth] Play Services check warning:', psErr.message);
-      }
+      await GoogleOneTapSignIn.checkPlayServices(true);
+    } catch (psErr: any) {
+      console.warn('[GoogleAuth] Play Services check warning:', psErr.message);
     }
+  }
 
-    // Launch native account selection UI
-    const response = await GoogleOneTapSignIn.presentExplicitSignIn();
+  // Launch native account selection UI
+  const response = await GoogleOneTapSignIn.presentExplicitSignIn();
 
-    if (isCancelledResponse(response)) {
-      return { success: false, canceled: true };
-    }
+  if (isCancelledResponse(response)) {
+    return { success: false, canceled: true };
+  }
 
-    if (isSuccessResponse(response) && response.data?.idToken) {
-      return {
-        success: true,
-        idToken: response.data.idToken,
-        email: response.data.user?.email || undefined,
-        name: response.data.user?.name || undefined,
-        photoUrl: response.data.user?.photo || undefined,
-      };
-    }
-
-    // Fallback: attempt getTokens() if idToken is stored on session
-    try {
-      const tokens = await GoogleOneTapSignIn.getTokens();
-      if (tokens?.idToken) {
-        return {
-          success: true,
-          idToken: tokens.idToken,
-          accessToken: tokens.accessToken || undefined,
-        };
-      }
-    } catch {
-      // Ignore fallback error
-    }
-
+  if (isSuccessResponse(response) && response.data?.idToken) {
     return {
-      success: false,
-      error: 'Google Sign-In was not completed. Please try again or use Mobile OTP.',
-    };
-  } catch (err: any) {
-    console.warn('[GoogleAuth] Native Google Sign-In error:', err.message);
-
-    return {
-      success: false,
-      error: err.message || 'Failed to initialize Native Google Sign-In prompt',
+      success: true,
+      idToken: response.data.idToken,
+      email: response.data.user?.email || undefined,
+      name: response.data.user?.name || undefined,
+      photoUrl: response.data.user?.photo || undefined,
     };
   }
+
+  // Fallback: attempt getTokens() if idToken is stored on session
+  try {
+    const tokens = await GoogleOneTapSignIn.getTokens();
+    if (tokens?.idToken) {
+      return {
+        success: true,
+        idToken: tokens.idToken,
+        accessToken: tokens.accessToken || undefined,
+      };
+    }
+  } catch {
+    // Ignore fallback error
+  }
+
+  return {
+    success: false,
+    error: 'Google Sign-In was not completed. Please try again or use Mobile OTP.',
+  };
+} catch (err: any) {
+  console.warn('[GoogleAuth] Native Google Sign-In error:', err.message);
+
+  return {
+    success: false,
+    error: err.message || 'Failed to initialize Native Google Sign-In prompt',
+  };
+}
 }

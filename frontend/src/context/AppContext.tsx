@@ -224,6 +224,30 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
+function isJwtExpired(token: string | null | undefined): boolean {
+  if (!token || typeof token !== 'string') return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true; // Malformed / non-JWT tokens are invalid
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const parsed = JSON.parse(jsonPayload);
+    if (!parsed || !parsed.exp || typeof parsed.exp !== 'number') {
+      return true;
+    }
+    // Buffer with 5 seconds margin
+    return Date.now() >= (parsed.exp * 1000 - 5000);
+  } catch {
+    return true;
+  }
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -262,23 +286,66 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFlatmatesFiltersState(filters);
   }, []);
 
-  // Restore stored session on mount
+  // Restore and verify stored session on mount against real database API (/auth/me)
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const storedUser = window.localStorage.getItem('seedha_user');
-        const storedToken = window.localStorage.getItem('seedha_auth_token');
-        if (storedUser && storedToken) {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-          setTokenState(storedToken);
-          setAuthToken(storedToken);
-          setIsAuthenticated(true);
+    let isMounted = true;
+    const verifyStoredSession = async () => {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const storedToken = window.localStorage.getItem('seedha_auth_token');
+          const storedUser = window.localStorage.getItem('seedha_user');
+          if (storedToken) {
+            if (isJwtExpired(storedToken)) {
+              // Expired token: clear immediately without unnecessary network 401
+              try {
+                window.localStorage.removeItem('seedha_auth_token');
+                window.localStorage.removeItem('seedha_user');
+              } catch { }
+            } else {
+              setAuthToken(storedToken);
+              setTokenState(storedToken);
+              try {
+                const res = await api.auth.me();
+                if (res && (res.id || res.sub) && isMounted) {
+                  const verifiedUser: UserProfile = {
+                    id: res.id || res.sub,
+                    name: res.name || (storedUser ? JSON.parse(storedUser).name : 'Verified User'),
+                    email: res.email,
+                    phone: res.phone || (storedUser ? JSON.parse(storedUser).phone : '+91 98765 43210'),
+                    city: res.city || 'Hyderabad',
+                    role: res.role || 'USER',
+                  };
+                  setUser(verifiedUser);
+                  setIsAuthenticated(true);
+                  return;
+                }
+              } catch (authErr) {
+                // Token invalidated or revoked in database
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[AppContext] Failed restoring session:', e);
         }
-      } catch (e) {
-        console.warn('Failed restoring stored session', e);
+
+        // Stored session is missing or invalid in database -> remain clean guest
+        if (isMounted) {
+          setUser(null);
+          setTokenState(null);
+          setAuthToken(null);
+          setIsAuthenticated(false);
+          try {
+            window.localStorage.removeItem('seedha_user');
+            window.localStorage.removeItem('seedha_auth_token');
+          } catch { }
+        }
       }
-    }
+    };
+
+    verifyStoredSession();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const push = useCallback((screen: ScreenState) => {
@@ -336,7 +403,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (authToken) {
             window.localStorage.setItem('seedha_auth_token', authToken);
           }
-        } catch {}
+        } catch { }
       }
 
       // Resume requested action or destination without resetting to home
@@ -429,16 +496,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const login = useCallback(
-    async (email: string, pass: string, requestedRole?: UserRole) => {
-      const res = await authenticateCredentials(email, pass, requestedRole);
-      if (!res.success || !res.session) {
-        return { success: false, error: res.error || 'Authentication failed' };
+    async (identifier: string, pass: string, requestedRole?: UserRole) => {
+      try {
+        const res = await api.auth.login(identifier, pass);
+        if (res?.user && (res.accessToken || res.token)) {
+          completeAuth(res.user, res.accessToken || res.token);
+          return { success: true, role: res.user.role };
+        }
+        return { success: false, error: 'Invalid response from database server' };
+      } catch (err: any) {
+        return {
+          success: false,
+          error: err.message || 'Invalid credentials. Please verify your registered email/phone and password.',
+        };
       }
-      const authUser = res.session.user;
-      signIn(authUser, res.session.token);
-      return { success: true, role: authUser.role };
     },
-    [signIn]
+    [completeAuth]
   );
 
   const signOut = useCallback(() => {
@@ -451,11 +524,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         window.localStorage.removeItem('seedha_user');
         window.localStorage.removeItem('seedha_auth_token');
-      } catch {}
+      } catch { }
     }
-    // Stay gracefully in Guest mode on Landing screen
-    setStack([{ name: 'landing' }]);
-    setActiveTab('landing');
+    // Stay gracefully in Guest mode on Home screen
+    setStack([{ name: 'home' }]);
+    setActiveTab('home');
   }, []);
 
   const logoutAdmin = useCallback(() => {

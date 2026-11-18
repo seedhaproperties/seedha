@@ -269,7 +269,15 @@ const pgRulesOptions = [
 ];
 
 export default function PostPropertyScreen() {
-  const { pop, addAdminRequest, user } = useApp();
+  const { pop, addAdminRequest, user, isAuthenticated, requireAuth } = useApp();
+
+  // Authentication Guard: Ensure user is logged in before posting property
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      requireAuth(undefined, { name: 'postProperty' }, 'Post Property');
+    }
+  }, [isAuthenticated, requireAuth]);
+
   const [mode, setMode] = useState<PostMode>('sheet');
   const [step, setStep] = useState<Step>(1);
 

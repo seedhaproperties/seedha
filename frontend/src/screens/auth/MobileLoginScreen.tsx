@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
-import { ChevronLeft, ChevronRight, Sparkles, RefreshCw, Phone, User, Mail, Lock, ShieldCheck, CheckCircle2, Check } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Sparkles, RefreshCw, Phone, User, Mail, Lock, ShieldCheck, CheckCircle2, Check, Eye, EyeOff, KeyRound } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import SeedhaLogo from '../../components/SeedhaLogo';
 import { api } from '../../services/api';
@@ -72,9 +72,15 @@ export default function MobileLoginScreen() {
         ? pendingAction.actionName
         : null;
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
+  const [authType, setAuthType] = useState<'password' | 'otp'>('password');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [fullName, setFullName] = useState('');
   const [isNameFocused, setIsNameFocused] = useState(false);
+  const [identifier, setIdentifier] = useState('');
+  const [isIdentifierFocused, setIsIdentifierFocused] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [phone, setPhone] = useState('');
   const [isPhoneFocused, setIsPhoneFocused] = useState(false);
   const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
@@ -204,6 +210,82 @@ export default function MobileLoginScreen() {
     }
   };
 
+  const handlePasswordLogin = async () => {
+    const rawId = (identifier || (authMethod === 'phone' ? phone : email)).trim();
+    if (!rawId) {
+      setErrorMessage('Please enter your email address or mobile number');
+      return;
+    }
+    if (!password || password.length < 4) {
+      setErrorMessage('Please enter your password');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage(null);
+    setInfoMessage(null);
+
+    try {
+      const res = await api.auth.login(rawId, password);
+      setLoading(false);
+      if (res?.user && (res.accessToken || res.token)) {
+        completeAuth(res.user, res.accessToken || res.token);
+      } else {
+        setErrorMessage('Failed to sign in. Please verify your credentials.');
+      }
+    } catch (err: any) {
+      console.warn('[MobileLogin] Password login error:', err.message);
+      setLoading(false);
+      setErrorMessage(
+        err.message || 'Invalid credentials. Please check your email/mobile and password.'
+      );
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!fullName.trim() || fullName.trim().length < 2) {
+      setErrorMessage('Please enter your full name (at least 2 characters)');
+      return;
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setErrorMessage('Please enter a valid 10-digit mobile number');
+      return;
+    }
+    if (!email.trim() || !isEmailValid) {
+      setErrorMessage('Please enter a valid email address');
+      return;
+    }
+    if (!password || password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage(null);
+    setInfoMessage(null);
+
+    try {
+      const cleanPhoneWithCode = `+91${cleanPhone}`;
+      const res = await api.auth.register({
+        name: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: cleanPhoneWithCode,
+        password: password,
+      });
+      setLoading(false);
+      if (res?.user && (res.accessToken || res.token)) {
+        completeAuth(res.user, res.accessToken || res.token);
+      } else {
+        setErrorMessage('Failed to complete registration. Please try again.');
+      }
+    } catch (err: any) {
+      console.warn('[MobileLogin] Register error:', err.message);
+      setLoading(false);
+      setErrorMessage(err.message || 'Registration failed. Email or mobile may already be registered.');
+    }
+  };
+
   const handleCompleteSignup = async () => {
     if (!fullName.trim() || fullName.trim().length < 2) {
       setErrorMessage('Please enter your full name (at least 2 characters)');
@@ -231,7 +313,6 @@ export default function MobileLoginScreen() {
       setLoading(false);
       if (res?.user && (res.accessToken || res.token)) {
         completeAuth(res.user, res.accessToken || res.token);
-        setTab('home');
       } else {
         setErrorMessage('Failed to complete registration. Please try again.');
       }
@@ -271,7 +352,6 @@ export default function MobileLoginScreen() {
         setGoogleLoading(false);
         if (res?.user && (res.accessToken || res.token)) {
           completeAuth(res.user, res.accessToken || res.token);
-          setTab('home');
         } else {
           setErrorMessage('Google authentication could not be completed.');
         }
@@ -371,7 +451,6 @@ export default function MobileLoginScreen() {
           fullName.trim() ? { ...res.user, name: fullName.trim() } : res.user,
           res.accessToken || res.token
         );
-        setTab('home');
       } else {
         setErrorMessage('Verification failed. Invalid response received from server.');
       }
@@ -395,23 +474,13 @@ export default function MobileLoginScreen() {
         >
           {/* Top Row: Back Button */}
           <View style={styles.topBar}>
-            {step === 'otp' ? (
-              <TouchableOpacity
-                onPress={() => setStep('phone')}
-                style={styles.backButton}
-                activeOpacity={0.8}
-              >
-                <ChevronLeft size={22} color="#0F172A" strokeWidth={2.4} />
-              </TouchableOpacity>
-            ) : isAuthenticated ? (
-              <TouchableOpacity
-                onPress={cancelAuth}
-                style={styles.backButton}
-                activeOpacity={0.8}
-              >
-                <ChevronLeft size={22} color="#0F172A" strokeWidth={2.4} />
-              </TouchableOpacity>
-            ) : null}
+            <TouchableOpacity
+              onPress={step === 'otp' ? () => setStep('phone') : cancelAuth}
+              style={styles.backButton}
+              activeOpacity={0.8}
+            >
+              <ChevronLeft size={22} color="#0F172A" strokeWidth={2.4} />
+            </TouchableOpacity>
           </View>
 
           {/* Logo - only on Phone Sign In / Sign Up step */}
@@ -421,10 +490,23 @@ export default function MobileLoginScreen() {
             </View>
           )}
 
-          {/* Step 1: Phone / Social Login matching image */}
+          {/* Step 1: Phone / Password / Social Login */}
           {step === 'phone' ? (
             <View style={styles.formContent}>
-              {/* Info banner (e.g. redirected after OTP verification to enter name) */}
+              {/* Action notice banner for protected actions */}
+              {actionName && (
+                <View style={styles.actionPromptBanner}>
+                  <ShieldCheck size={20} color="#0F172A" strokeWidth={2.2} />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.actionPromptTitle}>Please login to continue</Text>
+                    <Text style={styles.actionPromptSubtitle}>
+                      Sign in or create an account to {actionName}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Info banner */}
               {infoMessage && (
                 <View style={styles.infoBanner}>
                   <CheckCircle2 size={16} color="#059669" strokeWidth={2.2} />
@@ -438,18 +520,312 @@ export default function MobileLoginScreen() {
               </Text>
               <Text style={styles.subHeading}>
                 {mode === 'signin'
-                  ? 'Sign in to continue your property journey.'
-                  : 'Join Seedha Properties and make your property journey easier.'}
+                  ? 'Sign in with your database account or mobile OTP.'
+                  : 'Join Seedha Properties and save your property journey in real-time.'}
               </Text>
 
-              {/* Full Name Field (only on Create your account) */}
+              {/* In signin mode: Toggle between Password Login and OTP Login */}
+              {mode === 'signin' && (
+                <View style={styles.authTypeSegmentWrap}>
+                  <TouchableOpacity
+                    style={[
+                      styles.authTypeSegmentBtn,
+                      authType === 'password' && styles.authTypeSegmentBtnActive,
+                    ]}
+                    onPress={() => {
+                      setAuthType('password');
+                      setErrorMessage(null);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Lock
+                      size={14}
+                      color={authType === 'password' ? '#0F172A' : '#64748B'}
+                      strokeWidth={2.2}
+                    />
+                    <Text
+                      style={[
+                        styles.authTypeSegmentText,
+                        authType === 'password' && styles.authTypeSegmentTextActive,
+                      ]}
+                    >
+                      Password Login
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.authTypeSegmentBtn,
+                      authType === 'otp' && styles.authTypeSegmentBtnActive,
+                    ]}
+                    onPress={() => {
+                      setAuthType('otp');
+                      setErrorMessage(null);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Sparkles
+                      size={14}
+                      color={authType === 'otp' ? '#0F172A' : '#64748B'}
+                      strokeWidth={2.2}
+                    />
+                    <Text
+                      style={[
+                        styles.authTypeSegmentText,
+                        authType === 'otp' && styles.authTypeSegmentTextActive,
+                      ]}
+                    >
+                      OTP Login
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* ── Case A: Sign In with Password (Real-Time Database Credentials) ── */}
+              {mode === 'signin' && authType === 'password' && (
+                <View style={{ width: '100%' }}>
+                  <Text style={styles.inputLabel}>Email or Mobile Number</Text>
+                  <View
+                    style={[
+                      styles.nameInputRow,
+                      isIdentifierFocused && styles.inputRowActive,
+                      { marginBottom: 16 },
+                    ]}
+                  >
+                    <User size={18} color="#94A3B8" strokeWidth={2} style={styles.inputIcon} />
+                    <TextInput
+                      style={[
+                        styles.nameTextInput,
+                        Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                      ]}
+                      placeholder="Enter email or mobile number"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      value={identifier}
+                      onChangeText={(val) => {
+                        setIdentifier(val);
+                        if (errorMessage) setErrorMessage(null);
+                      }}
+                      onFocus={() => setIsIdentifierFocused(true)}
+                      onBlur={() => setIsIdentifierFocused(false)}
+                    />
+                  </View>
+
+                  <Text style={styles.inputLabel}>Password</Text>
+                  <View
+                    style={[
+                      styles.nameInputRow,
+                      isPasswordFocused && styles.inputRowActive,
+                      { marginBottom: 18 },
+                    ]}
+                  >
+                    <Lock size={18} color="#94A3B8" strokeWidth={2} style={styles.inputIcon} />
+                    <TextInput
+                      style={[
+                        styles.nameTextInput,
+                        Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                      ]}
+                      placeholder="Enter your account password"
+                      placeholderTextColor="#94A3B8"
+                      secureTextEntry={!showPassword}
+                      value={password}
+                      onChangeText={(val) => {
+                        setPassword(val);
+                        if (errorMessage) setErrorMessage(null);
+                      }}
+                      onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={() => setIsPasswordFocused(false)}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={{ padding: 4 }}
+                      activeOpacity={0.7}
+                    >
+                      {showPassword ? (
+                        <EyeOff size={18} color="#64748B" strokeWidth={2} />
+                      ) : (
+                        <Eye size={18} color="#64748B" strokeWidth={2} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+
+                  <TouchableOpacity
+                    onPress={handlePasswordLogin}
+                    disabled={loading || googleLoading}
+                    style={styles.continueBtn}
+                    activeOpacity={0.88}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.continueBtnText}>Sign In</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* ── Case B: Sign In with OTP ── */}
+              {mode === 'signin' && authType === 'otp' && (
+                <View style={{ width: '100%' }}>
+                  {/* Toggle Switcher: Mobile OTP vs Email OTP */}
+                  <View style={styles.methodToggleWrap}>
+                    <TouchableOpacity
+                      style={[
+                        styles.methodToggleBtn,
+                        authMethod === 'phone' && styles.methodToggleBtnActive,
+                      ]}
+                      onPress={() => {
+                        setAuthMethod('phone');
+                        setErrorMessage(null);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Phone
+                        size={15}
+                        color={authMethod === 'phone' ? '#0F172A' : '#64748B'}
+                        strokeWidth={2.2}
+                      />
+                      <Text
+                        style={[
+                          styles.methodToggleText,
+                          authMethod === 'phone' && styles.methodToggleTextActive,
+                        ]}
+                      >
+                        Mobile OTP
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.methodToggleBtn,
+                        authMethod === 'email' && styles.methodToggleBtnActive,
+                      ]}
+                      onPress={() => {
+                        setAuthMethod('email');
+                        setErrorMessage(null);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Mail
+                        size={15}
+                        color={authMethod === 'email' ? '#0F172A' : '#64748B'}
+                        strokeWidth={2.2}
+                      />
+                      <Text
+                        style={[
+                          styles.methodToggleText,
+                          authMethod === 'email' && styles.methodToggleTextActive,
+                        ]}
+                      >
+                        Email OTP
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.inputLabel}>
+                    {authMethod === 'phone' ? 'Mobile Number' : 'Email Address'}
+                  </Text>
+
+                  {authMethod === 'phone' ? (
+                    <View
+                      style={[
+                        styles.phoneInputRow,
+                        phone.length === 10 && styles.phoneInputRowActive,
+                      ]}
+                    >
+                      <View style={styles.countryWrap}>
+                        <IndiaFlag width={22} height={15} />
+                        <Text style={styles.countryCode}>+91</Text>
+                      </View>
+                      <View style={styles.inputDivider} />
+                      <TextInput
+                        style={[
+                          styles.phoneInput,
+                          Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                        ]}
+                        placeholder="Enter mobile number"
+                        placeholderTextColor="#94A3B8"
+                        keyboardType="phone-pad"
+                        maxLength={10}
+                        value={phone}
+                        onChangeText={handlePhoneChange}
+                        onFocus={() => setIsPhoneFocused(true)}
+                        onBlur={() => setIsPhoneFocused(false)}
+                      />
+                      {phone.length === 10 && (
+                        <View style={styles.validCheckCircle}>
+                          <Check size={13} color="#FFFFFF" strokeWidth={3} />
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View
+                      style={[
+                        styles.phoneInputRow,
+                        isEmailValid && styles.phoneInputRowActive,
+                      ]}
+                    >
+                      <View style={styles.emailIconWrap}>
+                        <Mail size={18} color="#64748B" strokeWidth={2} />
+                      </View>
+                      <View style={styles.inputDivider} />
+                      <TextInput
+                        style={[
+                          styles.phoneInput,
+                          Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                        ]}
+                        placeholder="Enter your email address"
+                        placeholderTextColor="#94A3B8"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        value={email}
+                        onChangeText={(text) => {
+                          setEmail(text);
+                          setIsPhoneVerified(false);
+                          if (errorMessage) setErrorMessage(null);
+                        }}
+                        onFocus={() => setIsEmailFocused(true)}
+                        onBlur={() => setIsEmailFocused(false)}
+                      />
+                      {isEmailValid && (
+                        <View style={styles.validCheckCircle}>
+                          <Check size={13} color="#FFFFFF" strokeWidth={3} />
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+
+                  <TouchableOpacity
+                    onPress={() => handleSendOtp()}
+                    disabled={loading || googleLoading}
+                    style={styles.continueBtn}
+                    activeOpacity={0.88}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.continueBtnText}>Send Verification Code</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* ── Case C: Sign Up / Register New Account in Database ── */}
               {mode === 'signup' && (
-                <View style={styles.inputGroup}>
+                <View style={{ width: '100%' }}>
                   <Text style={styles.inputLabel}>Full Name</Text>
                   <View
                     style={[
                       styles.nameInputRow,
                       isNameFocused && styles.inputRowActive,
+                      { marginBottom: 14 },
                     ]}
                   >
                     <User size={18} color="#94A3B8" strokeWidth={2} style={styles.inputIcon} />
@@ -467,194 +843,129 @@ export default function MobileLoginScreen() {
                       }}
                       onFocus={() => setIsNameFocused(true)}
                       onBlur={() => setIsNameFocused(false)}
-                      autoFocus={mode === 'signup'}
                     />
                   </View>
-                </View>
-              )}
 
-              {/* Toggle Switcher: Mobile OTP vs Email OTP */}
-              <View style={styles.methodToggleWrap}>
-                <TouchableOpacity
-                  style={[
-                    styles.methodToggleBtn,
-                    authMethod === 'phone' && styles.methodToggleBtnActive,
-                  ]}
-                  onPress={() => {
-                    setAuthMethod('phone');
-                    setErrorMessage(null);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Phone
-                    size={15}
-                    color={authMethod === 'phone' ? '#0F172A' : '#64748B'}
-                    strokeWidth={2.2}
-                  />
-                  <Text
+                  <Text style={styles.inputLabel}>Mobile Number</Text>
+                  <View
                     style={[
-                      styles.methodToggleText,
-                      authMethod === 'phone' && styles.methodToggleTextActive,
+                      styles.phoneInputRow,
+                      phone.length === 10 && styles.phoneInputRowActive,
+                      { marginBottom: 14 },
                     ]}
                   >
-                    Mobile OTP
-                  </Text>
-                </TouchableOpacity>
+                    <View style={styles.countryWrap}>
+                      <IndiaFlag width={22} height={15} />
+                      <Text style={styles.countryCode}>+91</Text>
+                    </View>
+                    <View style={styles.inputDivider} />
+                    <TextInput
+                      style={[
+                        styles.phoneInput,
+                        Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                      ]}
+                      placeholder="10-digit mobile number"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                      value={phone}
+                      onChangeText={handlePhoneChange}
+                      onFocus={() => setIsPhoneFocused(true)}
+                      onBlur={() => setIsPhoneFocused(false)}
+                    />
+                    {phone.length === 10 && (
+                      <View style={styles.validCheckCircle}>
+                        <Check size={13} color="#FFFFFF" strokeWidth={3} />
+                      </View>
+                    )}
+                  </View>
 
-                <TouchableOpacity
-                  style={[
-                    styles.methodToggleBtn,
-                    authMethod === 'email' && styles.methodToggleBtnActive,
-                  ]}
-                  onPress={() => {
-                    setAuthMethod('email');
-                    setErrorMessage(null);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Mail
-                    size={15}
-                    color={authMethod === 'email' ? '#0F172A' : '#64748B'}
-                    strokeWidth={2.2}
-                  />
-                  <Text
+                  <Text style={styles.inputLabel}>Email Address</Text>
+                  <View
                     style={[
-                      styles.methodToggleText,
-                      authMethod === 'email' && styles.methodToggleTextActive,
+                      styles.phoneInputRow,
+                      isEmailValid && styles.phoneInputRowActive,
+                      { marginBottom: 14 },
                     ]}
                   >
-                    Email OTP
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Input Label */}
-              <Text style={styles.inputLabel}>
-                {authMethod === 'phone' ? 'Mobile Number' : 'Email Address'}
-              </Text>
-
-              {/* Input Field: Phone or Email */}
-              {authMethod === 'phone' ? (
-                <View
-                  style={[
-                    styles.phoneInputRow,
-                    phone.length === 10 && styles.phoneInputRowActive,
-                  ]}
-                >
-                  {/* Flag + Country Code */}
-                  <View style={styles.countryWrap}>
-                    <IndiaFlag width={22} height={15} />
-                    <Text style={styles.countryCode}>+91</Text>
+                    <View style={styles.emailIconWrap}>
+                      <Mail size={18} color="#64748B" strokeWidth={2} />
+                    </View>
+                    <View style={styles.inputDivider} />
+                    <TextInput
+                      style={[
+                        styles.phoneInput,
+                        Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                      ]}
+                      placeholder="Enter email address"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      value={email}
+                      onChangeText={(text) => {
+                        setEmail(text);
+                        if (errorMessage) setErrorMessage(null);
+                      }}
+                      onFocus={() => setIsEmailFocused(true)}
+                      onBlur={() => setIsEmailFocused(false)}
+                    />
                   </View>
 
-                  {/* Vertical Divider */}
-                  <View style={styles.inputDivider} />
-
-                  {/* Phone Input */}
-                  <TextInput
+                  <Text style={styles.inputLabel}>Create Password</Text>
+                  <View
                     style={[
-                      styles.phoneInput,
-                      Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                      styles.nameInputRow,
+                      isPasswordFocused && styles.inputRowActive,
+                      { marginBottom: 18 },
                     ]}
-                    placeholder="Enter mobile number"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                    value={phone}
-                    onChangeText={handlePhoneChange}
-                    onFocus={() => setIsPhoneFocused(true)}
-                    onBlur={() => setIsPhoneFocused(false)}
-                    autoFocus={false}
-                  />
-
-                  {/* Green Valid Checkmark Circle (matching screenshot) */}
-                  {phone.length === 10 && (
-                    <View style={styles.validCheckCircle}>
-                      <Check size={13} color="#FFFFFF" strokeWidth={3} />
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <View
-                  style={[
-                    styles.phoneInputRow,
-                    isEmailValid && styles.phoneInputRowActive,
-                  ]}
-                >
-                  <View style={styles.emailIconWrap}>
-                    <Mail size={18} color="#64748B" strokeWidth={2} />
+                  >
+                    <Lock size={18} color="#94A3B8" strokeWidth={2} style={styles.inputIcon} />
+                    <TextInput
+                      style={[
+                        styles.nameTextInput,
+                        Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
+                      ]}
+                      placeholder="Minimum 6 characters"
+                      placeholderTextColor="#94A3B8"
+                      secureTextEntry={!showPassword}
+                      value={password}
+                      onChangeText={(val) => {
+                        setPassword(val);
+                        if (errorMessage) setErrorMessage(null);
+                      }}
+                      onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={() => setIsPasswordFocused(false)}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={{ padding: 4 }}
+                      activeOpacity={0.7}
+                    >
+                      {showPassword ? (
+                        <EyeOff size={18} color="#64748B" strokeWidth={2} />
+                      ) : (
+                        <Eye size={18} color="#64748B" strokeWidth={2} />
+                      )}
+                    </TouchableOpacity>
                   </View>
 
-                  {/* Vertical Divider */}
-                  <View style={styles.inputDivider} />
+                  {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
-                  {/* Email Input */}
-                  <TextInput
-                    style={[
-                      styles.phoneInput,
-                      Platform.OS === 'web' && ({ outlineStyle: 'none', outlineWidth: 0, outline: 'none', boxShadow: 'none' } as any),
-                    ]}
-                    placeholder="Enter your email address"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    value={email}
-                    onChangeText={(text) => {
-                      setEmail(text);
-                      setIsPhoneVerified(false);
-                      if (errorMessage) setErrorMessage(null);
-                    }}
-                    onFocus={() => setIsEmailFocused(true)}
-                    onBlur={() => setIsEmailFocused(false)}
-                    autoFocus={false}
-                  />
-
-                  {/* Green Valid Checkmark Circle */}
-                  {isEmailValid && (
-                    <View style={styles.validCheckCircle}>
-                      <Check size={13} color="#FFFFFF" strokeWidth={3} />
-                    </View>
-                  )}
+                  <TouchableOpacity
+                    onPress={handleRegister}
+                    disabled={loading || googleLoading}
+                    style={styles.continueBtn}
+                    activeOpacity={0.88}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.continueBtnText}>Create Account</Text>
+                    )}
+                  </TouchableOpacity>
                 </View>
               )}
-
-              {/* Helper text on Signup */}
-              {mode === 'signup' && (
-                <Text style={styles.phoneHelperText}>
-                  {authMethod === 'phone'
-                    ? "We'll send a verification code to this mobile number"
-                    : "We'll send a verification code to this email address"}
-                </Text>
-              )}
-
-              {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-
-              {/* Action Button: Send OTP / Continue / Create Account */}
-              <TouchableOpacity
-                onPress={() => {
-                  if (mode === 'signup' && isPhoneVerified) {
-                    handleCompleteSignup();
-                  } else {
-                    handleSendOtp();
-                  }
-                }}
-                disabled={loading || googleLoading}
-                style={styles.continueBtn}
-                activeOpacity={0.88}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.continueBtnText}>
-                    {mode === 'signup'
-                      ? isPhoneVerified
-                        ? 'Create Account'
-                        : 'Send OTP'
-                      : 'Continue'}
-                  </Text>
-                )}
-              </TouchableOpacity>
 
               {/* Divider: or sign up with / or continue with */}
               <View style={styles.dividerRow}>
@@ -977,6 +1288,61 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     flex: 1,
     fontWeight: '500',
+  },
+  actionPromptBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 20,
+  },
+  actionPromptTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  actionPromptSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  authTypeSegmentWrap: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 22,
+    marginTop: 14,
+  },
+  authTypeSegmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  authTypeSegmentBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  authTypeSegmentText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  authTypeSegmentTextActive: {
+    color: '#0F172A',
+    fontWeight: '700',
   },
   backButton: {
     width: 44,
