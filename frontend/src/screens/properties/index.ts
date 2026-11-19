@@ -1,0 +1,11 @@
+export { default as BookVisitScreen } from './BookVisitScreen';
+export { default as BuyPropertiesScreen } from './BuyPropertiesScreen';
+export { default as ChatScreen } from './ChatScreen';
+export { default as CommercialSpacesScreen } from './CommercialSpacesScreen';
+export { default as CompareScreen } from './CompareScreen';
+export { default as FlatmatesScreen } from './FlatmatesScreen';
+export { default as PgHostelsScreen } from './PgHostelsScreen';
+export { default as PostPropertyScreen } from './PostPropertyScreen';
+export { default as PropertyDetailScreen } from './PropertyDetailScreen';
+export { default as PropertyListingScreen } from './PropertyListingScreen';
+export { default as RentHomesScreen } from './RentHomesScreen';

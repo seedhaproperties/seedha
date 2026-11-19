@@ -2,44 +2,63 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { AppProvider, useApp } from './context/AppContext';
-import BottomNav from './components/BottomNav';
-import HomeScreen from './screens/HomeScreen';
-import ExploreScreen from './screens/ExploreScreen';
-import MyPropertyScreen from './screens/MyPropertyScreen';
-import ProfileScreen from './screens/ProfileScreen';
-import PropertyListingScreen from './screens/PropertyListingScreen';
-import PropertyDetailScreen from './screens/PropertyDetailScreen';
-import BookVisitScreen from './screens/BookVisitScreen';
-import ChatScreen from './screens/ChatScreen';
-import HomeLoanScreen from './screens/HomeLoanScreen';
-import RentalAgreementScreen from './screens/RentalAgreementScreen';
-import PropertyManagementScreen from './screens/PropertyManagementScreen';
-import OwnerVerificationScreen from './screens/OwnerVerificationScreen';
-import NotificationsScreen from './screens/NotificationsScreen';
-import PostPropertyScreen from './screens/PostPropertyScreen';
-import FiltersScreen from './screens/FiltersScreen';
-import SearchScreen from './screens/SearchScreen';
-import CompareScreen from './screens/CompareScreen';
-import AdminPortalScreen from './screens/AdminPortalScreen';
-import BuyPropertiesScreen from './screens/BuyPropertiesScreen';
-import RentHomesScreen from './screens/RentHomesScreen';
-import FlatmatesScreen from './screens/FlatmatesScreen';
-import PaymentsScreen from './screens/PaymentsScreen';
-import LandingScreen from './screens/LandingScreen';
-import SplashScreen from './screens/SplashScreen';
-import OnboardingScreen from './screens/auth/OnboardingScreen';
-import LoginScreen from './screens/auth/LoginScreen';
-import OTPScreen from './screens/auth/OTPScreen';
-import MobileLoginScreen from './screens/auth/MobileLoginScreen';
-import SignUpScreen from './screens/auth/SignUpScreen';
-import ProfileSetupScreen from './screens/auth/ProfileSetupScreen';
-import PropertyIntentScreen from './screens/auth/PropertyIntentScreen';
-import LocationPermissionScreen from './screens/auth/LocationPermissionScreen';
-import AuthSuccessScreen from './screens/auth/AuthSuccessScreen';
-import AdminLoginScreen from './screens/admin/AdminLoginScreen';
-import AdminDashboardScreen from './screens/admin/AdminDashboardScreen';
-import AdminReviewScreen from './screens/admin/AdminReviewScreen';
+import { AppProvider, useApp, BYPASS_AUTH_FOR_DEV } from './context/AppContext';
+import { BottomNav } from './components';
+import {
+  SplashScreen,
+  LandingScreen,
+  OnboardingScreen,
+  MobileLoginScreen,
+  OTPScreen,
+  ProfileSetupScreen,
+  PropertyIntentScreen,
+  LocationPermissionScreen,
+  AuthSuccessScreen,
+} from './screens/auth';
+import {
+  HomeScreen,
+  ExploreScreen,
+  SearchScreen,
+  FiltersScreen,
+} from './screens/home';
+import {
+  BuyPropertiesScreen,
+  RentHomesScreen,
+  CommercialSpacesScreen,
+  PgHostelsScreen,
+  FlatmatesScreen,
+  PropertyListingScreen,
+  PropertyDetailScreen,
+  PostPropertyScreen,
+  BookVisitScreen,
+  CompareScreen,
+  ChatScreen,
+} from './screens/properties';
+import {
+  HomeLoanScreen,
+  RentalAgreementScreen,
+  PropertyManagementScreen,
+  OwnerVerificationScreen,
+} from './screens/services';
+import {
+  ProfileScreen,
+  PersonalInformationScreen,
+  MyPropertiesScreen,
+  MyActivityScreen,
+  SavedPropertiesScreen,
+  PaymentsScreen,
+  MyDocumentsScreen,
+  NotificationsScreen,
+  HelpSupportScreen,
+  AccountSettingsScreen,
+  PrivacySecurityScreen,
+} from './screens/profile';
+import {
+  AdminLoginScreen,
+  AdminDashboardScreen,
+  AdminReviewScreen,
+  AdminPortalScreen,
+} from './screens/admin';
 
 import colors from './theme/colors';
 
@@ -54,13 +73,13 @@ function ScreenRouter() {
 
   const renderScreen = () => {
     switch (currentScreen.name) {
-      case 'splash': return <SplashScreen />;
-      // Auth flow
-      case 'onboarding': return <OnboardingScreen />;
-      case 'login': return <MobileLoginScreen />;
-      case 'mobileLogin': return <MobileLoginScreen />;
-      case 'signup': return <MobileLoginScreen />;
-      case 'otp': return <OTPScreen />;
+      case 'splash': return BYPASS_AUTH_FOR_DEV ? <HomeScreen /> : <SplashScreen />;
+      // Auth flow (held when BYPASS_AUTH_FOR_DEV is enabled)
+      case 'onboarding': return BYPASS_AUTH_FOR_DEV ? <HomeScreen /> : <OnboardingScreen />;
+      case 'login': return BYPASS_AUTH_FOR_DEV ? <HomeScreen /> : <MobileLoginScreen />;
+      case 'mobileLogin': return BYPASS_AUTH_FOR_DEV ? <HomeScreen /> : <MobileLoginScreen />;
+      case 'signup': return BYPASS_AUTH_FOR_DEV ? <HomeScreen /> : <MobileLoginScreen />;
+      case 'otp': return BYPASS_AUTH_FOR_DEV ? <HomeScreen /> : <OTPScreen />;
       case 'profileSetup': return <ProfileSetupScreen />;
       case 'propertyIntent': return <PropertyIntentScreen />;
       case 'locationPermission': return <LocationPermissionScreen />;
@@ -69,9 +88,15 @@ function ScreenRouter() {
       case 'landing': return <LandingScreen />;
       case 'home': return <HomeScreen />;
       case 'explore': return <ExploreScreen />;
-      case 'myProperty': return <MyPropertyScreen />;
+      case 'myProperty':
+      case 'myProperties': return <MyPropertiesScreen />;
       case 'payments': return <PaymentsScreen />;
       case 'profile': return <ProfileScreen />;
+      case 'personalInformation': return <PersonalInformationScreen />;
+      case 'myDocuments': return <MyDocumentsScreen />;
+      case 'helpSupport': return <HelpSupportScreen />;
+      case 'accountSettings': return <AccountSettingsScreen />;
+      case 'privacySecurity': return <PrivacySecurityScreen />;
       case 'propertyListing': return <PropertyListingScreen />;
       case 'propertyDetail': return <PropertyDetailScreen />;
       case 'bookVisit': return <BookVisitScreen />;
@@ -84,13 +109,14 @@ function ScreenRouter() {
       case 'postProperty': return <PostPropertyScreen />;
       case 'filters': return <FiltersScreen />;
       case 'search': return <SearchScreen />;
-      case 'propertyManagement': return <PropertyManagementScreen />;
-      case 'ownerVerification': return <OwnerVerificationScreen />;
       case 'adminPortal': return <AdminPortalScreen />;
-      case 'savedProperties': return <ExploreScreen />;
+      case 'savedProperties': return <SavedPropertiesScreen />;
+      case 'myActivity': return <MyActivityScreen />;
       case 'compare': return <CompareScreen />;
       case 'buyProperties': return <BuyPropertiesScreen />;
       case 'rentHomes': return <RentHomesScreen />;
+      case 'commercialSpaces': return <CommercialSpacesScreen />;
+      case 'pgHostels': return <PgHostelsScreen />;
       case 'flatmates': return <FlatmatesScreen />;
       // Admin Operations Flow
       case 'adminLogin': return <AdminLoginScreen />;
