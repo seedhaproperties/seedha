@@ -248,13 +248,31 @@ function isJwtExpired(token: string | null | undefined): boolean {
   }
 }
 
+// Development toggle: set to false to enforce real database & OTP authentication for all action flows
+export const BYPASS_AUTH_FOR_DEV = false;
+
+const HELD_AUTH_SCREENS = new Set(['mobileLogin', 'login', 'signup', 'otp', 'onboarding']);
+
+const DEV_MOCK_USER: UserProfile = {
+  id: 'usr_dev_praghnesh',
+  name: 'Praghnesh',
+  phone: '+91 98765 43210',
+  email: 'praghnesh@seedhaproperties.com',
+  city: 'Hyderabad',
+  role: 'USER',
+};
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [token, setTokenState] = useState<string | null>(getAuthToken());
-  // Launch flow: Starts with the Seedha Properties logo animation, then transitions to the Landing page
-  const [stack, setStack] = useState<ScreenState[]>([{ name: 'splash' }]);
-  const [activeTab, setActiveTab] = useState('landing');
+  const [isAuthenticated, setIsAuthenticated] = useState(BYPASS_AUTH_FOR_DEV);
+  const [user, setUser] = useState<UserProfile | null>(BYPASS_AUTH_FOR_DEV ? DEV_MOCK_USER : null);
+  const [token, setTokenState] = useState<string | null>(
+    getAuthToken() || (BYPASS_AUTH_FOR_DEV ? 'dev-bypass-token' : null)
+  );
+  // Launch flow: go directly to Home when auth is on hold, otherwise start with Splash -> Landing
+  const [stack, setStack] = useState<ScreenState[]>([
+    { name: BYPASS_AUTH_FOR_DEV ? 'home' : 'splash' },
+  ]);
+  const [activeTab, setActiveTab] = useState(BYPASS_AUTH_FOR_DEV ? 'home' : 'landing');
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set(['1', '3']));
   const [adminRequests, setAdminRequests] = useState<AdminItem[]>(defaultAdminRequests);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
@@ -276,7 +294,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     parking: null,
   });
 
-  const isGuest = !isAuthenticated || !user;
+  const effectiveUser = BYPASS_AUTH_FOR_DEV ? (user || DEV_MOCK_USER) : user;
+  const effectiveIsAuthenticated = BYPASS_AUTH_FOR_DEV ? true : isAuthenticated;
+  const isGuest = !effectiveIsAuthenticated || !effectiveUser;
+
+  // Enforce logged-in state & strip any held auth screens immediately (even across Fast Refresh)
+  useEffect(() => {
+    if (!BYPASS_AUTH_FOR_DEV) return;
+    if (!isAuthenticated) setIsAuthenticated(true);
+    if (!user) setUser(DEV_MOCK_USER);
+    setStack(s => {
+      const hasHeld = s.some(sc => HELD_AUTH_SCREENS.has(sc.name) || sc.name === 'splash');
+      if (!hasHeld) return s;
+      const cleaned = s.filter(sc => !HELD_AUTH_SCREENS.has(sc.name) && sc.name !== 'splash');
+      return cleaned.length > 0 ? cleaned : [{ name: 'home' }];
+    });
+    if (activeTab === 'landing') setActiveTab('home');
+  }, [isAuthenticated, user, activeTab]);
 
   const setFilters = useCallback((filters: FilterOptions) => {
     setActiveFilters(filters);
@@ -349,6 +383,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const push = useCallback((screen: ScreenState) => {
+    if (BYPASS_AUTH_FOR_DEV && HELD_AUTH_SCREENS.has(screen.name)) {
+      return;
+    }
     setStack(s => [...s, screen]);
   }, []);
 
@@ -359,7 +396,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Centralized authentication guard for protected guest actions
   const requireAuth = useCallback(
     (action?: () => void, targetScreen?: ScreenState, actionName?: string): boolean => {
-      if (isAuthenticated && user) {
+      if (BYPASS_AUTH_FOR_DEV || (isAuthenticated && user)) {
         if (action) action();
         if (targetScreen) setStack(s => [...s, targetScreen]);
         return true;
@@ -457,7 +494,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const toggleSaved = useCallback(
     (id: string) => {
-      if (!isAuthenticated) {
+      if (!effectiveIsAuthenticated) {
         requireAuth(
           () => {
             setSavedIds(s => {
@@ -477,7 +514,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     },
-    [isAuthenticated, requireAuth]
+    [effectiveIsAuthenticated, requireAuth]
   );
 
   const signIn = useCallback(
@@ -575,12 +612,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const currentScreen = stack[stack.length - 1];
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = effectiveUser?.role === 'ADMIN';
 
   return (
     <AppContext.Provider value={{
       stack, activeTab, savedIds, notifications: 3,
-      isAuthenticated, isGuest, authLoading, user, token, authToken: token, isAdmin,
+      isAuthenticated: effectiveIsAuthenticated, isGuest, authLoading, user: effectiveUser, token, authToken: token, isAdmin,
       pendingAction, requireAuth, completeAuth, cancelAuth,
       push, pop, setTab, toggleSaved, currentScreen,
       signIn, signOut, login,

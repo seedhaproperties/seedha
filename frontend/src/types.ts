@@ -94,8 +94,9 @@ export type ScreenName =
   | 'accountSettings'
   | 'privacySecurity'
   | 'rentHomes'
+  | 'commercialSpaces'
+  | 'pgHostels'
   | 'flatmates'
-  | 'ownerVerification'
   | 'adminPortal'
   | 'visitRating';
 
