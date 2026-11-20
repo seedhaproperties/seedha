@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,28 +25,52 @@ import {
   AlertCircle,
   ExternalLink,
   X,
+  Navigation,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { properties } from '../../data/properties';
 import type { Property } from '../../types';
 
-type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest';
+type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest' | 'distance';
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'relevance', label: 'Relevance' },
+  { value: 'distance', label: 'Nearest First (Distance)' },
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
   { value: 'newest', label: 'Newest First' },
 ];
 
+function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
+
+const LOCALITY_COORDS: Record<string, { lat: number; lng: number }> = {
+  madhapur: { lat: 17.4483, lng: 78.3915 },
+  gachibowli: { lat: 17.4401, lng: 78.3489 },
+  kondapur: { lat: 17.4699, lng: 78.3578 },
+  hitec: { lat: 17.4435, lng: 78.3772 },
+  jubilee: { lat: 17.4319, lng: 78.4073 },
+  banjara: { lat: 17.4156, lng: 78.4358 },
+  financial: { lat: 17.4159, lng: 78.3427 },
+  vizag: { lat: 17.6868, lng: 83.2185 },
+  madhurawada: { lat: 17.8015, lng: 83.3524 },
+  gajuwaka: { lat: 17.6908, lng: 83.2104 },
+};
+
 const TABS = ['All Properties', 'Apartments', 'Villas'] as const;
 type TabType = typeof TABS[number];
 
-// Four sample properties matching the user's explicit specification and screenshot:
-// Property 1: 3 BHK Apartment, Madhapur, Vizag (or Madhurawada, Vizag), ₹85,00,000 (id: '1')
-// Property 2: 4 BHK Premium Villa, Gachibowli, Hyderabad, ₹1,85,00,000 (id: '3')
-// Property 3: 2 BHK Apartment, Madhapur, Hyderabad, ₹65,00,000 (id: '5')
-// Property 4: 3 BHK Premium Flat, Jubilee Hills, Hyderabad, ₹2,50,00,000 (id: '8')
 const TARGET_BUY_IDS = ['1', '3', '5', '8'];
 
 export default function BuyPropertiesScreen() {
@@ -56,6 +80,8 @@ export default function BuyPropertiesScreen() {
   const [selectedTab, setSelectedTab] = useState<TabType>('All Properties');
   const [selectedSort, setSelectedSort] = useState<SortOption>('relevance');
   const [selectedLocation, setSelectedLocation] = useState<string>('All');
+  const [selectedRadius, setSelectedRadius] = useState<number>(30); // 30km default
+  const [autoExpandedNotice, setAutoExpandedNotice] = useState<string | null>(null);
   const [showSortModal, setShowSortModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
 
@@ -64,10 +90,40 @@ export default function BuyPropertiesScreen() {
     'idle' | 'requesting' | 'success' | 'denied' | 'error'
   >('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number } | null>(
-    null
-  );
+  const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number }>({
+    latitude: 17.4401,
+    longitude: 78.3489,
+  });
   const [showGpsModal, setShowGpsModal] = useState(false);
+
+  // Auto-detect user's location on screen mount
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCurrentCoords({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          });
+        },
+        () => {
+          // Graceful fallback to default Hyderabad reference hub
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      );
+    }
+  }, []);
+
+  const getPropertyCoords = (p: Property) => {
+    if ((p as any).latitude && (p as any).longitude) {
+      return { lat: (p as any).latitude, lng: (p as any).longitude };
+    }
+    const locLower = ((p.location || '') + ' ' + (p.city || '')).toLowerCase();
+    for (const [key, coords] of Object.entries(LOCALITY_COORDS)) {
+      if (locLower.includes(key)) return coords;
+    }
+    return { lat: 17.4483, lng: 78.3915 };
+  };
 
   // Default Buy Properties prioritised to match the 4 cards in the reference image
   const buyProperties = useMemo(() => {
@@ -98,85 +154,145 @@ export default function BuyPropertiesScreen() {
     return ['All', ...Array.from(locSet)];
   }, [buyProperties]);
 
-  // Filtered & Sorted properties
+  // Filtered & Sorted properties with distance and radius auto-expansion
   const filteredProperties = useMemo(() => {
-    return buyProperties
-      .filter((p) => {
-        // Tab filter
-        if (selectedTab === 'Apartments') {
-          if (p.propertyType !== 'apartment') return false;
-        } else if (selectedTab === 'Villas') {
-          if (p.propertyType !== 'villa') return false;
+    const userLat = currentCoords.latitude;
+    const userLng = currentCoords.longitude;
+
+    // Attach calculated distance to each property
+    const withDistance = buyProperties.map((p) => {
+      const pCoords = getPropertyCoords(p);
+      const dist = calculateDistanceKm(userLat, userLng, pCoords.lat, pCoords.lng);
+      return {
+        ...p,
+        distanceKm: dist,
+      };
+    });
+
+    // Apply basic filters
+    const matched = withDistance.filter((p) => {
+      // Tab filter
+      if (selectedTab === 'Apartments') {
+        if (p.propertyType !== 'apartment') return false;
+      } else if (selectedTab === 'Villas') {
+        if (p.propertyType !== 'villa') return false;
+      }
+
+      // Location filter from location selection interface
+      if (selectedLocation !== 'All') {
+        const matchLoc =
+          p.city?.toLowerCase().includes(selectedLocation.toLowerCase()) ||
+          p.location?.toLowerCase().includes(selectedLocation.toLowerCase());
+        if (!matchLoc) return false;
+      }
+
+      // Search query (filters by property title, location, or city)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const match =
+          p.title.toLowerCase().includes(q) ||
+          p.location.toLowerCase().includes(q) ||
+          p.city?.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+
+      // Active global filters from Filters screen
+      if (activeFilters) {
+        if (activeFilters.locations && activeFilters.locations.length > 0) {
+          const matchesCity = activeFilters.locations.some(
+            (loc) =>
+              p.city?.toLowerCase().includes(loc.toLowerCase()) ||
+              p.location?.toLowerCase().includes(loc.toLowerCase())
+          );
+          if (!matchesCity) return false;
         }
 
-        // Location filter from location selection interface
-        if (selectedLocation !== 'All') {
-          const matchLoc =
-            p.city?.toLowerCase().includes(selectedLocation.toLowerCase()) ||
-            p.location?.toLowerCase().includes(selectedLocation.toLowerCase());
-          if (!matchLoc) return false;
+        if (activeFilters.bhk && activeFilters.bhk.length > 0) {
+          const matchesBhk = activeFilters.bhk.some((b) =>
+            b.startsWith(`${p.bedrooms}`)
+          );
+          if (!matchesBhk) return false;
         }
 
-        // Search query (filters by property title, location, or city)
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase().trim();
-          const match =
-            p.title.toLowerCase().includes(q) ||
-            p.location.toLowerCase().includes(q) ||
-            p.city?.toLowerCase().includes(q);
-          if (!match) return false;
+        if (activeFilters.propertyType && activeFilters.propertyType.length > 0) {
+          const matchesType = activeFilters.propertyType.some(
+            (t) => t.toLowerCase() === p.propertyType?.toLowerCase()
+          );
+          if (!matchesType) return false;
         }
 
-        // Active global filters from Filters screen
-        if (activeFilters) {
-          if (activeFilters.locations && activeFilters.locations.length > 0) {
-            const matchesCity = activeFilters.locations.some(
-              (loc) =>
-                p.city?.toLowerCase().includes(loc.toLowerCase()) ||
-                p.location?.toLowerCase().includes(loc.toLowerCase())
-            );
-            if (!matchesCity) return false;
-          }
-
-          if (activeFilters.bhk && activeFilters.bhk.length > 0) {
-            const matchesBhk = activeFilters.bhk.some((b) =>
-              b.startsWith(`${p.bedrooms}`)
-            );
-            if (!matchesBhk) return false;
-          }
-
-          if (activeFilters.propertyType && activeFilters.propertyType.length > 0) {
-            const matchesType = activeFilters.propertyType.some(
-              (t) => t.toLowerCase() === p.propertyType?.toLowerCase()
-            );
-            if (!matchesType) return false;
-          }
-
-          if (activeFilters.furnishing && activeFilters.furnishing.length > 0) {
-            const matchesFurnish = activeFilters.furnishing.some(
-              (f) =>
-                f.toLowerCase().replace('-', ' ') ===
-                p.furnishing?.toLowerCase().replace('-', ' ')
-            );
-            if (!matchesFurnish) return false;
-          }
-
-          if (activeFilters.parking) {
-            if (activeFilters.parking === 'Available' && !p.parking) return false;
-          }
+        if (activeFilters.furnishing && activeFilters.furnishing.length > 0) {
+          const matchesFurnish = activeFilters.furnishing.some(
+            (f) =>
+              f.toLowerCase().replace('-', ' ') ===
+              p.furnishing?.toLowerCase().replace('-', ' ')
+          );
+          if (!matchesFurnish) return false;
         }
 
-        return true;
-      })
-      .sort((a, b) => {
-        if (selectedSort === 'price_asc') return a.price - b.price;
-        if (selectedSort === 'price_desc') return b.price - a.price;
-        if (selectedSort === 'newest') {
-          return (b.yearBuilt || 2024) - (a.yearBuilt || 2024);
+        if (activeFilters.parking) {
+          if (activeFilters.parking === 'Available' && !p.parking) return false;
         }
-        return 0; // relevance / default
-      });
-  }, [buyProperties, selectedTab, selectedLocation, searchQuery, selectedSort, activeFilters]);
+      }
+
+      return true;
+    });
+
+    // Radius Filter & 30km -> 60km -> 100km auto-expansion
+    let radiusResults = matched;
+    let noticeText: string | null = null;
+
+    if (selectedRadius < 9999) {
+      radiusResults = matched.filter((p) => p.distanceKm <= selectedRadius);
+
+      if (radiusResults.length === 0 && selectedRadius <= 30) {
+        const within60 = matched.filter((p) => p.distanceKm <= 60);
+        if (within60.length > 0) {
+          radiusResults = within60;
+          noticeText = 'No properties found within 30 km. Showing 60 km radius.';
+        } else {
+          const within100 = matched.filter((p) => p.distanceKm <= 100);
+          if (within100.length > 0) {
+            radiusResults = within100;
+            noticeText = 'No properties within 60 km. Showing 100 km radius.';
+          } else {
+            radiusResults = matched;
+            noticeText = 'Showing all available properties across cities.';
+          }
+        }
+      } else if (radiusResults.length === 0 && selectedRadius <= 60) {
+        const within100 = matched.filter((p) => p.distanceKm <= 100);
+        if (within100.length > 0) {
+          radiusResults = within100;
+          noticeText = 'No properties within 60 km. Showing 100 km radius.';
+        } else {
+          radiusResults = matched;
+          noticeText = 'Showing all available properties across cities.';
+        }
+      }
+    }
+
+    setAutoExpandedNotice(noticeText);
+
+    return radiusResults.sort((a, b) => {
+      if (selectedSort === 'distance') return a.distanceKm - b.distanceKm;
+      if (selectedSort === 'price_asc') return a.price - b.price;
+      if (selectedSort === 'price_desc') return b.price - a.price;
+      if (selectedSort === 'newest') {
+        return (b.yearBuilt || 2024) - (a.yearBuilt || 2024);
+      }
+      return 0; // relevance / default
+    });
+  }, [
+    buyProperties,
+    selectedTab,
+    selectedLocation,
+    searchQuery,
+    selectedSort,
+    activeFilters,
+    selectedRadius,
+    currentCoords,
+  ]);
 
   const handleCardPress = (property: Property) => {
     push({ name: 'propertyDetail', params: { property, flow: 'buy' } });
@@ -335,6 +451,48 @@ export default function BuyPropertiesScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ── Radius Filter Row (30km, 60km, 100km, All City) ── */}
+      <View style={styles.radiusContainer}>
+        <View style={styles.radiusHeaderRow}>
+          <View style={styles.radiusTitleBox}>
+            <Navigation size={13} color="#2563EB" />
+            <Text style={styles.radiusTitleText}>Near you / Radius:</Text>
+          </View>
+          <Text style={styles.radiusGpsHint}>
+            📍 {currentCoords.latitude.toFixed(2)}, {currentCoords.longitude.toFixed(2)}
+          </Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.radiusPillsRow}>
+          {[
+            { id: 30, label: '30 km (Nearby)' },
+            { id: 60, label: '60 km' },
+            { id: 100, label: '100 km' },
+            { id: 9999, label: 'All City' },
+          ].map((r) => {
+            const isRadActive = selectedRadius === r.id;
+            return (
+              <TouchableOpacity
+                key={r.id}
+                onPress={() => setSelectedRadius(r.id)}
+                style={[styles.radiusPill, isRadActive && styles.radiusPillActive]}
+              >
+                <Text style={[styles.radiusPillText, isRadActive && styles.radiusPillTextActive]}>
+                  {r.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Auto-expansion banner */}
+      {autoExpandedNotice && (
+        <View style={styles.autoExpandBanner}>
+          <AlertCircle size={14} color="#D97706" />
+          <Text style={styles.autoExpandText}>{autoExpandedNotice}</Text>
+        </View>
+      )}
+
       {/* ── 5. Two-Column Property Grid ── */}
       <ScrollView
         style={styles.gridScroll}
@@ -420,6 +578,15 @@ export default function BuyPropertiesScreen() {
                         {item.location}
                       </Text>
                     </View>
+
+                    {(item as any).distanceKm !== undefined && (
+                      <View style={styles.cardDistanceRow}>
+                        <Compass size={10} color="#2563EB" />
+                        <Text style={styles.cardDistanceText}>
+                          {(item as any).distanceKm} km away
+                        </Text>
+                      </View>
+                    )}
 
                     <Text style={styles.cardPrice}>
                       {item.priceLabel || `₹${item.price.toLocaleString('en-IN')}`}
@@ -801,7 +968,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   relevanceBtn: {
     flexDirection: 'row',
@@ -833,6 +1000,89 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#1E293B',
+  },
+
+  /* ── Radius Filter Bar ── */
+  radiusContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  radiusHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  radiusTitleBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  radiusTitleText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#1E40AF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  radiusGpsHint: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  radiusPillsRow: {
+    gap: 8,
+  },
+  radiusPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  radiusPillActive: {
+    backgroundColor: '#1E40AF',
+    borderColor: '#1E40AF',
+  },
+  radiusPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  radiusPillTextActive: {
+    color: '#FFFFFF',
+  },
+  autoExpandBanner: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  autoExpandText: {
+    flex: 1,
+    fontSize: 11.5,
+    color: '#92400E',
+    fontWeight: '600',
+  },
+  cardDistanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  cardDistanceText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#2563EB',
   },
 
   /* ── Grid Scroll & List ── */

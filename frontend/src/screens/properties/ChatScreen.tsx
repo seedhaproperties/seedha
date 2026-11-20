@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,16 +20,25 @@ import {
   Square,
   Paperclip,
   Send,
+  ShieldCheck,
+  CreditCard,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import type { Property } from '../../types';
 import { properties } from '../../data/properties';
+import { api } from '../../services/api';
+import { PaymentGatewayModal } from '../../components/PaymentGatewayModal';
 
 interface Message {
   id: string;
   text: string;
   from: 'user' | 'owner';
   time: string;
+  isPaymentPrompt?: boolean;
+  paymentAmount?: number;
+  paymentStatus?: 'PENDING' | 'COMPLETED';
+  paymentTxnId?: string;
 }
 
 const INITIAL_MESSAGES: Message[] = [
@@ -57,11 +66,23 @@ const INITIAL_MESSAGES: Message[] = [
     from: 'owner',
     time: '10:35 AM',
   },
+  {
+    id: '5',
+    text: 'You can reserve this property immediately with a Seedha 100% refundable token advance of ₹2,000.',
+    from: 'owner',
+    time: '10:36 AM',
+    isPaymentPrompt: true,
+    paymentAmount: 2000,
+    paymentStatus: 'PENDING',
+  },
 ];
 
 const QUICK_REPLIES = [
   'Is this property still available?',
   'What is the final price?',
+  'Can we schedule a visit today?',
+  '💳 Pay ₹2,000 Token Advance',
+  '🛡️ Verify Owner (₹799)',
 ];
 
 export default function ChatScreen() {
@@ -139,7 +160,45 @@ export default function ChatScreen() {
 
   const [messages, setMessages] = useState<Message[]>(initialChatMessages);
   const [inputText, setInputText] = useState('');
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentData, setPaymentData] = useState<{ amount: number; purpose: string; propertyId?: string }>({
+    amount: 2000,
+    purpose: 'Token Advance Deposit',
+    propertyId: property.id,
+  });
+  const [activePromptId, setActivePromptId] = useState<string | null>(null);
   const scrollViewRef = useRef<any>(null);
+
+  // Load chat conversation from Supabase PostgreSQL database
+  useEffect(() => {
+    let isMounted = true;
+    if (property?.id) {
+      api.chat
+        .getConversation(property.id)
+        .then((conv) => {
+          if (isMounted && conv && conv.messages && conv.messages.length > 0) {
+            const mapped = conv.messages.map((m: any) => ({
+              id: m.id,
+              text: m.message,
+              from: m.senderRole === 'CUSTOMER' ? 'user' : 'owner',
+              time: new Date(m.createdAt || Date.now()).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+              }),
+              isPaymentPrompt: m.isPaymentPrompt,
+              paymentAmount: m.paymentAmount,
+              paymentStatus: m.paymentStatus,
+            }));
+            setMessages(mapped);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [property?.id]);
 
   const handleCall = () => {
     const rawNumber = isFlatmateChat ? flatmatePhone : '+919853424560';
@@ -153,9 +212,74 @@ export default function ChatScreen() {
     Alert.alert('Attach File', 'Select document or image to send to the owner.');
   };
 
-  const handleSend = (textToSend?: string) => {
+  const openPaymentForPrompt = (msgId: string, amount: number = 2000, purpose: string = 'Property Token Advance') => {
+    setActivePromptId(msgId);
+    setPaymentData({
+      amount,
+      purpose,
+      propertyId: property.id,
+    });
+    setPaymentModalVisible(true);
+  };
+
+  const handlePaymentSuccess = (txn: { transactionId: string; amount: number; purpose: string; gateway: string }) => {
+    // 1. Update active prompt state if applicable
+    if (activePromptId) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === activePromptId
+            ? { ...m, paymentStatus: 'COMPLETED', paymentTxnId: txn.transactionId }
+            : m
+        )
+      );
+    }
+
+    // 2. Add confirmation message to chat
+    const confirmTime = new Date().toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    const successMessage: Message = {
+      id: Date.now().toString(),
+      text: `✅ Payment of ₹${txn.amount.toLocaleString('en-IN')} for "${txn.purpose}" completed via ${txn.gateway}!\nTransaction ID: ${txn.transactionId}\nFunds held securely in Seedha Escrow.`,
+      from: 'user',
+      time: confirmTime,
+    };
+
+    setMessages((prev) => [...prev, successMessage]);
+
+    // 3. Automated acknowledgement from owner
+    setTimeout(() => {
+      const ackTime = new Date().toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+      const ackMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: `Thank you! I have received confirmation of your token payment of ₹${txn.amount.toLocaleString('en-IN')}. The property reservation is now confirmed on hold for you. Let me know when you'd like to sign the agreement or visit.`,
+        from: 'owner',
+        time: ackTime,
+      };
+      setMessages((prev) => [...prev, ackMessage]);
+    }, 1200);
+  };
+
+  const handleSend = async (textToSend?: string) => {
     const content = textToSend !== undefined ? textToSend : inputText;
     if (!content.trim()) return;
+
+    // Check if quick reply triggers payment gateway directly
+    if (content.includes('Pay ₹2,000 Token Advance')) {
+      openPaymentForPrompt('quick-token', 2000, 'Property Token Advance Deposit');
+      return;
+    }
+    if (content.includes('Verify Owner (₹799)')) {
+      openPaymentForPrompt('quick-verify', 799, 'Owner Legal Background Verification');
+      return;
+    }
 
     const currentTime = new Date().toLocaleTimeString('en-US', {
       hour: 'numeric',
@@ -175,36 +299,63 @@ export default function ChatScreen() {
       setInputText('');
     }
 
-    // Automated simulated reply from owner
-    setTimeout(() => {
-      const replyTime = new Date().toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
+    try {
+      const res = await api.chat.send({
+        propertyId: property.id,
+        message: content.trim(),
+        senderRole: 'CUSTOMER',
       });
 
-      const replies = isFlatmateChat
-        ? [
-            `Sounds good! Happy to show you around the room and apartment.`,
-            `Sure thing, feel free to drop by anytime this weekend!`,
-            `Yes, all amenities including high-speed internet and washing machine are included.`,
-          ]
-        : [
-            'Sure, let me check the schedule and get back to you shortly.',
-            'Yes, you can schedule a physical site visit anytime between 10 AM to 6 PM.',
-            'We can certainly discuss that during a property visit.',
-          ];
-      const randomReply = replies[Math.floor(Math.random() * replies.length)];
+      if (res && res.ownerReply) {
+        const replyTime = new Date(res.ownerReply.createdAt || Date.now()).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
 
-      const ownerReply: Message = {
-        id: (Date.now() + 1).toString(),
-        text: randomReply,
-        from: 'owner',
-        time: replyTime,
-      };
+        const ownerReply: Message = {
+          id: res.ownerReply.id || (Date.now() + 1).toString(),
+          text: res.ownerReply.message,
+          from: 'owner',
+          time: replyTime,
+          isPaymentPrompt: res.ownerReply.isPaymentPrompt,
+          paymentAmount: res.ownerReply.paymentAmount,
+          paymentStatus: res.ownerReply.paymentStatus,
+        };
+        setMessages((prev) => [...prev, ownerReply]);
+      }
+    } catch {
+      // Local fallback reply if offline
+      setTimeout(() => {
+        const replyTime = new Date().toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
 
-      setMessages((prev) => [...prev, ownerReply]);
-    }, 1000);
+        const replies = isFlatmateChat
+          ? [
+              `Sounds good! Happy to show you around the room and apartment.`,
+              `Sure thing, feel free to drop by anytime this weekend!`,
+              `Yes, all amenities including high-speed internet and washing machine are included.`,
+            ]
+          : [
+              'Sure, let me check the schedule and get back to you shortly.',
+              'Yes, you can schedule a physical site visit anytime between 10 AM to 6 PM.',
+              'We can certainly discuss that during a property visit.',
+            ];
+        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+
+        const ownerReply: Message = {
+          id: (Date.now() + 1).toString(),
+          text: randomReply,
+          from: 'owner',
+          time: replyTime,
+        };
+
+        setMessages((prev) => [...prev, ownerReply]);
+      }, 1000);
+    }
   };
 
   return (
@@ -336,6 +487,45 @@ export default function ChatScreen() {
                   >
                     {msg.text}
                   </Text>
+
+                  {/* In-chat payment prompt card */}
+                  {msg.isPaymentPrompt && (
+                    <View style={styles.promptCard}>
+                      <View style={styles.promptHeader}>
+                        <ShieldCheck size={16} color="#16A34A" />
+                        <Text style={styles.promptHeaderText}>Seedha 100% Refundable Escrow</Text>
+                      </View>
+                      <View style={styles.promptAmountRow}>
+                        <Text style={styles.promptAmountLabel}>Required Token:</Text>
+                        <Text style={styles.promptAmountValue}>
+                          ₹{(msg.paymentAmount || 2000).toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                      {msg.paymentStatus === 'COMPLETED' ? (
+                        <View style={styles.promptPaidBadge}>
+                          <CheckCircle2 size={16} color="#15803D" />
+                          <Text style={styles.promptPaidText}>Payment Verified & Held in Escrow</Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.promptPayBtn}
+                          onPress={() =>
+                            openPaymentForPrompt(
+                              msg.id,
+                              msg.paymentAmount || 2000,
+                              `Token Advance for ${property.title}`
+                            )
+                          }
+                          activeOpacity={0.85}
+                        >
+                          <CreditCard size={15} color="#FFFFFF" />
+                          <Text style={styles.promptPayBtnText}>
+                            Pay ₹{(msg.paymentAmount || 2000).toLocaleString('en-IN')} Now
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
                 </View>
 
                 {/* Timestamp below bubble */}
@@ -414,6 +604,16 @@ export default function ChatScreen() {
           <Send size={16} color="#FFFFFF" strokeWidth={2.4} />
         </TouchableOpacity>
       </View>
+
+      {/* Payment Gateway Modal with Terms & Conditions */}
+      <PaymentGatewayModal
+        visible={paymentModalVisible}
+        amount={paymentData.amount}
+        purpose={paymentData.purpose}
+        propertyId={paymentData.propertyId}
+        onClose={() => setPaymentModalVisible(false)}
+        onSuccess={handlePaymentSuccess}
+      />
     </View>
   );
 }
@@ -715,5 +915,69 @@ const styles = StyleSheet.create({
   },
   sendBtnActive: {
     backgroundColor: '#000000',
+  },
+
+  /* ── In-Chat Payment Prompt Card ── */
+  promptCard: {
+    marginTop: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    padding: 12,
+  },
+  promptHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  promptHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  promptAmountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  promptAmountLabel: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  promptAmountValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  promptPayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1E40AF',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  promptPayBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  promptPaidBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  promptPaidText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#15803D',
   },
 });

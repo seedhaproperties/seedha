@@ -208,7 +208,18 @@ export const api = {
 
   // ── Properties (Buy, Rent, Commercial) ──
   properties: {
-    list: (params?: { type?: string; location?: string; city?: string; minPrice?: number; maxPrice?: number; bhk?: number }) => {
+    list: (params?: {
+      type?: string;
+      location?: string;
+      city?: string;
+      minPrice?: number;
+      maxPrice?: number;
+      bhk?: number;
+      radiusKm?: number;
+      pincode?: string;
+      userLat?: number;
+      userLng?: number;
+    }) => {
       const searchParams = new URLSearchParams();
       if (params?.type) searchParams.append('type', params.type.toUpperCase());
       if (params?.location) searchParams.append('location', params.location);
@@ -216,6 +227,10 @@ export const api = {
       if (params?.bhk) searchParams.append('bhk', String(params.bhk));
       if (params?.minPrice) searchParams.append('minPrice', String(params.minPrice));
       if (params?.maxPrice) searchParams.append('maxPrice', String(params.maxPrice));
+      if (params?.radiusKm) searchParams.append('radiusKm', String(params.radiusKm));
+      if (params?.pincode) searchParams.append('pincode', params.pincode);
+      if (params?.userLat) searchParams.append('userLat', String(params.userLat));
+      if (params?.userLng) searchParams.append('userLng', String(params.userLng));
       const q = searchParams.toString();
       return request<any>(`/properties${q ? `?${q}` : ''}`);
     },
@@ -225,6 +240,67 @@ export const api = {
       request<any>('/properties', {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+    toggleSave: (id: string) =>
+      request<any>(`/properties/${id}/toggle-save`, {
+        method: 'POST',
+      }),
+    getMySaved: () => request<any[]>('/properties/my/saved'),
+    getLocationSuggestions: (query: string) =>
+      request<any[]>(`/properties/suggestions?query=${encodeURIComponent(query || '')}`),
+  },
+
+  // ── Payments & Transactions ──
+  payments: {
+    createOrder: (payload: {
+      amount: number;
+      purpose: string;
+      propertyId?: string;
+      customerName?: string;
+      customerPhone?: string;
+    }) =>
+      request<any>('/payments/create-order', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    verify: (payload: {
+      orderId: string;
+      paymentTxnId: string;
+      gateway: string;
+      amount: number;
+      purpose: string;
+      propertyId?: string;
+      customerName?: string;
+      customerPhone?: string;
+    }) =>
+      request<any>('/payments/verify', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    my: () => request<any[]>('/payments/my'),
+    all: () => request<any[]>('/payments/all'),
+    terms: () => request<any>('/payments/terms-and-conditions'),
+  },
+
+  // ── Chat & Webhooks ──
+  chat: {
+    send: (payload: {
+      propertyId: string;
+      message: string;
+      senderRole?: 'CUSTOMER' | 'OWNER';
+      isPaymentPrompt?: boolean;
+      paymentAmount?: number;
+    }) =>
+      request<any>('/chat/message', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    getConversation: (propertyId: string) =>
+      request<any>(`/chat/conversation/${propertyId}`),
+    webhook: (payload: any) =>
+      request<any>('/chat/webhook', {
+        method: 'POST',
+        body: JSON.stringify(payload),
       }),
   },
 
