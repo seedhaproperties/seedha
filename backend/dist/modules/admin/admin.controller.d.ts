@@ -13,6 +13,20 @@ export declare class AdminController {
         pendingOwnerBackground: number;
         totalPublishedProperties: number;
     };
+    getAllRequests(module?: string, status?: string, search?: string): Promise<any[]>;
+    getRequestById(id: string): Promise<any>;
+    getTeam(): {
+        id: string;
+        name: string;
+        role: string;
+        phone: string;
+        zone: string;
+        activeTasks: number;
+        completedThisWeek: number;
+        avgTurnaroundHrs: number;
+        initials: string;
+    }[];
+    getListings(): import("../../common/mock-db.js").PropertyRecord[];
     getFlatsQueue(): import("../../common/mock-db.js").PropertyRecord[];
     getRentQueue(): import("../../common/mock-db.js").PropertyRecord[];
     getCommercialQueue(): import("../../common/mock-db.js").PropertyRecord[];

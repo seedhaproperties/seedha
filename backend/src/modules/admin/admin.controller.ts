@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AdminService } from './admin.service.js';
 import {
@@ -19,6 +19,35 @@ export class AdminController {
   @ApiOperation({ summary: 'Admin overview summary with counts for all 7 review queues' })
   getOverview() {
     return this.adminService.getOverview();
+  }
+
+  // Unified Request Aggregator for Admin Web Dashboard
+  @Get('requests')
+  @ApiOperation({ summary: 'Get unified requests across all 7 business modules' })
+  getAllRequests(
+    @Query('module') module?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getAllUnifiedRequests({ module, status, search });
+  }
+
+  @Get('requests/:id')
+  @ApiOperation({ summary: 'Get single unified request details across any of the 7 modules' })
+  getRequestById(@Param('id') id: string) {
+    return this.adminService.getUnifiedRequestById(id);
+  }
+
+  @Get('team')
+  @ApiOperation({ summary: 'Get active operations team members' })
+  getTeam() {
+    return this.adminService.getTeamMembers();
+  }
+
+  @Get('listings')
+  @ApiOperation({ summary: 'Get published live listings on Seedha portal' })
+  getListings() {
+    return this.adminService.getLiveListings();
   }
 
   // Queue 1: Flat/Building (Buy) Listings

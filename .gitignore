@@ -11,4 +11,5 @@ dist/
 backend/.env
 *serviceAccount*.json
 serviceAccountKey.json
+.propops-reference/
 

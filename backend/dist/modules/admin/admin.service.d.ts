@@ -1,6 +1,10 @@
 import { PropertyRecord } from '../../common/mock-db.js';
+import { PrismaService } from '../../database/prisma.service.js';
 import { AssignFieldWorkDto, RejectItemDto, LocationCheckDecisionDto, ContactOwnerDto, PrepareAgreementDto, CollectAndSendDigitalDto } from './admin.dto.js';
 export declare class AdminService {
+    private readonly prisma;
+    private readonly logger;
+    constructor(prisma: PrismaService);
     getOverview(): {
         pendingFlatListings: number;
         pendingRentListings: number;
@@ -54,4 +58,22 @@ export declare class AdminService {
         message: string;
         check: import("../../common/mock-db.js").OwnerBackgroundRecord;
     };
+    getAllUnifiedRequests(filters?: {
+        module?: string;
+        status?: string;
+        search?: string;
+    }): Promise<any[]>;
+    getUnifiedRequestById(id: string): Promise<any>;
+    getTeamMembers(): {
+        id: string;
+        name: string;
+        role: string;
+        phone: string;
+        zone: string;
+        activeTasks: number;
+        completedThisWeek: number;
+        avgTurnaroundHrs: number;
+        initials: string;
+    }[];
+    getLiveListings(): PropertyRecord[];
 }

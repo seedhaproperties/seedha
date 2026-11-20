@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminService } from './admin.service.js';
 import { AssignFieldWorkDto, RejectItemDto, LocationCheckDecisionDto, ContactOwnerDto, PrepareAgreementDto, CollectAndSendDigitalDto, } from './admin.dto.js';
@@ -21,6 +21,18 @@ let AdminController = class AdminController {
     }
     getOverview() {
         return this.adminService.getOverview();
+    }
+    getAllRequests(module, status, search) {
+        return this.adminService.getAllUnifiedRequests({ module, status, search });
+    }
+    getRequestById(id) {
+        return this.adminService.getUnifiedRequestById(id);
+    }
+    getTeam() {
+        return this.adminService.getTeamMembers();
+    }
+    getListings() {
+        return this.adminService.getLiveListings();
     }
     getFlatsQueue() {
         return this.adminService.getFlatListingsQueue();
@@ -78,6 +90,38 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getOverview", null);
+__decorate([
+    Get('requests'),
+    ApiOperation({ summary: 'Get unified requests across all 7 business modules' }),
+    __param(0, Query('module')),
+    __param(1, Query('status')),
+    __param(2, Query('search')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getAllRequests", null);
+__decorate([
+    Get('requests/:id'),
+    ApiOperation({ summary: 'Get single unified request details across any of the 7 modules' }),
+    __param(0, Param('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getRequestById", null);
+__decorate([
+    Get('team'),
+    ApiOperation({ summary: 'Get active operations team members' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getTeam", null);
+__decorate([
+    Get('listings'),
+    ApiOperation({ summary: 'Get published live listings on Seedha portal' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getListings", null);
 __decorate([
     Get('flats-review'),
     ApiOperation({ summary: 'Queue 1: Receive Flat/Building details' }),
