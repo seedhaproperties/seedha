@@ -490,7 +490,7 @@ export default function OwnerVerificationScreen() {
     );
   }
 
-  
+
   // ─────────────────────────────────────────────────────────────
   // STEP 1C: Verified Owner & Property matching media_1794670551764_4ad681b7.jpg
   // ─────────────────────────────────────────────────────────────
@@ -499,33 +499,33 @@ export default function OwnerVerificationScreen() {
       savedRentalHomes.find((p) => p.id === selectedSavedId) || savedRentalHomes[2];
     const selectedProperty = prepopulated
       ? {
-          id: prepopulated.id || 'prop-selected',
-          title: prepopulated.title || fallbackSaved.title,
-          location: prepopulated.location || `${fallbackSaved.location}, ${fallbackSaved.city}`,
-          city: prepopulated.city || '',
-          priceLabel:
-            prepopulated.priceLabel ||
-            (prepopulated.price
-              ? `₹${Number(prepopulated.price).toLocaleString('en-IN')}/month`
-              : `₹${fallbackSaved.price}/month`),
-          image: prepopulated.image || fallbackSaved.image,
-          ownerName: prepopulated.ownerName || fallbackSaved.ownerName || 'Venkata Rao',
-          ownerPhone: prepopulated.ownerPhone || '9853424560',
-          ownerEmail: prepopulated.ownerEmail || 'venkata.rao@gmail.com',
-          yearBuilt: prepopulated.yearBuilt || 2022,
-        }
+        id: prepopulated.id || 'prop-selected',
+        title: prepopulated.title || fallbackSaved.title,
+        location: prepopulated.location || `${fallbackSaved.location}, ${fallbackSaved.city}`,
+        city: prepopulated.city || '',
+        priceLabel:
+          prepopulated.priceLabel ||
+          (prepopulated.price
+            ? `₹${Number(prepopulated.price).toLocaleString('en-IN')}/month`
+            : `₹${fallbackSaved.price}/month`),
+        image: prepopulated.image || fallbackSaved.image,
+        ownerName: prepopulated.ownerName || fallbackSaved.ownerName || 'Venkata Rao',
+        ownerPhone: prepopulated.ownerPhone || '9853424560',
+        ownerEmail: prepopulated.ownerEmail || 'venkata.rao@gmail.com',
+        yearBuilt: prepopulated.yearBuilt || 2022,
+      }
       : {
-          id: fallbackSaved.id,
-          title: fallbackSaved.title,
-          location: `${fallbackSaved.location}, ${fallbackSaved.city}`,
-          city: fallbackSaved.city,
-          priceLabel: `₹${fallbackSaved.price}/month`,
-          image: fallbackSaved.image,
-          ownerName: fallbackSaved.ownerName || 'Venkata Rao',
-          ownerPhone: '9154475498',
-          ownerEmail: 'venkata.rao@gmail.com',
-          yearBuilt: 2022,
-        };
+        id: fallbackSaved.id,
+        title: fallbackSaved.title,
+        location: `${fallbackSaved.location}, ${fallbackSaved.city}`,
+        city: fallbackSaved.city,
+        priceLabel: `₹${fallbackSaved.price}/month`,
+        image: fallbackSaved.image,
+        ownerName: fallbackSaved.ownerName || 'Venkata Rao',
+        ownerPhone: '9154475498',
+        ownerEmail: 'venkata.rao@gmail.com',
+        yearBuilt: 2022,
+      };
 
     return (
       <SafeAreaView style={styles.container}>
@@ -544,8 +544,8 @@ export default function OwnerVerificationScreen() {
               {isPgFlow
                 ? 'For PG & hostels'
                 : isCommercialFlow
-                ? 'For commercial spaces'
-                : 'For rental homes'}
+                  ? 'For commercial spaces'
+                  : 'For rental homes'}
             </Text>
           </View>
         </View>
@@ -1281,7 +1281,7 @@ export default function OwnerVerificationScreen() {
     );
   }
 
-  
+
   // ─────────────────────────────────────────────────────────────
   // STEP 3B: Verification In Progress matching media_1794670953188_2408c25f.jpg
   // ─────────────────────────────────────────────────────────────
@@ -1478,7 +1478,7 @@ export default function OwnerVerificationScreen() {
   }
 
 
-  
+
   // ─────────────────────────────────────────────────────────────
   // STEP 3C: Verification Completed Report matching media_1794717169784_fbf3c3f3.jpg
   // ─────────────────────────────────────────────────────────────
@@ -1649,7 +1649,7 @@ export default function OwnerVerificationScreen() {
   }
 
 
-  
+
   // ─────────────────────────────────────────────────────────────
   // STEP 4: Background Details Screen matching media_1794717513530_378cbd00.png
   // ─────────────────────────────────────────────────────────────
@@ -1956,7 +1956,7 @@ export default function OwnerVerificationScreen() {
               </View>
             </View>
           </>
-                ) : (
+        ) : (
           /* Tab 2: Property History matching media_1794717782998_f92a0fcf.png */
           <>
             {/* Card 1: Declared by the owner (Not yet verified) */}

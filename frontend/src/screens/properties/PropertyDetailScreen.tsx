@@ -491,8 +491,8 @@ export default function PropertyDetailScreen() {
                       {(property as any).pgCategory === 'Boys PG'
                         ? 'Boys Pg'
                         : (property as any).pgCategory === 'Girls PG'
-                        ? 'Girls Pg'
-                        : 'Co-living Pg'}
+                          ? 'Girls Pg'
+                          : 'Co-living Pg'}
                     </Text>
                   </View>
                   <View style={styles.specCell}>
@@ -510,61 +510,61 @@ export default function PropertyDetailScreen() {
                 </View>
               </View>
             ) : (
-            <View style={styles.specGrid}>
-              <View style={styles.specCol}>
-                <View style={styles.specCell}>
-                  <Text style={styles.specKey}>Type</Text>
-                  <Text style={styles.specVal}>
-                    {isBuy
-                      ? (property.propertyType ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1) : 'Apartment')
-                      : (property.propertyType ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1) : 'House')}
-                  </Text>
+              <View style={styles.specGrid}>
+                <View style={styles.specCol}>
+                  <View style={styles.specCell}>
+                    <Text style={styles.specKey}>Type</Text>
+                    <Text style={styles.specVal}>
+                      {isBuy
+                        ? (property.propertyType ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1) : 'Apartment')
+                        : (property.propertyType ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1) : 'House')}
+                    </Text>
+                  </View>
+                  <View style={styles.specCell}>
+                    <Text style={styles.specKey}>Parking</Text>
+                    <Text style={styles.specVal}>
+                      {property.parking !== undefined ? (property.parking ? 'Available' : 'None') : 'Available'}
+                    </Text>
+                  </View>
+                  <View style={styles.specCell}>
+                    <Text style={styles.specKey}>Facing</Text>
+                    <Text style={styles.specVal}>
+                      {isCommercial ? (property.facing || 'North') : isBuy ? (property.facing || 'East') : (property.facing || 'North-East')}
+                    </Text>
+                  </View>
+                  <View style={styles.specCell}>
+                    <Text style={styles.specKey}>Total Floors</Text>
+                    <Text style={styles.specVal}>
+                      {isCommercial ? (property.totalFloors || 20) : isBuy ? (property.totalFloors || 12) : (property.totalFloors || 2)}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.specCell}>
-                  <Text style={styles.specKey}>Parking</Text>
-                  <Text style={styles.specVal}>
-                    {property.parking !== undefined ? (property.parking ? 'Available' : 'None') : 'Available'}
-                  </Text>
-                </View>
-                <View style={styles.specCell}>
-                  <Text style={styles.specKey}>Facing</Text>
-                  <Text style={styles.specVal}>
-                    {isCommercial ? (property.facing || 'North') : isBuy ? (property.facing || 'East') : (property.facing || 'North-East')}
-                  </Text>
-                </View>
-                <View style={styles.specCell}>
-                  <Text style={styles.specKey}>Total Floors</Text>
-                  <Text style={styles.specVal}>
-                    {isCommercial ? (property.totalFloors || 20) : isBuy ? (property.totalFloors || 12) : (property.totalFloors || 2)}
-                  </Text>
-                </View>
-              </View>
 
-              <View style={styles.specCol}>
-                <View style={styles.specCell}>
-                  <Text style={styles.specKey}>Furnishing</Text>
-                  <Text style={styles.specVal}>
-                    {property.furnishing
-                      ? property.furnishing.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-                      : 'Semi Furnished'}
-                  </Text>
-                </View>
-                <View style={styles.specCell}>
-                  <Text style={styles.specKey}>Current Property Condition</Text>
-                  <Text style={styles.specVal}>
-                    {isCommercial ? 'Under Construction' : isBuy ? 'Ready to Move' : 'Tenant In notice period'}
-                  </Text>
-                </View>
-                <View style={styles.specCell}>
-                  <Text style={styles.specKey}>Built Year</Text>
-                  <Text style={styles.specVal}>{isBuy ? (property.yearBuilt || 2020) : (property.yearBuilt || 2024)}</Text>
-                </View>
-                <View style={styles.specCell}>
-                  <Text style={styles.specKey}>Balconies</Text>
-                  <Text style={styles.specVal}>{isCommercial ? '1' : '2'}</Text>
+                <View style={styles.specCol}>
+                  <View style={styles.specCell}>
+                    <Text style={styles.specKey}>Furnishing</Text>
+                    <Text style={styles.specVal}>
+                      {property.furnishing
+                        ? property.furnishing.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                        : 'Semi Furnished'}
+                    </Text>
+                  </View>
+                  <View style={styles.specCell}>
+                    <Text style={styles.specKey}>Current Property Condition</Text>
+                    <Text style={styles.specVal}>
+                      {isCommercial ? 'Under Construction' : isBuy ? 'Ready to Move' : 'Tenant In notice period'}
+                    </Text>
+                  </View>
+                  <View style={styles.specCell}>
+                    <Text style={styles.specKey}>Built Year</Text>
+                    <Text style={styles.specVal}>{isBuy ? (property.yearBuilt || 2020) : (property.yearBuilt || 2024)}</Text>
+                  </View>
+                  <View style={styles.specCell}>
+                    <Text style={styles.specKey}>Balconies</Text>
+                    <Text style={styles.specVal}>{isCommercial ? '1' : '2'}</Text>
+                  </View>
                 </View>
               </View>
-            </View>
             )}
           </View>
 
@@ -603,17 +603,17 @@ export default function PropertyDetailScreen() {
             >
               {isPg
                 ? (property.description ||
-                   'Modern co-living PG near the IT corridor with furnished rooms, daily cleaning, healthy food and 24×7 security.')
+                  'Modern co-living PG near the IT corridor with furnished rooms, daily cleaning, healthy food and 24×7 security.')
                 : isCommercial
-                ? (property.description ||
-                   'Grade A office space in HITEC City with modern amenities. Suitable for IT/ITES companies. Excellent connectivity to airport and metro.')
-                : isBuy
-                ? (property.description ||
-                   'A beautifully designed 3 BHK apartment in the heart of Madhurawada with stunning sea views. This apartment features premium fittings, spacious rooms, and a modern kitchen. Located in a gated community with 24/7 security.')
-                : isRent
-                ? (property.description ||
-                   'Spacious 2 BHK independent house in a peaceful residential area of Gajuwaka. Perfect for families. Close to schools, hospitals and markets.')
-                : (property.description || 'Spacious accommodation with modern amenities.')}
+                  ? (property.description ||
+                    'Grade A office space in HITEC City with modern amenities. Suitable for IT/ITES companies. Excellent connectivity to airport and metro.')
+                  : isBuy
+                    ? (property.description ||
+                      'A beautifully designed 3 BHK apartment in the heart of Madhurawada with stunning sea views. This apartment features premium fittings, spacious rooms, and a modern kitchen. Located in a gated community with 24/7 security.')
+                    : isRent
+                      ? (property.description ||
+                        'Spacious 2 BHK independent house in a peaceful residential area of Gajuwaka. Perfect for families. Close to schools, hospitals and markets.')
+                      : (property.description || 'Spacious accommodation with modern amenities.')}
             </Text>
             {!isBuy && !isRent && !isCommercial && !isPg && (
               <TouchableOpacity
@@ -656,8 +656,8 @@ export default function PropertyDetailScreen() {
                           {(property as any).pgCategory === 'Boys PG'
                             ? 'Boys PG'
                             : (property as any).pgCategory === 'Girls PG'
-                            ? 'Girls PG'
-                            : 'Co-living PG'}
+                              ? 'Girls PG'
+                              : 'Co-living PG'}
                         </Text>
                       </View>
                       <View style={styles.tableRow}>
@@ -680,8 +680,8 @@ export default function PropertyDetailScreen() {
                           {(property as any).pgCategory === 'Boys PG'
                             ? 'Boys'
                             : (property as any).pgCategory === 'Girls PG'
-                            ? 'Girls'
-                            : 'Anyone'}
+                              ? 'Girls'
+                              : 'Anyone'}
                         </Text>
                       </View>
                       <View style={styles.tableRow}>
@@ -925,381 +925,381 @@ export default function PropertyDetailScreen() {
                 </View>
               </>
             ) : (
-            <>
-            {/* Accordion 1: Property Basics / Commercial Property Basics */}
-            <View style={styles.accordionContainer}>
-              <TouchableOpacity
-                style={styles.accordionHeader}
-                onPress={() => toggleAccordion(setBasicsOpen)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.accordionHeaderTitle}>
-                  {isCommercial ? 'Commercial Property Basics' : 'Property Basics'}
-                </Text>
-                {basicsOpen ? (
-                  <ChevronDown size={18} color="#64748B" />
-                ) : (
-                  <ChevronRight size={18} color="#64748B" />
-                )}
-              </TouchableOpacity>
+              <>
+                {/* Accordion 1: Property Basics / Commercial Property Basics */}
+                <View style={styles.accordionContainer}>
+                  <TouchableOpacity
+                    style={styles.accordionHeader}
+                    onPress={() => toggleAccordion(setBasicsOpen)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.accordionHeaderTitle}>
+                      {isCommercial ? 'Commercial Property Basics' : 'Property Basics'}
+                    </Text>
+                    {basicsOpen ? (
+                      <ChevronDown size={18} color="#64748B" />
+                    ) : (
+                      <ChevronRight size={18} color="#64748B" />
+                    )}
+                  </TouchableOpacity>
 
-              {basicsOpen && (
-                <View style={styles.accordionBody}>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Property type</Text>
-                    <Text style={styles.tableValue}>
-                      {property.propertyType
-                        ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1)
-                        : isCommercial
-                        ? 'Office'
-                        : isRent
-                        ? 'House'
-                        : 'Apartment'}
-                    </Text>
-                  </View>
-                  {!isCommercial && (
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>BHK</Text>
-                      <Text style={styles.tableValue}>{isBuy ? (property.bedrooms || 3) : (property.bedrooms || 2)} BHK</Text>
-                    </View>
-                  )}
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Bathrooms</Text>
-                    <Text style={styles.tableValue}>{property.bathrooms || (isCommercial ? 3 : 2)}</Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Balconies</Text>
-                    <Text style={styles.tableValue}>{isCommercial ? '1' : isRent ? '3' : '2'}</Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Furnishing</Text>
-                    <Text style={styles.tableValue}>
-                      {property.furnishing
-                        ? property.furnishing.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-                        : 'Semi Furnished'}
-                    </Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Parking</Text>
-                    <Text style={styles.tableValue}>
-                      {isBuy ? '1 Car' : property.parking ? 'Car & Bike' : 'None'}
-                    </Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Property age</Text>
-                    <Text style={styles.tableValue}>{isCommercial ? '8 years' : '4 years'}</Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Floor number</Text>
-                    <Text style={styles.tableValue}>
-                      {isCommercial ? (property.floor || '12th') : isBuy ? (property.floor || '8th') : (property.floor || 'Ground')}
-                    </Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Total floors</Text>
-                    <Text style={styles.tableValue}>
-                      {isCommercial ? (property.totalFloors || 20) : isBuy ? (property.totalFloors || 12) : (property.totalFloors || 2)}
-                    </Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Facing direction</Text>
-                    <Text style={styles.tableValue}>
-                      {isCommercial ? (property.facing || 'North') : isBuy ? (property.facing || 'East') : (property.facing || 'North')}
-                    </Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Current condition</Text>
-                    <Text style={styles.tableValue}>
-                      {isCommercial
-                        ? 'Under Construction'
-                        : isBuy
-                        ? 'Ready to move'
-                        : isRent
-                        ? 'Ready to Move'
-                        : property.possessionDate || 'Ready to Move'}
-                    </Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Super built-up area</Text>
-                    <Text style={styles.tableValue}>
-                      {isBuy
-                        ? '1750 sq.ft'
-                        : `${Math.round((property.area || (isCommercial ? 2400 : 1200)) * 1.18)} sq.ft.`}
-                    </Text>
-                  </View>
-                  <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
-                    <Text style={styles.tableKey}>Carpet area</Text>
-                    <Text style={styles.tableValue}>
-                      {isBuy
-                        ? property.area
-                          ? property.area + ' sq.ft'
-                          : '1450 sq.ft'
-                        : `${property.area || (isCommercial ? 2400 : 1200)} sq.ft.`}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* Accordion 1B: Commercial Configuration (Commercial ONLY — Matching Images 2 & 3) */}
-            {isCommercial && (
-              <View style={[styles.accordionContainer, { marginTop: 10 }]}>
-                <TouchableOpacity
-                  style={styles.accordionHeader}
-                  onPress={() => toggleAccordion(setCommercialConfigOpen)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.accordionHeaderTitle}>Commercial Configuration</Text>
-                  {commercialConfigOpen ? (
-                    <ChevronDown size={18} color="#64748B" />
-                  ) : (
-                    <ChevronRight size={18} color="#64748B" />
-                  )}
-                </TouchableOpacity>
-
-                {commercialConfigOpen && (
-                  <View style={styles.accordionBody}>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Property subtype</Text>
-                      <Text style={styles.tableValue}>
-                        {property.propertyType === 'shop'
-                          ? 'Retail Showroom'
-                          : property.propertyType === 'coworking'
-                          ? 'Managed Co-working'
-                          : 'IT Office Space'}
-                      </Text>
-                    </View>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Washrooms</Text>
-                      <Text style={styles.tableValue}>Shared</Text>
-                    </View>
-                    <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
-                      <Text style={styles.tableKey}>Pantry / Cafeteria</Text>
-                      <Text style={styles.tableValue}>Cafeteria</Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Accordion 2: Location & Visit Schedule */}
-            <View style={[styles.accordionContainer, { marginTop: 10 }]}>
-              <TouchableOpacity
-                style={styles.accordionHeader}
-                onPress={() => toggleAccordion(setLocationOpen)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.accordionHeaderTitle}>Location & Visit Schedule</Text>
-                {locationOpen ? (
-                  <ChevronDown size={18} color="#64748B" />
-                ) : (
-                  <ChevronRight size={18} color="#64748B" />
-                )}
-              </TouchableOpacity>
-
-              {locationOpen && (
-                <View style={styles.accordionBody}>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>City</Text>
-                    <Text style={styles.tableValue}>{property.city || (isCommercial ? 'Hyderabad' : 'Vizag')}</Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Locality</Text>
-                    <Text style={styles.tableValue}>
-                      {property.location?.split(',')[0] || (isCommercial ? 'HITEC City' : 'Gajuwaka')}
-                    </Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Street / Area</Text>
-                    <Text style={styles.tableValue}>
-                      {isCommercial ? '18, Main Road' : 'Main Residential Enclave'}
-                    </Text>
-                  </View>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Landmark</Text>
-                    <Text style={styles.tableValue}>
-                      {isCommercial ? 'Opposite City Mall' : 'Near Apollo Clinic & Market'}
-                    </Text>
-                  </View>
-                  {isCommercial && (
-                    <>
+                  {basicsOpen && (
+                    <View style={styles.accordionBody}>
                       <View style={styles.tableRow}>
-                        <Text style={styles.tableKey}>Google Maps pin</Text>
-                        <Text style={styles.tableValue}>17.459999999999997, 78.36</Text>
+                        <Text style={styles.tableKey}>Property type</Text>
+                        <Text style={styles.tableValue}>
+                          {property.propertyType
+                            ? property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1)
+                            : isCommercial
+                              ? 'Office'
+                              : isRent
+                                ? 'House'
+                                : 'Apartment'}
+                        </Text>
+                      </View>
+                      {!isCommercial && (
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>BHK</Text>
+                          <Text style={styles.tableValue}>{isBuy ? (property.bedrooms || 3) : (property.bedrooms || 2)} BHK</Text>
+                        </View>
+                      )}
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Bathrooms</Text>
+                        <Text style={styles.tableValue}>{property.bathrooms || (isCommercial ? 3 : 2)}</Text>
                       </View>
                       <View style={styles.tableRow}>
-                        <Text style={styles.tableKey}>Property position</Text>
-                        <Text style={styles.tableValue}>Main road & corner property</Text>
+                        <Text style={styles.tableKey}>Balconies</Text>
+                        <Text style={styles.tableValue}>{isCommercial ? '1' : isRent ? '3' : '2'}</Text>
                       </View>
-                    </>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Furnishing</Text>
+                        <Text style={styles.tableValue}>
+                          {property.furnishing
+                            ? property.furnishing.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                            : 'Semi Furnished'}
+                        </Text>
+                      </View>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Parking</Text>
+                        <Text style={styles.tableValue}>
+                          {isBuy ? '1 Car' : property.parking ? 'Car & Bike' : 'None'}
+                        </Text>
+                      </View>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Property age</Text>
+                        <Text style={styles.tableValue}>{isCommercial ? '8 years' : '4 years'}</Text>
+                      </View>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Floor number</Text>
+                        <Text style={styles.tableValue}>
+                          {isCommercial ? (property.floor || '12th') : isBuy ? (property.floor || '8th') : (property.floor || 'Ground')}
+                        </Text>
+                      </View>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Total floors</Text>
+                        <Text style={styles.tableValue}>
+                          {isCommercial ? (property.totalFloors || 20) : isBuy ? (property.totalFloors || 12) : (property.totalFloors || 2)}
+                        </Text>
+                      </View>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Facing direction</Text>
+                        <Text style={styles.tableValue}>
+                          {isCommercial ? (property.facing || 'North') : isBuy ? (property.facing || 'East') : (property.facing || 'North')}
+                        </Text>
+                      </View>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Current condition</Text>
+                        <Text style={styles.tableValue}>
+                          {isCommercial
+                            ? 'Under Construction'
+                            : isBuy
+                              ? 'Ready to move'
+                              : isRent
+                                ? 'Ready to Move'
+                                : property.possessionDate || 'Ready to Move'}
+                        </Text>
+                      </View>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Super built-up area</Text>
+                        <Text style={styles.tableValue}>
+                          {isBuy
+                            ? '1750 sq.ft'
+                            : `${Math.round((property.area || (isCommercial ? 2400 : 1200)) * 1.18)} sq.ft.`}
+                        </Text>
+                      </View>
+                      <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
+                        <Text style={styles.tableKey}>Carpet area</Text>
+                        <Text style={styles.tableValue}>
+                          {isBuy
+                            ? property.area
+                              ? property.area + ' sq.ft'
+                              : '1450 sq.ft'
+                            : `${property.area || (isCommercial ? 2400 : 1200)} sq.ft.`}
+                        </Text>
+                      </View>
+                    </View>
                   )}
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Visit availability</Text>
-                    <Text style={styles.tableValue}>{isCommercial ? 'Weekends' : 'Everyday'}</Text>
-                  </View>
-                  <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
-                    <Text style={styles.tableKey}>Visit time</Text>
-                    <Text style={styles.tableValue}>
-                      {isCommercial ? '11:00 AM – 5:00 PM' : '10:00 AM - 6:00 PM'}
-                    </Text>
-                  </View>
                 </View>
-              )}
-            </View>
 
-            {/* Accordion 3: Price / Rent & Availability */}
-            <View style={[styles.accordionContainer, { marginTop: 10 }]}>
-              <TouchableOpacity
-                style={styles.accordionHeader}
-                onPress={() => toggleAccordion(setPriceOpen)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.accordionHeaderTitle}>
-                  {isBuy || isCommercial ? 'Price & Availability' : 'Rent & Availability'}
-                </Text>
-                {priceOpen ? (
-                  <ChevronDown size={18} color="#64748B" />
-                ) : (
-                  <ChevronRight size={18} color="#64748B" />
+                {/* Accordion 1B: Commercial Configuration (Commercial ONLY — Matching Images 2 & 3) */}
+                {isCommercial && (
+                  <View style={[styles.accordionContainer, { marginTop: 10 }]}>
+                    <TouchableOpacity
+                      style={styles.accordionHeader}
+                      onPress={() => toggleAccordion(setCommercialConfigOpen)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.accordionHeaderTitle}>Commercial Configuration</Text>
+                      {commercialConfigOpen ? (
+                        <ChevronDown size={18} color="#64748B" />
+                      ) : (
+                        <ChevronRight size={18} color="#64748B" />
+                      )}
+                    </TouchableOpacity>
+
+                    {commercialConfigOpen && (
+                      <View style={styles.accordionBody}>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Property subtype</Text>
+                          <Text style={styles.tableValue}>
+                            {property.propertyType === 'shop'
+                              ? 'Retail Showroom'
+                              : property.propertyType === 'coworking'
+                                ? 'Managed Co-working'
+                                : 'IT Office Space'}
+                          </Text>
+                        </View>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Washrooms</Text>
+                          <Text style={styles.tableValue}>Shared</Text>
+                        </View>
+                        <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
+                          <Text style={styles.tableKey}>Pantry / Cafeteria</Text>
+                          <Text style={styles.tableValue}>Cafeteria</Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
                 )}
-              </TouchableOpacity>
 
-              {priceOpen && (
-                <View style={styles.accordionBody}>
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>
-                      {isBuy || isCommercial ? 'Expected price' : 'Monthly rent'}
-                    </Text>
-                    <Text style={styles.tableValue}>
-                      {property.priceLabel || `₹${property.price.toLocaleString('en-IN')}${!isBuy ? '/month' : ''}`}
-                    </Text>
-                  </View>
-                  {(isRent || isFlatmate) && (
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Security deposit</Text>
-                      <Text style={styles.tableValue}>
-                        {property.deposit ? `₹${property.deposit.toLocaleString('en-IN')}` : '₹45,000'}
-                      </Text>
+                {/* Accordion 2: Location & Visit Schedule */}
+                <View style={[styles.accordionContainer, { marginTop: 10 }]}>
+                  <TouchableOpacity
+                    style={styles.accordionHeader}
+                    onPress={() => toggleAccordion(setLocationOpen)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.accordionHeaderTitle}>Location & Visit Schedule</Text>
+                    {locationOpen ? (
+                      <ChevronDown size={18} color="#64748B" />
+                    ) : (
+                      <ChevronRight size={18} color="#64748B" />
+                    )}
+                  </TouchableOpacity>
+
+                  {locationOpen && (
+                    <View style={styles.accordionBody}>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>City</Text>
+                        <Text style={styles.tableValue}>{property.city || (isCommercial ? 'Hyderabad' : 'Vizag')}</Text>
+                      </View>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Locality</Text>
+                        <Text style={styles.tableValue}>
+                          {property.location?.split(',')[0] || (isCommercial ? 'HITEC City' : 'Gajuwaka')}
+                        </Text>
+                      </View>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Street / Area</Text>
+                        <Text style={styles.tableValue}>
+                          {isCommercial ? '18, Main Road' : 'Main Residential Enclave'}
+                        </Text>
+                      </View>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Landmark</Text>
+                        <Text style={styles.tableValue}>
+                          {isCommercial ? 'Opposite City Mall' : 'Near Apollo Clinic & Market'}
+                        </Text>
+                      </View>
+                      {isCommercial && (
+                        <>
+                          <View style={styles.tableRow}>
+                            <Text style={styles.tableKey}>Google Maps pin</Text>
+                            <Text style={styles.tableValue}>17.459999999999997, 78.36</Text>
+                          </View>
+                          <View style={styles.tableRow}>
+                            <Text style={styles.tableKey}>Property position</Text>
+                            <Text style={styles.tableValue}>Main road & corner property</Text>
+                          </View>
+                        </>
+                      )}
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Visit availability</Text>
+                        <Text style={styles.tableValue}>{isCommercial ? 'Weekends' : 'Everyday'}</Text>
+                      </View>
+                      <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
+                        <Text style={styles.tableKey}>Visit time</Text>
+                        <Text style={styles.tableValue}>
+                          {isCommercial ? '11:00 AM – 5:00 PM' : '10:00 AM - 6:00 PM'}
+                        </Text>
+                      </View>
                     </View>
                   )}
-                  {(isRent || isFlatmate) && (
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Maintenance</Text>
-                      <Text style={styles.tableValue}>
-                        {property.maintenance ? `₹${property.maintenance.toLocaleString('en-IN')}/mo` : '₹1,500/mo'}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.tableRow}>
-                    <Text style={styles.tableKey}>Price negotiable</Text>
-                    <Text style={styles.tableValue}>{isCommercial ? 'No' : 'Yes'}</Text>
-                  </View>
-                  <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
-                    <Text style={styles.tableKey}>Available from</Text>
-                    <Text style={styles.tableValue}>{isCommercial ? 'Available now' : 'Immediately'}</Text>
-                  </View>
                 </View>
-              )}
-            </View>
 
-            {/* Accordion 4: Tenant Preferences (Rent ONLY — Matching Image 4) */}
-            {isRent && (
-              <View style={[styles.accordionContainer, { marginTop: 10 }]}>
-                <TouchableOpacity
-                  style={styles.accordionHeader}
-                  onPress={() => toggleAccordion(setTermsOpen)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.accordionHeaderTitle}>Tenant Preferences</Text>
-                  {termsOpen ? (
-                    <ChevronDown size={18} color="#64748B" />
-                  ) : (
-                    <ChevronRight size={18} color="#64748B" />
+                {/* Accordion 3: Price / Rent & Availability */}
+                <View style={[styles.accordionContainer, { marginTop: 10 }]}>
+                  <TouchableOpacity
+                    style={styles.accordionHeader}
+                    onPress={() => toggleAccordion(setPriceOpen)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.accordionHeaderTitle}>
+                      {isBuy || isCommercial ? 'Price & Availability' : 'Rent & Availability'}
+                    </Text>
+                    {priceOpen ? (
+                      <ChevronDown size={18} color="#64748B" />
+                    ) : (
+                      <ChevronRight size={18} color="#64748B" />
+                    )}
+                  </TouchableOpacity>
+
+                  {priceOpen && (
+                    <View style={styles.accordionBody}>
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>
+                          {isBuy || isCommercial ? 'Expected price' : 'Monthly rent'}
+                        </Text>
+                        <Text style={styles.tableValue}>
+                          {property.priceLabel || `₹${property.price.toLocaleString('en-IN')}${!isBuy ? '/month' : ''}`}
+                        </Text>
+                      </View>
+                      {(isRent || isFlatmate) && (
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Security deposit</Text>
+                          <Text style={styles.tableValue}>
+                            {property.deposit ? `₹${property.deposit.toLocaleString('en-IN')}` : '₹45,000'}
+                          </Text>
+                        </View>
+                      )}
+                      {(isRent || isFlatmate) && (
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Maintenance</Text>
+                          <Text style={styles.tableValue}>
+                            {property.maintenance ? `₹${property.maintenance.toLocaleString('en-IN')}/mo` : '₹1,500/mo'}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.tableRow}>
+                        <Text style={styles.tableKey}>Price negotiable</Text>
+                        <Text style={styles.tableValue}>{isCommercial ? 'No' : 'Yes'}</Text>
+                      </View>
+                      <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
+                        <Text style={styles.tableKey}>Available from</Text>
+                        <Text style={styles.tableValue}>{isCommercial ? 'Available now' : 'Immediately'}</Text>
+                      </View>
+                    </View>
                   )}
-                </TouchableOpacity>
+                </View>
 
-                {termsOpen && (
-                  <View style={styles.accordionBody}>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Preferred tenants</Text>
-                      <Text style={styles.tableValue}>Family / Working Professionals</Text>
-                    </View>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Bachelors allowed</Text>
-                      <Text style={styles.tableValue}>Yes</Text>
-                    </View>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Pets allowed</Text>
-                      <Text style={styles.tableValue}>No</Text>
-                    </View>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Smoking allowed</Text>
-                      <Text style={styles.tableValue}>No</Text>
-                    </View>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Food preference</Text>
-                      <Text style={styles.tableValue}>Any</Text>
-                    </View>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Lock-in period</Text>
-                      <Text style={styles.tableValue}>6 months</Text>
-                    </View>
-                    <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
-                      <Text style={styles.tableKey}>Notice period</Text>
-                      <Text style={styles.tableValue}>1 month</Text>
-                    </View>
+                {/* Accordion 4: Tenant Preferences (Rent ONLY — Matching Image 4) */}
+                {isRent && (
+                  <View style={[styles.accordionContainer, { marginTop: 10 }]}>
+                    <TouchableOpacity
+                      style={styles.accordionHeader}
+                      onPress={() => toggleAccordion(setTermsOpen)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.accordionHeaderTitle}>Tenant Preferences</Text>
+                      {termsOpen ? (
+                        <ChevronDown size={18} color="#64748B" />
+                      ) : (
+                        <ChevronRight size={18} color="#64748B" />
+                      )}
+                    </TouchableOpacity>
+
+                    {termsOpen && (
+                      <View style={styles.accordionBody}>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Preferred tenants</Text>
+                          <Text style={styles.tableValue}>Family / Working Professionals</Text>
+                        </View>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Bachelors allowed</Text>
+                          <Text style={styles.tableValue}>Yes</Text>
+                        </View>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Pets allowed</Text>
+                          <Text style={styles.tableValue}>No</Text>
+                        </View>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Smoking allowed</Text>
+                          <Text style={styles.tableValue}>No</Text>
+                        </View>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Food preference</Text>
+                          <Text style={styles.tableValue}>Any</Text>
+                        </View>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Lock-in period</Text>
+                          <Text style={styles.tableValue}>6 months</Text>
+                        </View>
+                        <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
+                          <Text style={styles.tableKey}>Notice period</Text>
+                          <Text style={styles.tableValue}>1 month</Text>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 )}
-              </View>
-            )}
 
-            {/* Accordion 4: Flatmate Preferences (Flatmates ONLY) */}
-            {isFlatmate && (
-              <View style={[styles.accordionContainer, { marginTop: 10 }]}>
-                <TouchableOpacity
-                  style={styles.accordionHeader}
-                  onPress={() => toggleAccordion(setTermsOpen)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.accordionHeaderTitle}>Flatmate Preferences</Text>
-                  {termsOpen ? (
-                    <ChevronDown size={18} color="#64748B" />
-                  ) : (
-                    <ChevronRight size={18} color="#64748B" />
-                  )}
-                </TouchableOpacity>
+                {/* Accordion 4: Flatmate Preferences (Flatmates ONLY) */}
+                {isFlatmate && (
+                  <View style={[styles.accordionContainer, { marginTop: 10 }]}>
+                    <TouchableOpacity
+                      style={styles.accordionHeader}
+                      onPress={() => toggleAccordion(setTermsOpen)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.accordionHeaderTitle}>Flatmate Preferences</Text>
+                      {termsOpen ? (
+                        <ChevronDown size={18} color="#64748B" />
+                      ) : (
+                        <ChevronRight size={18} color="#64748B" />
+                      )}
+                    </TouchableOpacity>
 
-                {termsOpen && (
-                  <View style={styles.accordionBody}>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Gender preference</Text>
-                      <Text style={styles.tableValue}>Any</Text>
-                    </View>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Preferred Age</Text>
-                      <Text style={styles.tableValue}>25</Text>
-                    </View>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Occupation</Text>
-                      <Text style={styles.tableValue}>Any</Text>
-                    </View>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Pets allowed</Text>
-                      <Text style={styles.tableValue}>No</Text>
-                    </View>
-                    <View style={styles.tableRow}>
-                      <Text style={styles.tableKey}>Smoking allowed</Text>
-                      <Text style={styles.tableValue}>No</Text>
-                    </View>
-                    <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
-                      <Text style={styles.tableKey}>Food preference</Text>
-                      <Text style={styles.tableValue}>Vegetarian</Text>
-                    </View>
+                    {termsOpen && (
+                      <View style={styles.accordionBody}>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Gender preference</Text>
+                          <Text style={styles.tableValue}>Any</Text>
+                        </View>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Preferred Age</Text>
+                          <Text style={styles.tableValue}>25</Text>
+                        </View>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Occupation</Text>
+                          <Text style={styles.tableValue}>Any</Text>
+                        </View>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Pets allowed</Text>
+                          <Text style={styles.tableValue}>No</Text>
+                        </View>
+                        <View style={styles.tableRow}>
+                          <Text style={styles.tableKey}>Smoking allowed</Text>
+                          <Text style={styles.tableValue}>No</Text>
+                        </View>
+                        <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
+                          <Text style={styles.tableKey}>Food preference</Text>
+                          <Text style={styles.tableValue}>Vegetarian</Text>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 )}
-              </View>
-            )}
-            </>
+              </>
             )}
           </View>
 
@@ -1310,12 +1310,12 @@ export default function PropertyDetailScreen() {
               {(isPg
                 ? ['WiFi', 'Common TV', 'Mess', 'Lift', 'Refrigerator', 'Power Backup', 'CCTV', 'RO Water']
                 : isCommercial
-                ? (property.amenities && property.amenities.length > 0
+                  ? (property.amenities && property.amenities.length > 0
                     ? property.amenities
                     : ['Power Backup', '2 Car Parking', 'AC', 'Server Room', 'Conference Room', 'Reception', 'Cafeteria'])
-                : isBuy
-                ? ['Lift', 'Security', 'Parking', 'Power Backup', 'Gym', 'Swimming Pool', 'Club House', 'CCTV']
-                : ['Parking', 'Water Supply', 'Power Backup', 'Garden', 'Security']
+                  : isBuy
+                    ? ['Lift', 'Security', 'Parking', 'Power Backup', 'Gym', 'Swimming Pool', 'Club House', 'CCTV']
+                    : ['Parking', 'Water Supply', 'Power Backup', 'Garden', 'Security']
               ).map((amenity) => {
                 let iconElement = <CheckCircle size={13} color="#475569" />;
                 if (isPg) {
@@ -1345,7 +1345,7 @@ export default function PropertyDetailScreen() {
             <View style={styles.flatmatesCardContainer}>
               <View style={styles.flatmatesHeaderRow}>
                 <Text style={styles.flatmatesHeaderTitle}>Your future flatmates</Text>
-                <TouchableOpacity onPress={() => push({ name: 'flatmates' })}> 
+                <TouchableOpacity onPress={() => push({ name: 'flatmates' })}>
                   <Text style={styles.flatmatesViewMore}>2 living here</Text>
                 </TouchableOpacity>
               </View>
