@@ -12,7 +12,7 @@ export const getHost = () => {
   if (debuggerHost && !debuggerHost.includes('exp.direct')) {
     return debuggerHost;
   }
-  return '192.168.31.145';
+  return '192.168.29.234';
 };
 
 export const getApiBaseUrl = () => {

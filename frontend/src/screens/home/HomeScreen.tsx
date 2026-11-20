@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,8 @@ import {
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { properties } from '../../data/properties';
+import type { Property } from '../../types';
+import { api } from '../../services/api';
 
 // Popular localities in Hyderabad matching the Figma design & screenshot
 const POPULAR_LOCATIONS = [
@@ -65,6 +67,47 @@ export default function HomeScreen() {
   const { push, savedIds, toggleSaved, notifications, setTab, isAuthenticated, requireAuth, user } = useApp();
   const [activeCategory, setActiveCategory] = useState('buy');
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+  const [liveProperties, setLiveProperties] = useState<Property[]>(properties);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.properties.list()
+      .then((res: any) => {
+        if (isMounted && res?.properties && Array.isArray(res.properties) && res.properties.length > 0) {
+          const mappedApiProps: Property[] = res.properties.map((p: any) => ({
+            id: String(p.id),
+            title: p.title || 'Seedha Property',
+            location: p.location || 'Hyderabad',
+            city: p.city || 'Hyderabad',
+            price: Number(p.price) || 0,
+            priceLabel: p.priceLabel || `₹${Number(p.price).toLocaleString('en-IN')}`,
+            type: (p.listingType ? String(p.listingType).toLowerCase() : 'buy') as any,
+            propertyType: p.propertyType || 'apartment',
+            bhk: p.bedrooms || 2,
+            baths: p.bathrooms || 2,
+            sqft: p.area || 1200,
+            image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : (p.image || properties[0].image),
+            images: Array.isArray(p.images) && p.images.length > 0 ? p.images : [properties[0].image],
+            featured: Boolean(p.featured),
+            verified: Boolean(p.verified),
+            floor: p.floor || '2nd Floor',
+            furnishing: p.furnishing || 'Semi Furnished',
+            facing: p.facing || 'East',
+            parking: p.parking !== undefined ? Boolean(p.parking) : true,
+            amenities: p.amenities || ['Parking', 'Water Supply', 'Power Backup'],
+          }));
+          const existingIds = new Set(mappedApiProps.map((p) => p.id));
+          const combined = [...mappedApiProps, ...properties.filter((p) => !existingIds.has(p.id))];
+          setLiveProperties(combined);
+        }
+      })
+      .catch(() => {
+        // Fallback to local properties if backend is offline
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleProtectedNavigate = (screen: any, actionTitle = 'Continue') => {
     if (!isAuthenticated) {
@@ -76,13 +119,13 @@ export default function HomeScreen() {
 
   // Find properties for spotlight, featured horizontal carousel, and recommended list
   const spotlightProperty =
-    properties.find((p) => p.id === 'spotlight-1') || properties[0];
+    liveProperties.find((p) => p.id === 'spotlight-1') || liveProperties[0];
 
-  const featuredProperties = properties
+  const featuredProperties = liveProperties
     .filter((p) => p.id === 'feat-1' || p.id === 'feat-2' || p.featured)
     .slice(0, 4);
 
-  const recommendedProperties = properties
+  const recommendedProperties = liveProperties
     .filter((p) => p.id === 'rec-1' || p.id === 'rec-2' || (!p.featured && p.id !== 'spotlight-1'))
     .slice(0, 4);
 
