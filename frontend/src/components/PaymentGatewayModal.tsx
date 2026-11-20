@@ -128,7 +128,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           <View style={styles.amountCard}>
             <View>
               <Text style={styles.amountLabel}>Total Payable Amount</Text>
-              <Text style={styles.amountValue}>₹{amount.toLocaleString('en-IN')}</Text>
+              <Text style={styles.amountValue}>₹{Number(amount || 0).toLocaleString('en-IN')}</Text>
             </View>
             <View style={styles.shieldBadge}>
               <MaterialCommunityIcons name="shield-check" size={20} color="#16A34A" />
@@ -328,7 +328,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                 </View>
               ) : (
                 <Text style={styles.payButtonText}>
-                  Pay ₹{amount.toLocaleString('en-IN')} Securely
+                  Pay ₹{Number(amount || 0).toLocaleString('en-IN')} Securely
                 </Text>
               )}
             </TouchableOpacity>

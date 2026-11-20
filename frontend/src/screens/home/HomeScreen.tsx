@@ -73,29 +73,48 @@ export default function HomeScreen() {
     let isMounted = true;
     api.properties.list()
       .then((res: any) => {
-        if (isMounted && res?.properties && Array.isArray(res.properties) && res.properties.length > 0) {
-          const mappedApiProps: Property[] = res.properties.map((p: any) => ({
-            id: String(p.id),
-            title: p.title || 'Seedha Property',
-            location: p.location || 'Hyderabad',
-            city: p.city || 'Hyderabad',
-            price: Number(p.price) || 0,
-            priceLabel: p.priceLabel || `₹${Number(p.price).toLocaleString('en-IN')}`,
-            type: (p.listingType ? String(p.listingType).toLowerCase() : 'buy') as any,
-            propertyType: p.propertyType || 'apartment',
-            bhk: p.bedrooms || 2,
-            baths: p.bathrooms || 2,
-            sqft: p.area || 1200,
-            image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : (p.image || properties[0].image),
-            images: Array.isArray(p.images) && p.images.length > 0 ? p.images : [properties[0].image],
-            featured: Boolean(p.featured),
-            verified: Boolean(p.verified),
-            floor: p.floor || '2nd Floor',
-            furnishing: p.furnishing || 'Semi Furnished',
-            facing: p.facing || 'East',
-            parking: p.parking !== undefined ? Boolean(p.parking) : true,
-            amenities: p.amenities || ['Parking', 'Water Supply', 'Power Backup'],
-          }));
+        const rawList = res?.properties || res?.data || (Array.isArray(res) ? res : []);
+        if (isMounted && rawList.length > 0) {
+          const mappedApiProps: Property[] = rawList.map((p: any) => {
+            const priceNum = Number(p.price) || 0;
+            const areaNum = Number(p.area ?? p.sqft ?? 1200);
+            const bedroomsNum = Number(p.bedrooms ?? p.bhk ?? 2);
+            const bathroomsNum = Number(p.bathrooms ?? p.baths ?? 2);
+            const defaultImg = properties[0]?.image || 'https://images.unsplash.com/photo-1613977257592-4871e5fcd7c4?w=800';
+            const imgList = Array.isArray(p.images) && p.images.length > 0 ? p.images : (p.image ? [p.image] : [defaultImg]);
+
+            return {
+              id: String(p.id),
+              title: p.title || 'Seedha Property',
+              location: p.location || 'Hyderabad',
+              city: p.city || 'Hyderabad',
+              price: priceNum,
+              priceLabel: p.priceLabel || (priceNum >= 10000000 ? `₹${(priceNum / 10000000).toFixed(2)} Cr` : `₹${priceNum.toLocaleString('en-IN')}`),
+              listingType: (p.listingType ? String(p.listingType).toLowerCase() : 'buy') as any,
+              propertyType: p.propertyType || 'apartment',
+              bedrooms: bedroomsNum,
+              bathrooms: bathroomsNum,
+              area: areaNum,
+              // Legacy aliases for backward compatibility
+              bhk: bedroomsNum,
+              baths: bathroomsNum,
+              sqft: areaNum,
+              type: (p.listingType ? String(p.listingType).toLowerCase() : 'buy') as any,
+              image: imgList[0] || defaultImg,
+              images: imgList,
+              featured: Boolean(p.featured),
+              verified: Boolean(p.verified),
+              floor: p.floor || '2nd Floor',
+              furnishing: p.furnishing || 'semi-furnished',
+              facing: p.facing || 'East',
+              parking: p.parking !== undefined ? Boolean(p.parking) : true,
+              amenities: Array.isArray(p.amenities) ? p.amenities : ['Parking', 'Water Supply', 'Power Backup'],
+              description: p.description || '',
+              ownerName: p.ownerName || 'Property Owner',
+              ownerAvatar: p.ownerAvatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80',
+              ownerType: (p.ownerType as any) || 'owner',
+            };
+          });
           const existingIds = new Set(mappedApiProps.map((p) => p.id));
           const combined = [...mappedApiProps, ...properties.filter((p) => !existingIds.has(p.id))];
           setLiveProperties(combined);
@@ -119,7 +138,7 @@ export default function HomeScreen() {
 
   // Find properties for spotlight, featured horizontal carousel, and recommended list
   const spotlightProperty =
-    liveProperties.find((p) => p.id === 'spotlight-1') || liveProperties[0];
+    liveProperties.find((p) => p.id === 'spotlight-1') || liveProperties[0] || properties[0];
 
   const featuredProperties = liveProperties
     .filter((p) => p.id === 'feat-1' || p.id === 'feat-2' || p.featured)
@@ -585,18 +604,22 @@ export default function HomeScreen() {
             <View style={styles.specsPillTray}>
               <View style={styles.specItem}>
                 <BedDouble size={14} color="#FFDBCC" strokeWidth={2.2} />
-                <Text style={styles.specText}>{spotlightProperty.bedrooms} Beds</Text>
+                <Text style={styles.specText}>
+                  {spotlightProperty?.bedrooms ?? (spotlightProperty as any)?.bhk ?? 4} Beds
+                </Text>
               </View>
               <View style={styles.specDot} />
               <View style={styles.specItem}>
                 <Bath size={14} color="#FFDBCC" strokeWidth={2.2} />
-                <Text style={styles.specText}>{spotlightProperty.bathrooms} Baths</Text>
+                <Text style={styles.specText}>
+                  {spotlightProperty?.bathrooms ?? (spotlightProperty as any)?.baths ?? 5} Baths
+                </Text>
               </View>
               <View style={styles.specDot} />
               <View style={styles.specItem}>
                 <Square size={13} color="#FFDBCC" strokeWidth={2.2} />
                 <Text style={styles.specText}>
-                  {spotlightProperty.area.toLocaleString()} sqft
+                  {Number(spotlightProperty?.area ?? (spotlightProperty as any)?.sqft ?? 6500).toLocaleString('en-IN')} sqft
                 </Text>
               </View>
             </View>
