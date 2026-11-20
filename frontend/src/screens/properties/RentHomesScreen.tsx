@@ -30,6 +30,7 @@ import {
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 import { properties } from '../../data/properties';
 import type { Property } from '../../types';
 
@@ -95,6 +96,8 @@ export default function RentHomesScreen() {
     latitude: 17.4401,
     longitude: 78.3489,
   });
+  const [liveProperties, setLiveProperties] = useState<Property[]>([]);
+  const [isFetchingLive, setIsFetchingLive] = useState(false);
 
   // Auto-detect user's location on screen mount
   useEffect(() => {
@@ -112,6 +115,35 @@ export default function RentHomesScreen() {
     }
   }, []);
 
+  // Fetch real-time rent properties from backend Supabase PostgreSQL
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveRentals = async () => {
+      try {
+        setIsFetchingLive(true);
+        const res = await api.properties.list({
+          type: 'rent',
+          userLat: currentCoords.latitude,
+          userLng: currentCoords.longitude,
+          radiusKm: selectedRadius,
+        });
+        const list = res?.properties || res?.data || (Array.isArray(res) ? res : []);
+        if (isMounted && list.length > 0) {
+          setLiveProperties(list);
+        }
+      } catch (err) {
+        console.warn('Live rent properties fetch notice:', err);
+      } finally {
+        if (isMounted) setIsFetchingLive(false);
+      }
+    };
+
+    fetchLiveRentals();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentCoords.latitude, currentCoords.longitude, selectedRadius]);
+
   const getPropertyCoords = (p: Property) => {
     if ((p as any).latitude && (p as any).longitude) {
       return { lat: (p as any).latitude, lng: (p as any).longitude };
@@ -123,20 +155,21 @@ export default function RentHomesScreen() {
     return { lat: 17.4483, lng: 78.3915 };
   };
 
-  // Available Rent Properties
+  // Available Rent Properties: Uses live Supabase backend data with instant fallback
   const rentProperties = useMemo(() => {
+    const source = liveProperties.length > 0 ? liveProperties : properties;
     const targetProps: Property[] = [];
     TARGET_RENTAL_IDS.forEach((id) => {
-      const found = properties.find((p) => p.id === id);
+      const found = source.find((p) => p.id === id);
       if (found) targetProps.push(found);
     });
 
-    const otherRent = properties.filter(
+    const otherRent = source.filter(
       (p) => p.listingType === 'rent' && !TARGET_RENTAL_IDS.includes(p.id)
     );
 
     return [...targetProps, ...otherRent];
-  }, []);
+  }, [liveProperties]);
 
   // Filtered and sorted properties with distance and radius auto-expansion
   const filteredProperties = useMemo(() => {

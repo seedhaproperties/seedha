@@ -39,11 +39,19 @@ export class PropertiesService {
 
   async findAll(query: QueryPropertyDto) {
     try {
+      let listingTypeEnum: any = undefined;
+      if (query.type) {
+        const upper = query.type.trim().toUpperCase();
+        if (upper === 'BUY' || upper === 'RENT' || upper === 'COMMERCIAL') {
+          listingTypeEnum = upper;
+        }
+      }
+
       // 1. Fetch from Supabase PostgreSQL
       const dbProps = await this.prisma.property.findMany({
         where: {
           status: 'PUBLISHED',
-          ...(query.type ? { listingType: query.type as any } : {}),
+          ...(listingTypeEnum ? { listingType: listingTypeEnum } : {}),
           ...(query.city ? { city: { contains: query.city, mode: 'insensitive' } } : {}),
           ...(query.location ? { location: { contains: query.location, mode: 'insensitive' } } : {}),
           ...(query.pincode ? { pincode: { contains: query.pincode } } : {}),
@@ -59,7 +67,10 @@ export class PropertiesService {
       const existingIds = new Set(results.map((p) => p.id));
 
       let mockFiltered = mockDb.properties.filter((p) => !existingIds.has(p.id));
-      if (query.type) mockFiltered = mockFiltered.filter((p) => p.listingType === query.type);
+      if (query.type) {
+        const qTypeLower = query.type.toLowerCase();
+        mockFiltered = mockFiltered.filter((p) => p.listingType.toLowerCase() === qTypeLower);
+      }
       if (query.city) mockFiltered = mockFiltered.filter((p) => p.city.toLowerCase().includes(query.city!.toLowerCase()));
       if (query.location) mockFiltered = mockFiltered.filter((p) => p.location.toLowerCase().includes(query.location!.toLowerCase()));
       if (query.bhk) mockFiltered = mockFiltered.filter((p) => p.bedrooms === Number(query.bhk));
@@ -77,8 +88,14 @@ export class PropertiesService {
         const pLat = p.latitude || 17.4483;
         const pLng = p.longitude || 78.38;
         const dist = calculateDistanceKm(userLat, userLng, pLat, pLng);
+        const img = (p.images && p.images.length > 0 ? p.images[0] : (p as any).image) || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800';
         return {
           ...p,
+          listingType: (p.listingType || '').toLowerCase() as any,
+          image: img,
+          images: p.images && p.images.length > 0 ? p.images : [img],
+          ownerAvatar: (p as any).ownerAvatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80',
+          ownerType: (p as any).ownerType || 'owner',
           distanceKm: dist,
           distanceLabel: `${dist} km away`,
         };
@@ -104,10 +121,11 @@ export class PropertiesService {
         total: finalProps.length,
         radiusUsedKm: activeRadiusUsed,
         properties: finalProps,
+        data: finalProps,
       };
     } catch (err: any) {
       this.logger.error(`Error in findAll: ${err.message}`);
-      return { total: 0, properties: [] };
+      return { total: 0, properties: [], data: [] };
     }
   }
 

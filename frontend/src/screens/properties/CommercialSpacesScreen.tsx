@@ -26,6 +26,7 @@ import {
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 import { properties } from '../../data/properties';
 import type { Property } from '../../types';
 
@@ -100,6 +101,8 @@ export default function CommercialSpacesScreen() {
     latitude: 17.4401,
     longitude: 78.3489,
   });
+  const [liveProperties, setLiveProperties] = useState<Property[]>([]);
+  const [isFetchingLive, setIsFetchingLive] = useState(false);
 
   // Auto-detect user's location on mount
   useEffect(() => {
@@ -117,6 +120,35 @@ export default function CommercialSpacesScreen() {
     }
   }, []);
 
+  // Fetch real-time commercial properties from backend Supabase PostgreSQL
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveCommercial = async () => {
+      try {
+        setIsFetchingLive(true);
+        const res = await api.properties.list({
+          type: 'commercial',
+          userLat: currentCoords.latitude,
+          userLng: currentCoords.longitude,
+          radiusKm: selectedRadius,
+        });
+        const list = res?.properties || res?.data || (Array.isArray(res) ? res : []);
+        if (isMounted && list.length > 0) {
+          setLiveProperties(list);
+        }
+      } catch (err) {
+        console.warn('Live commercial properties fetch notice:', err);
+      } finally {
+        if (isMounted) setIsFetchingLive(false);
+      }
+    };
+
+    fetchLiveCommercial();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentCoords.latitude, currentCoords.longitude, selectedRadius]);
+
   const getPropertyCoords = (p: Property) => {
     if ((p as any).latitude && (p as any).longitude) {
       return { lat: (p as any).latitude, lng: (p as any).longitude };
@@ -128,20 +160,21 @@ export default function CommercialSpacesScreen() {
     return { lat: 17.4483, lng: 78.3915 };
   };
 
-  // Commercial properties prioritized to match design order
+  // Commercial properties: Uses live Supabase backend data with instant fallback
   const commercialProperties = useMemo(() => {
+    const source = liveProperties.length > 0 ? liveProperties : properties;
     const targetProps: Property[] = [];
     TARGET_COMMERCIAL_IDS.forEach((id) => {
-      const found = properties.find((p) => p.id === id);
+      const found = source.find((p) => p.id === id);
       if (found) targetProps.push(found);
     });
 
-    const otherCommercial = properties.filter(
+    const otherCommercial = source.filter(
       (p) => p.listingType === 'commercial' && !TARGET_COMMERCIAL_IDS.includes(p.id)
     );
 
     return [...targetProps, ...otherCommercial];
-  }, []);
+  }, [liveProperties]);
 
   // Filtered and sorted commercial spaces with distance and radius auto-expansion
   const filteredProperties = useMemo(() => {

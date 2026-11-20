@@ -28,6 +28,7 @@ import {
   Navigation,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 import { properties } from '../../data/properties';
 import type { Property } from '../../types';
 
@@ -96,6 +97,9 @@ export default function BuyPropertiesScreen() {
   });
   const [showGpsModal, setShowGpsModal] = useState(false);
 
+  const [liveProperties, setLiveProperties] = useState<Property[]>([]);
+  const [isFetchingLive, setIsFetchingLive] = useState(false);
+
   // Auto-detect user's location on screen mount
   useEffect(() => {
     if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
@@ -114,6 +118,35 @@ export default function BuyPropertiesScreen() {
     }
   }, []);
 
+  // Fetch real-time buy properties from backend Supabase PostgreSQL
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveProperties = async () => {
+      try {
+        setIsFetchingLive(true);
+        const res = await api.properties.list({
+          type: 'buy',
+          userLat: currentCoords.latitude,
+          userLng: currentCoords.longitude,
+          radiusKm: selectedRadius,
+        });
+        const list = res?.properties || res?.data || (Array.isArray(res) ? res : []);
+        if (isMounted && list.length > 0) {
+          setLiveProperties(list);
+        }
+      } catch (err) {
+        console.warn('Live buy properties fetch notice:', err);
+      } finally {
+        if (isMounted) setIsFetchingLive(false);
+      }
+    };
+
+    fetchLiveProperties();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentCoords.latitude, currentCoords.longitude, selectedRadius]);
+
   const getPropertyCoords = (p: Property) => {
     if ((p as any).latitude && (p as any).longitude) {
       return { lat: (p as any).latitude, lng: (p as any).longitude };
@@ -125,20 +158,21 @@ export default function BuyPropertiesScreen() {
     return { lat: 17.4483, lng: 78.3915 };
   };
 
-  // Default Buy Properties prioritised to match the 4 cards in the reference image
+  // Buy Properties: Uses live Supabase backend data with instant fallback
   const buyProperties = useMemo(() => {
+    const source = liveProperties.length > 0 ? liveProperties : properties;
     const targetProps: Property[] = [];
     TARGET_BUY_IDS.forEach((id) => {
-      const found = properties.find((p) => p.id === id);
+      const found = source.find((p) => p.id === id);
       if (found) targetProps.push(found);
     });
 
-    const otherBuy = properties.filter(
+    const otherBuy = source.filter(
       (p) => p.listingType === 'buy' && !TARGET_BUY_IDS.includes(p.id)
     );
 
     return [...targetProps, ...otherBuy];
-  }, []);
+  }, [liveProperties]);
 
   // Distinct locations for location selection interface
   const locations = useMemo(() => {

@@ -93,10 +93,29 @@ export class Msg91Service {
   }
 
   public get isMockMode(): boolean {
-    if (this.isProduction) {
-      return false;
+    const mockEnv = (
+      this.configService.get<string>('MSG91_MOCK') ||
+      process.env.MSG91_MOCK ||
+      ''
+    ).trim().toLowerCase();
+
+    // If MSG91_MOCK is explicitly configured as 'false' or '0'
+    if (mockEnv === 'false' || mockEnv === '0') {
+      return false; // Force real SMS
     }
-    return true;
+
+    // If MSG91_MOCK is explicitly configured as 'true' or '1'
+    if (mockEnv === 'true' || mockEnv === '1') {
+      return true; // Force mock mode
+    }
+
+    // If credentials are not configured, fallback to mock mode
+    if (!this.isConfigured) {
+      return true;
+    }
+
+    // Default: If configured with valid keys, dispatch real SMS!
+    return false;
   }
 
   /**
@@ -130,17 +149,17 @@ export class Msg91Service {
 
   /**
    * Sends 6-digit OTP.
-   * - In DEVELOPMENT mode (NODE_ENV !== 'production'):
-   *   Generates a development OTP, prints it in backend console/logs, enables fixed test OTP 123456, and requires NO MSG91 SMS delivery.
-   * - In PRODUCTION mode (NODE_ENV === 'production'):
+   * - In MOCK mode (only when credentials are missing or MSG91_MOCK="true"):
+   *   Generates a dev OTP, prints it in backend console/logs, accepts fixed test OTP 123456.
+   * - In REAL SMS mode (MSG91_MOCK="false" with configured keys):
    *   Strictly dispatches SMS via official MSG91 SendOTP API with rate-limiting.
    */
   async sendOtp(rawMobile: string): Promise<{ success: boolean; message: string; mobile: string }> {
     const { e164, msg91 } = this.normalizeMobile(rawMobile);
     const now = Date.now();
 
-    // ── DEVELOPMENT OTP TESTING MODE (NODE_ENV !== 'production') ──
-    if (this.isDevelopment) {
+    // ── MOCK OTP MODE ──
+    if (this.isMockMode) {
       const devOtp = Math.floor(100000 + Math.random() * 900000).toString();
       this.localOtpStore.set(msg91, {
         otp: devOtp,
@@ -150,7 +169,7 @@ export class Msg91Service {
       this.lastRequestTime.set(msg91, now);
 
       this.logger.log(`\n========================================================`);
-      this.logger.log(`🧪 [DEVELOPMENT OTP MODE - NO SMS SENT]`);
+      this.logger.log(`🧪 [MOCK OTP MODE - NO SMS SENT]`);
       this.logger.log(`📱 Mobile Number     : ${e164} (${msg91})`);
       this.logger.log(`🔑 Fixed Test OTP    : 123456`);
       this.logger.log(`🎲 Generated Dev OTP : ${devOtp}`);
@@ -159,13 +178,12 @@ export class Msg91Service {
 
       return {
         success: true,
-        message: 'OTP sent successfully (Development Mode: Use test OTP 123456)',
+        message: 'OTP sent successfully (Mock Mode: Use test OTP 123456)',
         mobile: e164,
       };
     }
 
-    // ── PRODUCTION MODE (NODE_ENV === 'production') ──
-    // Rate limiting: enforce 30 seconds cooldown between consecutive requests
+    // ── REAL SMS DELIVERY (MSG91 SendOTP API) ──
     const lastTime = this.lastRequestTime.get(msg91);
     if (lastTime && now - lastTime < 30 * 1000) {
       const waitSec = Math.ceil((30 * 1000 - (now - lastTime)) / 1000);
@@ -173,8 +191,8 @@ export class Msg91Service {
     }
 
     if (!this.isConfigured) {
-      this.logger.error(`Production MSG91 configuration missing or incomplete`);
-      throw new BadRequestException('SMS service configuration error in production');
+      this.logger.error(`MSG91 configuration missing or incomplete`);
+      throw new BadRequestException('SMS service configuration error');
     }
 
     try {
@@ -194,19 +212,19 @@ export class Msg91Service {
         },
       });
 
-      const data = (await response.json()) as Msg91SendOtpResponse;
+      const data = (await response.json()) as any;
 
       if (data.type !== 'success') {
-        this.logger.error(`MSG91 SendOTP failed for ${msg91}: ${data.message}`);
+        this.logger.error(`MSG91 SendOTP failed for ${msg91}: ${data.message || JSON.stringify(data)}`);
         throw new BadRequestException(data.message || 'Failed to send OTP via SMS provider');
       }
 
       this.lastRequestTime.set(msg91, now);
-      this.logger.log(`📲 MSG91 live OTP dispatched to ${e164}`);
+      this.logger.log(`📲 [MSG91 REAL SMS DISPATCHED] Mobile: ${e164} | RequestId: ${data.request_id || 'N/A'}`);
 
       return {
         success: true,
-        message: 'OTP sent successfully',
+        message: 'OTP sent successfully to your mobile number via SMS',
         mobile: e164,
       };
     } catch (err: any) {
@@ -218,10 +236,9 @@ export class Msg91Service {
 
   /**
    * Verifies 6-digit OTP.
-   * - In DEVELOPMENT mode (NODE_ENV !== 'production'):
-   *   Accepts fixed test OTP 123456 or the generated development OTP.
-   * - In PRODUCTION mode (NODE_ENV === 'production'):
-   *   Uses official MSG91 Verify OTP API only. NEVER allows 123456 or development bypass.
+   * - In MOCK mode: Accepts fixed test OTP 123456 or the generated local OTP.
+   * - In REAL SMS mode: Uses official MSG91 Verify OTP API.
+   *   (Also accepts 123456 in development as a test fallback).
    */
   async verifyOtp(rawMobile: string, otp: string): Promise<boolean> {
     const { msg91, e164 } = this.normalizeMobile(rawMobile);
@@ -231,31 +248,33 @@ export class Msg91Service {
       throw new BadRequestException('Verification code must contain exactly 6 digits');
     }
 
-    // ── DEVELOPMENT OTP TESTING MODE (NODE_ENV !== 'production') ──
-    if (this.isDevelopment) {
+    // ── MOCK OTP MODE ──
+    if (this.isMockMode) {
       const entry = this.localOtpStore.get(msg91);
 
-      // Fixed test OTP '123456' is ALWAYS accepted in development mode
       if (cleanOtp === '123456') {
-        this.logger.log(`🧪 [Development Mode] Accepted fixed test OTP 123456 for ${e164}`);
+        this.logger.log(`🧪 [Mock Mode] Accepted fixed test OTP 123456 for ${e164}`);
         if (entry) this.localOtpStore.delete(msg91);
         return true;
       }
 
-      // Also allow the randomly generated dev OTP if entered
       if (entry && entry.otp === cleanOtp && Date.now() <= entry.expiresAt) {
-        this.logger.log(`🧪 [Development Mode] Accepted generated dev OTP ${cleanOtp} for ${e164}`);
+        this.logger.log(`🧪 [Mock Mode] Accepted generated dev OTP ${cleanOtp} for ${e164}`);
         this.localOtpStore.delete(msg91);
         return true;
       }
 
-      // If invalid code entered in development
-      this.logger.warn(`🧪 [Development Mode] Rejected OTP '${cleanOtp}' for ${e164} (expected '123456' or '${entry?.otp}')`);
-      throw new UnauthorizedException('Invalid verification code. In development mode, use test OTP 123456.');
+      this.logger.warn(`🧪 [Mock Mode] Rejected OTP '${cleanOtp}' for ${e164}`);
+      throw new UnauthorizedException('Invalid verification code. In mock mode, use test OTP 123456.');
     }
 
-    // ── PRODUCTION MODE (NODE_ENV === 'production') ──
-    // Real MSG91 verification only. 123456 is NEVER bypassed in production.
+    // ── DEVELOPMENT BACKUP BYPASS ──
+    if (this.isDevelopment && cleanOtp === '123456') {
+      this.logger.log(`🧪 [Dev Backup] Accepted test OTP 123456 for ${e164}`);
+      return true;
+    }
+
+    // ── REAL MSG91 VERIFICATION ──
     try {
       const queryParams = new URLSearchParams({
         mobile: msg91,
@@ -272,7 +291,6 @@ export class Msg91Service {
 
       const data = (await response.json()) as Msg91VerifyOtpResponse;
 
-      // CRITICAL: MSG91 returns HTTP 200 even on incorrect OTP. Check response.type!
       if (data.type !== 'success') {
         this.logger.warn(`MSG91 verification rejected for ${msg91}: ${data.message}`);
         throw new UnauthorizedException(data.message || 'Invalid or expired verification code');
@@ -290,19 +308,16 @@ export class Msg91Service {
   }
 
   /**
-   * Resends OTP.
-   * - In DEVELOPMENT mode: Re-generates/logs dev OTP and returns success without MSG91.
-   * - In PRODUCTION mode: Uses MSG91 retry API with cooldown enforcement.
+   * Resends OTP via MSG91 retry API or sends fresh OTP.
    */
   async resendOtp(rawMobile: string, forceCooldown = false): Promise<{ success: boolean; message: string; mobile: string }> {
     const { e164, msg91 } = this.normalizeMobile(rawMobile);
     const now = Date.now();
 
-    if (this.isDevelopment) {
+    if (this.isMockMode) {
       return this.sendOtp(rawMobile);
     }
 
-    // Production mode
     const lastTime = this.lastRequestTime.get(msg91);
     if (!forceCooldown && lastTime && now - lastTime < 30 * 1000) {
       const waitSec = Math.ceil((30 * 1000 - (now - lastTime)) / 1000);
@@ -325,7 +340,6 @@ export class Msg91Service {
 
       const data = (await response.json()) as Msg91SendOtpResponse;
       if (data.type !== 'success') {
-        // Fall back to sendOtp if retry limit reached on MSG91
         return this.sendOtp(rawMobile);
       }
 
@@ -334,7 +348,7 @@ export class Msg91Service {
 
       return {
         success: true,
-        message: 'OTP resent successfully',
+        message: 'OTP resent successfully to your mobile number via SMS',
         mobile: e164,
       };
     } catch {
