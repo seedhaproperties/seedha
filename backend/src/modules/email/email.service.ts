@@ -54,7 +54,7 @@ export class EmailService implements OnModuleInit {
         this.logger.log(`📧 SMTP Transporter initialized using ${host}:${port} (user: ${user})`);
         
         // Verify connection in the background
-        this.transporter.verify((error) => {
+        this.transporter.verify((error: any) => {
           if (error) {
             this.logger.warn(`⚠️ SMTP Verification failed (${error.message}). Will log emails to console fallback.`);
           } else {
