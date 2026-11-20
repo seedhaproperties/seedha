@@ -14,6 +14,12 @@ export class ChatController {
     return this.chatService.sendMessage(dto, req.user?.sub);
   }
 
+  @Get('status/:propertyId')
+  @ApiOperation({ summary: 'Check if chat is unlocked for property' })
+  getChatStatus(@Param('propertyId') propertyId: string, @Request() req: any) {
+    return this.chatService.getChatStatus(propertyId, req.user?.sub);
+  }
+
   @Get('conversation/:propertyId')
   @ApiOperation({ summary: 'Get full conversation history for property' })
   getConversation(@Param('propertyId') propertyId: string, @Request() req: any) {

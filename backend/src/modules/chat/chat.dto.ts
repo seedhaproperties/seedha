@@ -17,20 +17,30 @@ export class SendChatMessageDto {
   @IsString()
   ownerPhone?: string;
 
-  @ApiProperty({ example: 'Rahul Sharma' })
+  @ApiPropertyOptional({ example: 'Rahul Sharma' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  senderName!: string;
+  senderName?: string;
 
-  @ApiProperty({ example: 'USER', description: 'USER | OWNER | ADMIN | SYSTEM' })
+  @ApiPropertyOptional({ example: 'USER', description: 'USER | OWNER | ADMIN | SYSTEM' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  senderType!: string;
+  senderType?: string;
 
-  @ApiProperty({ example: 'Hi, is this property available for physical visit this Sunday?' })
+  @ApiPropertyOptional({ example: 'CUSTOMER', description: 'CUSTOMER | OWNER' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  text!: string;
+  senderRole?: string;
+
+  @ApiPropertyOptional({ example: 'Hi, is this property available for physical visit this Sunday?' })
+  @IsOptional()
+  @IsString()
+  text?: string;
+
+  @ApiPropertyOptional({ example: 'Hi, is this property available?' })
+  @IsOptional()
+  @IsString()
+  message?: string;
 
   @ApiPropertyOptional({ example: false })
   @IsOptional()

@@ -23,6 +23,8 @@ import {
   ShieldCheck,
   CreditCard,
   CheckCircle2,
+  Lock,
+  Unlock,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import type { Property } from '../../types';
@@ -86,7 +88,7 @@ const QUICK_REPLIES = [
 ];
 
 export default function ChatScreen() {
-  const { currentScreen, pop, push } = useApp();
+  const { currentScreen, pop, push, user } = useApp();
   const property = (currentScreen.params?.property as Property) || properties[0];
   const flatmateParam = currentScreen.params?.flatmate as
     | {
@@ -160,47 +162,89 @@ export default function ChatScreen() {
 
   const [messages, setMessages] = useState<Message[]>(initialChatMessages);
   const [inputText, setInputText] = useState('');
+  const [isChatUnlocked, setIsChatUnlocked] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [paymentData, setPaymentData] = useState<{ amount: number; purpose: string; propertyId?: string }>({
-    amount: 2000,
-    purpose: 'Token Advance Deposit',
+    amount: 99,
+    purpose: 'Direct Owner Chat & Contact Unlock',
     propertyId: property.id,
   });
   const [activePromptId, setActivePromptId] = useState<string | null>(null);
   const scrollViewRef = useRef<any>(null);
 
-  // Load chat conversation from Supabase PostgreSQL database
+  // Check if chat is already unlocked for this property
   useEffect(() => {
     let isMounted = true;
+    if (currentScreen.params?.isUnlocked) {
+      setIsChatUnlocked(true);
+      return;
+    }
+
     if (property?.id) {
       api.chat
-        .getConversation(property.id)
-        .then((conv) => {
-          if (isMounted && conv && conv.messages && conv.messages.length > 0) {
-            const mapped = conv.messages.map((m: any) => ({
-              id: m.id,
-              text: m.message,
-              from: m.senderRole === 'CUSTOMER' ? 'user' : 'owner',
-              time: new Date(m.createdAt || Date.now()).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true,
-              }),
-              isPaymentPrompt: m.isPaymentPrompt,
-              paymentAmount: m.paymentAmount,
-              paymentStatus: m.paymentStatus,
-            }));
-            setMessages(mapped);
+        .getStatus(property.id)
+        .then((res) => {
+          if (isMounted && res?.isUnlocked) {
+            setIsChatUnlocked(true);
           }
         })
         .catch(() => {});
     }
+
     return () => {
       isMounted = false;
+    };
+  }, [property?.id, currentScreen.params?.isUnlocked]);
+
+  // Load chat conversation from Supabase PostgreSQL & poll for real-time updates
+  useEffect(() => {
+    let isMounted = true;
+    if (!property?.id) return;
+
+    const fetchConversation = async () => {
+      try {
+        const conv = await api.chat.getConversation(property.id);
+        if (isMounted && conv && conv.messages && conv.messages.length > 0) {
+          const mapped: Message[] = conv.messages.map((m: any) => ({
+            id: m.id,
+            text: m.text || m.message,
+            from: m.senderType === 'OWNER' || m.senderRole === 'OWNER' ? 'owner' : 'user',
+            time: new Date(m.createdAt || Date.now()).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            }),
+            isPaymentPrompt: Boolean(m.isPaymentPrompt),
+            paymentAmount: m.paymentAmount,
+            paymentStatus: m.paymentStatus,
+            paymentTxnId: m.paymentTxnId,
+          }));
+
+          setMessages((prev) => {
+            // Only update if messages length or latest message changed to prevent flicker
+            if (prev.length === mapped.length && prev[prev.length - 1]?.id === mapped[mapped.length - 1]?.id) {
+              return prev;
+            }
+            return mapped;
+          });
+        }
+      } catch {}
+    };
+
+    fetchConversation();
+    const pollTimer = setInterval(fetchConversation, 3500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(pollTimer);
     };
   }, [property?.id]);
 
   const handleCall = () => {
+    if (!isChatUnlocked) {
+      openPaymentForUnlock();
+      return;
+    }
     const rawNumber = isFlatmateChat ? flatmatePhone : '+919853424560';
     const cleanNumber = rawNumber.replace(/\s+/g, '');
     Linking.openURL(`tel:${cleanNumber}`).catch(() => {
@@ -209,7 +253,21 @@ export default function ChatScreen() {
   };
 
   const handleAttachment = () => {
+    if (!isChatUnlocked) {
+      openPaymentForUnlock();
+      return;
+    }
     Alert.alert('Attach File', 'Select document or image to send to the owner.');
+  };
+
+  const openPaymentForUnlock = () => {
+    setActivePromptId('chat-unlock');
+    setPaymentData({
+      amount: 99,
+      purpose: 'Direct Owner Chat & Contact Unlock',
+      propertyId: property.id,
+    });
+    setPaymentModalVisible(true);
   };
 
   const openPaymentForPrompt = (msgId: string, amount: number = 2000, purpose: string = 'Property Token Advance') => {
@@ -223,7 +281,56 @@ export default function ChatScreen() {
   };
 
   const handlePaymentSuccess = (txn: { transactionId: string; amount: number; purpose: string; gateway: string }) => {
-    // 1. Update active prompt state if applicable
+    const confirmTime = new Date().toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    // ── 1. If this was a Chat Unlock payment ──
+    if (activePromptId === 'chat-unlock' || txn.purpose.includes('Unlock') || txn.amount === 99) {
+      setIsChatUnlocked(true);
+
+      const unlockNotice: Message = {
+        id: Date.now().toString(),
+        text: `🔓 Direct Owner Chat Unlocked!\nPayment of ₹${txn.amount.toLocaleString('en-IN')} completed via ${txn.gateway}.\nTransaction ID: ${txn.transactionId}\nYou can now chat in real time directly with ${chatPartnerName}.`,
+        from: 'user',
+        time: confirmTime,
+      };
+
+      setMessages((prev) => [...prev, unlockNotice]);
+
+      // Record unlock notice in Supabase database
+      api.chat.send({
+        propertyId: property.id,
+        text: `[System] User unlocked direct real-time chat (Payment: ₹${txn.amount}, Txn: ${txn.transactionId}).`,
+        message: `[System] User unlocked direct real-time chat (Payment: ₹${txn.amount}, Txn: ${txn.transactionId}).`,
+        senderName: user?.name || 'Customer',
+        senderType: 'USER',
+        ownerName: property.ownerName,
+        ownerPhone: property.ownerPhone,
+      }).catch(() => {});
+
+      // Welcome reply from owner
+      setTimeout(() => {
+        const ackTime = new Date().toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
+        const welcomeMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: `Hello! Thank you for connecting. I am available to answer your questions or arrange a property visit at your preferred time.`,
+          from: 'owner',
+          time: ackTime,
+        };
+        setMessages((prev) => [...prev, welcomeMessage]);
+      }, 1000);
+
+      return;
+    }
+
+    // ── 2. In-Chat Token Deposit Payment ──
     if (activePromptId) {
       setMessages((prev) =>
         prev.map((m) =>
@@ -234,13 +341,6 @@ export default function ChatScreen() {
       );
     }
 
-    // 2. Add confirmation message to chat
-    const confirmTime = new Date().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-
     const successMessage: Message = {
       id: Date.now().toString(),
       text: `✅ Payment of ₹${txn.amount.toLocaleString('en-IN')} for "${txn.purpose}" completed via ${txn.gateway}!\nTransaction ID: ${txn.transactionId}\nFunds held securely in Seedha Escrow.`,
@@ -250,7 +350,18 @@ export default function ChatScreen() {
 
     setMessages((prev) => [...prev, successMessage]);
 
-    // 3. Automated acknowledgement from owner
+    // Save payment confirmation in DB
+    api.chat.send({
+      propertyId: property.id,
+      text: successMessage.text,
+      message: successMessage.text,
+      senderName: user?.name || 'Customer',
+      senderType: 'USER',
+      ownerName: property.ownerName,
+      ownerPhone: property.ownerPhone,
+    }).catch(() => {});
+
+    // Automated acknowledgement from owner
     setTimeout(() => {
       const ackTime = new Date().toLocaleTimeString('en-US', {
         hour: 'numeric',
@@ -281,6 +392,12 @@ export default function ChatScreen() {
       return;
     }
 
+    // Chat Gating: If chat is not unlocked, trigger unlock payment
+    if (!isChatUnlocked) {
+      openPaymentForUnlock();
+      return;
+    }
+
     const currentTime = new Date().toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
@@ -302,8 +419,13 @@ export default function ChatScreen() {
     try {
       const res = await api.chat.send({
         propertyId: property.id,
+        text: content.trim(),
         message: content.trim(),
+        senderName: user?.name || 'Customer',
+        senderType: 'USER',
         senderRole: 'CUSTOMER',
+        ownerName: property.ownerName,
+        ownerPhone: property.ownerPhone,
       });
 
       if (res && res.ownerReply) {
@@ -315,7 +437,7 @@ export default function ChatScreen() {
 
         const ownerReply: Message = {
           id: res.ownerReply.id || (Date.now() + 1).toString(),
-          text: res.ownerReply.message,
+          text: res.ownerReply.text || res.ownerReply.message,
           from: 'owner',
           time: replyTime,
           isPaymentPrompt: res.ownerReply.isPaymentPrompt,
@@ -325,7 +447,7 @@ export default function ChatScreen() {
         setMessages((prev) => [...prev, ownerReply]);
       }
     } catch {
-      // Local fallback reply if offline
+      // Offline fallback simulation
       setTimeout(() => {
         const replyTime = new Date().toLocaleTimeString('en-US', {
           hour: 'numeric',
@@ -543,7 +665,37 @@ export default function ChatScreen() {
         })}
       </ScrollView>
 
-      {/* ── 3. Quick Replies Carousel ── */}
+      {/* ── 3. Direct Owner Chat Gating Banner ── */}
+      {!isChatUnlocked ? (
+        <View style={styles.unlockBanner}>
+          <View style={styles.unlockLeft}>
+            <View style={styles.lockCircle}>
+              <Lock size={15} color="#FFFFFF" strokeWidth={2.4} />
+            </View>
+            <View style={styles.unlockTextCol}>
+              <Text style={styles.unlockTitle}>Direct Owner Chat Locked</Text>
+              <Text style={styles.unlockSubtitle}>Pay ₹99 once to unlock direct real-time chat with owner</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.unlockPayBtn}
+            onPress={openPaymentForUnlock}
+            activeOpacity={0.85}
+          >
+            <CreditCard size={14} color="#FFFFFF" strokeWidth={2.2} />
+            <Text style={styles.unlockPayBtnText}>Unlock (₹99)</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.unlockedActiveBanner}>
+          <CheckCircle2 size={14} color="#16A34A" strokeWidth={2.4} />
+          <Text style={styles.unlockedActiveText}>
+            Verified Direct Chat Active • Real-Time messaging enabled
+          </Text>
+        </View>
+      )}
+
+      {/* ── 4. Quick Replies Carousel ── */}
       <View style={styles.quickRepliesContainer}>
         <ScrollView
           horizontal
@@ -563,19 +715,23 @@ export default function ChatScreen() {
         </ScrollView>
       </View>
 
-      {/* ── 4. Fixed Bottom Input Bar ── */}
+      {/* ── 5. Fixed Bottom Input Bar ── */}
       <View style={styles.inputBar}>
         {/* Attachment Button */}
         <TouchableOpacity
           style={styles.attachmentBtn}
-          onPress={handleAttachment}
+          onPress={isChatUnlocked ? handleAttachment : openPaymentForUnlock}
           activeOpacity={0.8}
         >
           <Paperclip size={18} color="#64748B" strokeWidth={2.2} />
         </TouchableOpacity>
 
         {/* Text Input Pill */}
-        <View style={styles.inputPill}>
+        <TouchableOpacity
+          style={styles.inputPill}
+          activeOpacity={isChatUnlocked ? 1 : 0.7}
+          onPress={!isChatUnlocked ? openPaymentForUnlock : undefined}
+        >
           <TextInput
             style={[
               styles.textInput,
@@ -583,25 +739,34 @@ export default function ChatScreen() {
                 web: { outlineWidth: 0 } as any,
               }),
             ]}
-            placeholder="Type a message..."
+            placeholder={
+              isChatUnlocked
+                ? 'Type a message...'
+                : '🔒 Pay ₹99 to unlock and chat in real-time...'
+            }
             placeholderTextColor="#94A3B8"
             value={inputText}
             onChangeText={setInputText}
             onSubmitEditing={() => handleSend()}
             returnKeyType="send"
+            editable={isChatUnlocked}
           />
-        </View>
+        </TouchableOpacity>
 
-        {/* Send Button */}
+        {/* Send / Unlock Button */}
         <TouchableOpacity
           style={[
             styles.sendBtn,
-            inputText.trim().length > 0 && styles.sendBtnActive,
+            (inputText.trim().length > 0 || !isChatUnlocked) && styles.sendBtnActive,
           ]}
-          onPress={() => handleSend()}
+          onPress={() => (isChatUnlocked ? handleSend() : openPaymentForUnlock())}
           activeOpacity={0.85}
         >
-          <Send size={16} color="#FFFFFF" strokeWidth={2.4} />
+          {isChatUnlocked ? (
+            <Send size={16} color="#FFFFFF" strokeWidth={2.4} />
+          ) : (
+            <Lock size={15} color="#FFFFFF" strokeWidth={2.4} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -978,6 +1143,75 @@ const styles = StyleSheet.create({
   promptPaidText: {
     fontSize: 12,
     fontWeight: '700',
+    color: '#15803D',
+  },
+
+  /* ── Unlock Direct Chat Floating Banner ── */
+  unlockBanner: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+  },
+  unlockLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  lockCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E11D48',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unlockTextCol: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  unlockTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  unlockSubtitle: {
+    fontSize: 10.5,
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  unlockPayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  unlockPayBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  unlockedActiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#DCFCE7',
+  },
+  unlockedActiveText: {
+    fontSize: 11,
+    fontWeight: '600',
     color: '#15803D',
   },
 });

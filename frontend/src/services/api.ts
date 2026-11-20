@@ -291,17 +291,29 @@ export const api = {
   chat: {
     send: (payload: {
       propertyId: string;
-      message: string;
+      text?: string;
+      message?: string;
+      senderName?: string;
+      senderType?: 'USER' | 'OWNER';
       senderRole?: 'CUSTOMER' | 'OWNER';
+      ownerName?: string;
+      ownerPhone?: string;
       isPaymentPrompt?: boolean;
       paymentAmount?: number;
     }) =>
       request<any>('/chat/message', {
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          text: payload.text || payload.message,
+          message: payload.message || payload.text,
+          senderType: payload.senderType || (payload.senderRole === 'CUSTOMER' ? 'USER' : payload.senderRole) || 'USER',
+        }),
       }),
     getConversation: (propertyId: string) =>
       request<any>(`/chat/conversation/${propertyId}`),
+    getStatus: (propertyId: string) =>
+      request<{ isUnlocked: boolean; unlockFee: number; paidTxnId?: string }>(`/chat/status/${propertyId}`),
     webhook: (payload: any) =>
       request<any>('/chat/webhook', {
         method: 'POST',
