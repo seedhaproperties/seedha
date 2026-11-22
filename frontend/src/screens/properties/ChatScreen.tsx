@@ -10,7 +10,10 @@ import {
   Platform,
   Linking,
   Alert,
+  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
   Phone,
@@ -24,7 +27,8 @@ import {
   CreditCard,
   CheckCircle2,
   Lock,
-  Unlock,
+  CheckCheck,
+  Smile,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import type { Property } from '../../types';
@@ -52,7 +56,7 @@ const INITIAL_MESSAGES: Message[] = [
   },
   {
     id: '2',
-    text: "Hello! Thank you for your interest. Yes, the property is available. It's a well-maintained flat on the 8th floor with a great view.",
+    text: "Hello! Thank you for your interest. Yes, the property is available. It's a well-maintained space with great amenities.",
     from: 'owner',
     time: '10:32 AM',
   },
@@ -88,6 +92,7 @@ const QUICK_REPLIES = [
 ];
 
 export default function ChatScreen() {
+  const insets = useSafeAreaInsets();
   const { currentScreen, pop, push, user } = useApp();
   const property = (currentScreen.params?.property as Property) || properties[0];
   const flatmateParam = currentScreen.params?.flatmate as
@@ -121,9 +126,7 @@ export default function ChatScreen() {
     'Rohit';
 
   const flatmateInitial = flatmateParam?.initial || flatmateName.charAt(0).toUpperCase();
-
   const flatmatePhone = flatmateParam?.phone || '+91 99175 57138';
-
   const chatPartnerName = isFlatmateChat ? flatmateName : property.ownerName || 'Rajesh Kumar';
 
   const ownerAvatar =
@@ -170,7 +173,32 @@ export default function ChatScreen() {
     propertyId: property.id,
   });
   const [activePromptId, setActivePromptId] = useState<string | null>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<any>(null);
+
+  // Auto-scroll when keyboard opens or hides
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setIsKeyboardVisible(true);
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 120);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Check if chat is already unlocked for this property
   useEffect(() => {
@@ -221,7 +249,6 @@ export default function ChatScreen() {
           }));
 
           setMessages((prev) => {
-            // Only update if messages length or latest message changed to prevent flicker
             if (prev.length === mapped.length && prev[prev.length - 1]?.id === mapped[mapped.length - 1]?.id) {
               return prev;
             }
@@ -257,7 +284,7 @@ export default function ChatScreen() {
       openPaymentForUnlock();
       return;
     }
-    Alert.alert('Attach File', 'Select document or image to send to the owner.');
+    Alert.alert('Attach File', 'Select document or image to send.');
   };
 
   const openPaymentForUnlock = () => {
@@ -293,7 +320,7 @@ export default function ChatScreen() {
 
       const unlockNotice: Message = {
         id: Date.now().toString(),
-        text: `🔓 Direct Owner Chat Unlocked!\nPayment of ₹${txn.amount.toLocaleString('en-IN')} completed via ${txn.gateway}.\nTransaction ID: ${txn.transactionId}\nYou can now chat in real time directly with ${chatPartnerName}.`,
+        text: `[System] User unlocked direct real-time chat (Payment: ₹${txn.amount}, Txn: ${txn.transactionId}).`,
         from: 'user',
         time: confirmTime,
       };
@@ -370,7 +397,7 @@ export default function ChatScreen() {
       });
       const ackMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: `Thank you! I have received confirmation of your token payment of ₹${txn.amount.toLocaleString('en-IN')}. The property reservation is now confirmed on hold for you. Let me know when you'd like to sign the agreement or visit.`,
+        text: `Thank you! I have received confirmation of your token payment of ₹${txn.amount.toLocaleString('en-IN')}. The reservation is confirmed on hold for you. Let me know when you'd like to sign the agreement or visit.`,
         from: 'owner',
         time: ackTime,
       };
@@ -481,120 +508,149 @@ export default function ChatScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* ── 1. Top Header ── */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={pop}
-          style={styles.backCircleBtn}
-          activeOpacity={0.8}
-        >
-          <ChevronLeft size={20} color="#1E293B" strokeWidth={2.4} />
-        </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      <View style={styles.container}>
+        {/* ── 1. WhatsApp Top Header ── */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={pop}
+            style={styles.backBtn}
+            activeOpacity={0.7}
+          >
+            <ChevronLeft size={24} color="#111B21" strokeWidth={2.4} />
+          </TouchableOpacity>
 
-        {isFlatmateChat ? (
-          <View style={styles.headerFlatmateAvatar}>
-            <Text style={styles.headerFlatmateInitial}>{flatmateInitial}</Text>
-          </View>
-        ) : (
-          <Image source={{ uri: ownerAvatar }} style={styles.headerAvatar} />
-        )}
+          <TouchableOpacity
+            style={styles.headerPartnerRow}
+            onPress={() => push({ name: 'propertyDetail', params: { property } })}
+            activeOpacity={0.8}
+          >
+            {isFlatmateChat ? (
+              <View style={styles.headerFlatmateAvatar}>
+                <Text style={styles.headerFlatmateInitial}>{flatmateInitial}</Text>
+              </View>
+            ) : (
+              <Image source={{ uri: ownerAvatar }} style={styles.headerAvatar} />
+            )}
 
-        <View style={styles.headerInfoCol}>
-          <Text style={styles.headerOwnerName}>{chatPartnerName}</Text>
-          <Text style={styles.headerOnlineStatus}>Online</Text>
+            <View style={styles.headerInfoCol}>
+              <Text style={styles.headerOwnerName} numberOfLines={1}>
+                {chatPartnerName}
+              </Text>
+              <Text style={styles.headerOnlineStatus}>online</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleCall}
+            style={styles.callBtn}
+            activeOpacity={0.7}
+          >
+            <Phone size={19} color="#111B21" strokeWidth={2.2} />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          onPress={handleCall}
-          style={styles.callCircleBtn}
-          activeOpacity={0.8}
+        {/* ── 2. WhatsApp Scrollable Chat Body ── */}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.chatScroll}
+          contentContainerStyle={styles.chatScrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() =>
+            scrollViewRef.current?.scrollToEnd({ animated: true })
+          }
         >
-          <Phone size={17} color="#1E293B" strokeWidth={2.2} />
-        </TouchableOpacity>
-      </View>
-
-      {/* ── 2. Scrollable Chat Body ── */}
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.chatScroll}
-        contentContainerStyle={styles.chatScrollContent}
-        showsVerticalScrollIndicator={false}
-        onContentSizeChange={() =>
-          scrollViewRef.current?.scrollToEnd({ animated: true })
-        }
-      >
-        {/* Property Summary Card at Top */}
-        <TouchableOpacity
-          style={styles.propertyCard}
-          onPress={() => push({ name: 'propertyDetail', params: { property } })}
-          activeOpacity={0.9}
-        >
-          <Image
-            source={{ uri: property.image }}
-            style={styles.propertyThumb}
-            resizeMode="cover"
-          />
-          <View style={styles.propertyDetailsCol}>
-            <Text style={styles.propertyTitle} numberOfLines={1}>
-              {property.title}
-            </Text>
-            <View style={styles.propertyLocationRow}>
-              <MapPin size={11} color="#94A3B8" />
-              <Text style={styles.propertyLocationText} numberOfLines={1}>
-                {property.location}
+          {/* WhatsApp Shared Listing Card at Top */}
+          <TouchableOpacity
+            style={styles.propertyCard}
+            onPress={() => push({ name: 'propertyDetail', params: { property } })}
+            activeOpacity={0.9}
+          >
+            <Image
+              source={{ uri: property.image }}
+              style={styles.propertyThumb}
+              resizeMode="cover"
+            />
+            <View style={styles.propertyDetailsCol}>
+              <Text style={styles.propertyTitle} numberOfLines={1}>
+                {property.title}
+              </Text>
+              <View style={styles.propertyLocationRow}>
+                <MapPin size={11} color="#667781" />
+                <Text style={styles.propertyLocationText} numberOfLines={1}>
+                  {property.location}
+                </Text>
+              </View>
+              <Text style={styles.propertyPriceText}>
+                {property.priceLabel || `₹${property.price.toLocaleString('en-IN')}`}
               </Text>
             </View>
-            <Text style={styles.propertyPriceText}>
-              {property.priceLabel || `₹${property.price.toLocaleString('en-IN')}`}
-            </Text>
-          </View>
 
-          {/* Quick specs on right: beds, baths, sqft */}
-          <View style={styles.propertySpecsCol}>
-            <View style={styles.specItemRow}>
-              <BedDouble size={12} color="#94A3B8" />
-              <Text style={styles.specItemText}>{property.bedrooms || 3}</Text>
-              <Bath size={12} color="#94A3B8" style={{ marginLeft: 4 }} />
-              <Text style={styles.specItemText}>{property.bathrooms || 2}</Text>
-              <Square size={12} color="#94A3B8" style={{ marginLeft: 4 }} />
-              <Text style={styles.specItemText}>{property.area || 1450}</Text>
+            {/* Quick specs */}
+            <View style={styles.propertySpecsCol}>
+              <View style={styles.specItemRow}>
+                <BedDouble size={12} color="#667781" />
+                <Text style={styles.specItemText}>{property.bedrooms || 3}</Text>
+                <Bath size={12} color="#667781" style={{ marginLeft: 4 }} />
+                <Text style={styles.specItemText}>{property.bathrooms || 2}</Text>
+                <Square size={12} color="#667781" style={{ marginLeft: 4 }} />
+                <Text style={styles.specItemText}>{property.area || 1450}</Text>
+              </View>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
 
-        {/* Messages Stream */}
-        {messages.map((msg) => {
-          const isUser = msg.from === 'user';
-          return (
-            <View
-              key={msg.id}
-              style={[
-                styles.messageRow,
-                isUser ? styles.userMessageRow : styles.ownerMessageRow,
-              ]}
-            >
-              {/* Partner Avatar on Left */}
-              {!isUser && (
-                isFlatmateChat ? (
-                  <View style={styles.bubbleFlatmateAvatar}>
-                    <Text style={styles.bubbleFlatmateInitial}>{flatmateInitial}</Text>
+          {/* Messages Stream */}
+          {messages.map((msg) => {
+            const isUser = msg.from === 'user';
+            const isSystemMessage =
+              msg.text.startsWith('[System]') ||
+              msg.text.includes('Direct Owner Chat Unlocked') ||
+              msg.text.includes('unlocked direct real-time chat');
+
+            // ── WhatsApp Centered Security/System Notice Pill ──
+            if (isSystemMessage) {
+              const cleanText = msg.text
+                .replace(/^\[System\]\s*/i, '')
+                .replace(/[\r\n]+/g, ' ');
+              return (
+                <View key={msg.id} style={styles.systemPillContainer}>
+                  <View style={styles.systemPill}>
+                    <ShieldCheck size={13} color="#854D0E" strokeWidth={2.2} style={{ marginRight: 6 }} />
+                    <Text style={styles.systemPillText}>{cleanText}</Text>
                   </View>
-                ) : (
-                  <Image
-                    source={{ uri: ownerAvatar }}
-                    style={styles.bubbleOwnerAvatar}
-                  />
-                )
-              )}
+                </View>
+              );
+            }
 
+            return (
               <View
+                key={msg.id}
                 style={[
-                  styles.messageBubbleContainer,
-                  isUser ? styles.userContainer : styles.ownerContainer,
+                  styles.messageRow,
+                  isUser ? styles.userMessageRow : styles.ownerMessageRow,
                 ]}
               >
-                {/* Message Bubble Box */}
+                {/* Incoming partner avatar on left */}
+                {!isUser && (
+                  isFlatmateChat ? (
+                    <View style={styles.bubbleFlatmateAvatar}>
+                      <Text style={styles.bubbleFlatmateInitial}>{flatmateInitial}</Text>
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri: ownerAvatar }}
+                      style={styles.bubbleOwnerAvatar}
+                    />
+                  )
+                )}
+
+                {/* WhatsApp Chat Bubble */}
                 <View
                   style={[
                     styles.messageBubble,
@@ -610,11 +666,11 @@ export default function ChatScreen() {
                     {msg.text}
                   </Text>
 
-                  {/* In-chat payment prompt card */}
+                  {/* In-Chat Payment Prompt Card (Token Advance) */}
                   {msg.isPaymentPrompt && (
                     <View style={styles.promptCard}>
                       <View style={styles.promptHeader}>
-                        <ShieldCheck size={16} color="#16A34A" />
+                        <ShieldCheck size={16} color="#008069" />
                         <Text style={styles.promptHeaderText}>Seedha 100% Refundable Escrow</Text>
                       </View>
                       <View style={styles.promptAmountRow}>
@@ -648,254 +704,270 @@ export default function ChatScreen() {
                       )}
                     </View>
                   )}
-                </View>
 
-                {/* Timestamp below bubble */}
-                <Text
-                  style={[
-                    styles.timestampText,
-                    isUser ? styles.userTimestamp : styles.ownerTimestamp,
-                  ]}
-                >
-                  {msg.time}
-                </Text>
+                  {/* Bottom Meta Row inside bubble: Time + Blue Double Ticks */}
+                  <View style={styles.bubbleMetaRow}>
+                    <Text
+                      style={[
+                        styles.bubbleTimeText,
+                        isUser ? styles.userTimeText : styles.ownerTimeText,
+                      ]}
+                    >
+                      {msg.time}
+                    </Text>
+                    {isUser && (
+                      <CheckCheck size={15} color="#53BDEB" strokeWidth={2.4} style={styles.checkIcon} />
+                    )}
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        {/* ── 3. Direct Owner Chat Gating Banner (if locked) ── */}
+        {!isChatUnlocked && (
+          <View style={styles.unlockBanner}>
+            <View style={styles.unlockLeft}>
+              <View style={styles.lockCircle}>
+                <Lock size={14} color="#FFFFFF" strokeWidth={2.4} />
+              </View>
+              <View style={styles.unlockTextCol}>
+                <Text style={styles.unlockTitle}>Direct Owner Chat Locked</Text>
+                <Text style={styles.unlockSubtitle}>Pay ₹99 once to unlock real-time direct owner chat</Text>
               </View>
             </View>
-          );
-        })}
-      </ScrollView>
-
-      {/* ── 3. Direct Owner Chat Gating Banner ── */}
-      {!isChatUnlocked ? (
-        <View style={styles.unlockBanner}>
-          <View style={styles.unlockLeft}>
-            <View style={styles.lockCircle}>
-              <Lock size={15} color="#FFFFFF" strokeWidth={2.4} />
-            </View>
-            <View style={styles.unlockTextCol}>
-              <Text style={styles.unlockTitle}>Direct Owner Chat Locked</Text>
-              <Text style={styles.unlockSubtitle}>Pay ₹99 once to unlock direct real-time chat with owner</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.unlockPayBtn}
+              onPress={openPaymentForUnlock}
+              activeOpacity={0.85}
+            >
+              <CreditCard size={13} color="#FFFFFF" strokeWidth={2.2} />
+              <Text style={styles.unlockPayBtnText}>Unlock (₹99)</Text>
+            </TouchableOpacity>
           </View>
+        )}
+
+        {/* ── 4. Quick Replies Carousel ── */}
+        <View style={styles.quickRepliesContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickRepliesScroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            {QUICK_REPLIES.map((reply) => (
+              <TouchableOpacity
+                key={reply}
+                style={styles.quickReplyPill}
+                onPress={() => handleSend(reply)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.quickReplyText}>{reply}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* ── 5. WhatsApp Floating Bottom Input Bar ── */}
+        <View
+          style={[
+            styles.inputBar,
+            { paddingBottom: isKeyboardVisible ? 8 : Math.max(insets.bottom, 8) },
+          ]}
+        >
+          {/* White WhatsApp Input Capsule */}
+          <View style={styles.inputPillContainer}>
+            <TouchableOpacity
+              style={styles.inputInnerIconBtn}
+              onPress={() => {}}
+              activeOpacity={0.7}
+            >
+              <Smile size={22} color="#8696A0" strokeWidth={2} />
+            </TouchableOpacity>
+
+            {isChatUnlocked ? (
+              <TextInput
+                style={[
+                  styles.textInput,
+                  { maxHeight: 110 },
+                  Platform.select({
+                    web: { outlineWidth: 0 } as any,
+                  }),
+                ]}
+                placeholder="Message"
+                placeholderTextColor="#8696A0"
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 120);
+                }}
+                onSubmitEditing={() => handleSend()}
+                returnKeyType="default"
+              />
+            ) : (
+              <TouchableOpacity
+                style={styles.lockedInputTouchable}
+                onPress={openPaymentForUnlock}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.lockedInputPlaceholder} numberOfLines={1}>
+                  🔒 Pay ₹99 to unlock and chat in real-time...
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.inputInnerIconBtn}
+              onPress={isChatUnlocked ? handleAttachment : openPaymentForUnlock}
+              activeOpacity={0.7}
+            >
+              <Paperclip size={20} color="#8696A0" strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+
+          {/* WhatsApp Circular Green Send Button */}
           <TouchableOpacity
-            style={styles.unlockPayBtn}
-            onPress={openPaymentForUnlock}
+            style={[
+              styles.whatsappSendBtn,
+              !isChatUnlocked && styles.whatsappLockBtn,
+            ]}
+            onPress={() => (isChatUnlocked ? handleSend() : openPaymentForUnlock())}
             activeOpacity={0.85}
           >
-            <CreditCard size={14} color="#FFFFFF" strokeWidth={2.2} />
-            <Text style={styles.unlockPayBtnText}>Unlock (₹99)</Text>
+            {isChatUnlocked ? (
+              <Send size={18} color="#FFFFFF" strokeWidth={2.4} />
+            ) : (
+              <Lock size={17} color="#FFFFFF" strokeWidth={2.4} />
+            )}
           </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.unlockedActiveBanner}>
-          <CheckCircle2 size={14} color="#16A34A" strokeWidth={2.4} />
-          <Text style={styles.unlockedActiveText}>
-            Verified Direct Chat Active • Real-Time messaging enabled
-          </Text>
-        </View>
-      )}
 
-      {/* ── 4. Quick Replies Carousel ── */}
-      <View style={styles.quickRepliesContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickRepliesScroll}
-        >
-          {QUICK_REPLIES.map((reply) => (
-            <TouchableOpacity
-              key={reply}
-              style={styles.quickReplyPill}
-              onPress={() => handleSend(reply)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.quickReplyText}>{reply}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* Payment Gateway Modal with Terms & Conditions */}
+        <PaymentGatewayModal
+          visible={paymentModalVisible}
+          amount={paymentData.amount}
+          purpose={paymentData.purpose}
+          propertyId={paymentData.propertyId}
+          onClose={() => setPaymentModalVisible(false)}
+          onSuccess={handlePaymentSuccess}
+        />
       </View>
-
-      {/* ── 5. Fixed Bottom Input Bar ── */}
-      <View style={styles.inputBar}>
-        {/* Attachment Button */}
-        <TouchableOpacity
-          style={styles.attachmentBtn}
-          onPress={isChatUnlocked ? handleAttachment : openPaymentForUnlock}
-          activeOpacity={0.8}
-        >
-          <Paperclip size={18} color="#64748B" strokeWidth={2.2} />
-        </TouchableOpacity>
-
-        {/* Text Input Pill */}
-        <TouchableOpacity
-          style={styles.inputPill}
-          activeOpacity={isChatUnlocked ? 1 : 0.7}
-          onPress={!isChatUnlocked ? openPaymentForUnlock : undefined}
-        >
-          <TextInput
-            style={[
-              styles.textInput,
-              Platform.select({
-                web: { outlineWidth: 0 } as any,
-              }),
-            ]}
-            placeholder={
-              isChatUnlocked
-                ? 'Type a message...'
-                : '🔒 Pay ₹99 to unlock and chat in real-time...'
-            }
-            placeholderTextColor="#94A3B8"
-            value={inputText}
-            onChangeText={setInputText}
-            onSubmitEditing={() => handleSend()}
-            returnKeyType="send"
-            editable={isChatUnlocked}
-          />
-        </TouchableOpacity>
-
-        {/* Send / Unlock Button */}
-        <TouchableOpacity
-          style={[
-            styles.sendBtn,
-            (inputText.trim().length > 0 || !isChatUnlocked) && styles.sendBtnActive,
-          ]}
-          onPress={() => (isChatUnlocked ? handleSend() : openPaymentForUnlock())}
-          activeOpacity={0.85}
-        >
-          {isChatUnlocked ? (
-            <Send size={16} color="#FFFFFF" strokeWidth={2.4} />
-          ) : (
-            <Lock size={15} color="#FFFFFF" strokeWidth={2.4} />
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Payment Gateway Modal with Terms & Conditions */}
-      <PaymentGatewayModal
-        visible={paymentModalVisible}
-        amount={paymentData.amount}
-        purpose={paymentData.purpose}
-        propertyId={paymentData.propertyId}
-        onClose={() => setPaymentModalVisible(false)}
-        onSuccess={handlePaymentSuccess}
-      />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    backgroundColor: '#EFEAE2',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#EFEAE2',
   },
 
-  /* ── Header ── */
+  /* ── WhatsApp Header ── */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 8,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    zIndex: 10,
   },
-  backCircleBtn: {
+  backBtn: {
+    padding: 6,
+    marginRight: 2,
+  },
+  headerPartnerRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerFlatmateAvatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#008069',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerFlatmateAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 12,
+    marginRight: 10,
   },
   headerFlatmateInitial: {
     color: '#FFFFFF',
-    fontFamily: 'PlusJakartaSans-Bold',
+    fontWeight: '700',
     fontSize: 16,
   },
-  bubbleFlatmateAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-    marginTop: 2,
-  },
-  bubbleFlatmateInitial: {
-    color: '#FFFFFF',
-    fontFamily: 'PlusJakartaSans-Bold',
-    fontSize: 12,
-  },
   headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginLeft: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    marginRight: 10,
     backgroundColor: '#CBD5E1',
   },
   headerInfoCol: {
     flex: 1,
-    marginLeft: 10,
+    justifyContent: 'center',
   },
   headerOwnerName: {
-    fontSize: 15,
+    fontSize: 15.5,
     fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 1,
+    color: '#111B21',
   },
   headerOnlineStatus: {
     fontSize: 12,
-    color: '#16A34A',
-    fontWeight: '600',
+    color: '#25D366',
+    fontWeight: '500',
+    marginTop: 0.5,
   },
-  callCircleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
+  callBtn: {
+    padding: 8,
+    marginRight: 4,
   },
 
   /* ── Chat Scroll ── */
   chatScroll: {
     flex: 1,
+    backgroundColor: '#EFEAE2',
   },
   chatScrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 16,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
 
-  /* ── Property Summary Card ── */
+  /* ── WhatsApp Shared Property Card ── */
   propertyCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 10,
-    marginBottom: 20,
+    borderRadius: 12,
+    padding: 8,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   propertyThumb: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 8,
     backgroundColor: '#CBD5E1',
   },
   propertyDetailsCol: {
@@ -905,23 +977,23 @@ const styles = StyleSheet.create({
   propertyTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 2,
+    color: '#111B21',
+    marginBottom: 1,
   },
   propertyLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   propertyLocationText: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#667781',
   },
   propertyPriceText: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#008069',
   },
   propertySpecsCol: {
     justifyContent: 'center',
@@ -935,13 +1007,13 @@ const styles = StyleSheet.create({
   specItemText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#667781',
   },
 
   /* ── Messages Stream ── */
   messageRow: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginVertical: 3,
   },
   userMessageRow: {
     justifyContent: 'flex-end',
@@ -951,179 +1023,154 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   bubbleOwnerAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    marginRight: 8,
-    marginTop: 2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    marginRight: 6,
+    marginTop: 4,
     backgroundColor: '#CBD5E1',
   },
-  messageBubbleContainer: {
-    maxWidth: '82%',
+  bubbleFlatmateAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#008069',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    marginTop: 4,
   },
-  userContainer: {
-    alignItems: 'flex-end',
+  bubbleFlatmateInitial: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 11,
   },
-  ownerContainer: {
-    alignItems: 'flex-start',
-  },
+
+  /* ── WhatsApp Message Bubbles ── */
   messageBubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
+    maxWidth: '82%',
+    paddingHorizontal: 11,
+    paddingTop: 7,
+    paddingBottom: 5,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
   },
   userBubble: {
-    backgroundColor: '#000000',
-    borderTopRightRadius: 6,
+    backgroundColor: '#D9FDD3',
+    borderTopRightRadius: 2,
+    alignSelf: 'flex-end',
   },
   ownerBubble: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
+    borderTopLeftRadius: 2,
+    alignSelf: 'flex-start',
   },
   messageText: {
-    fontSize: 13.5,
-    lineHeight: 19,
+    fontSize: 14.5,
+    lineHeight: 19.5,
   },
   userMessageText: {
-    color: '#FFFFFF',
-    fontWeight: '400',
+    color: '#111B21',
   },
   ownerMessageText: {
-    color: '#0F172A',
-    fontWeight: '400',
-  },
-  timestampText: {
-    fontSize: 10,
-    color: '#94A3B8',
-    marginTop: 4,
-  },
-  userTimestamp: {
-    textAlign: 'right',
-    marginRight: 4,
-  },
-  ownerTimestamp: {
-    textAlign: 'left',
-    marginLeft: 4,
+    color: '#111B21',
   },
 
-  /* ── Quick Replies ── */
-  quickRepliesContainer: {
+  /* ── Bubble Meta Row (Time + Checks) ── */
+  bubbleMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 2,
+    alignSelf: 'flex-end',
+  },
+  bubbleTimeText: {
+    fontSize: 10.5,
+    color: '#667781',
+  },
+  userTimeText: {
+    color: '#667781',
+  },
+  ownerTimeText: {
+    color: '#667781',
+  },
+  checkIcon: {
+    marginLeft: 3,
+  },
+
+  /* ── WhatsApp Centered Security/System Pill ── */
+  systemPillContainer: {
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  systemPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEECB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#F1F5F9',
-  },
-  quickRepliesScroll: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  quickReplyPill: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    maxWidth: '90%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 2,
+    shadowRadius: 1,
     elevation: 1,
   },
-  quickReplyText: {
-    fontSize: 12,
-    color: '#475569',
+  systemPillText: {
+    fontSize: 11.5,
+    color: '#54656F',
     fontWeight: '500',
+    lineHeight: 16,
+    flexShrink: 1,
   },
 
-  /* ── Input Bar ── */
-  inputBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  attachmentBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inputPill: {
-    flex: 1,
-    height: 42,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 21,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-  },
-  textInput: {
-    fontSize: 13.5,
-    color: '#0F172A',
-    paddingVertical: 0,
-  },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#94A3B8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendBtnActive: {
-    backgroundColor: '#000000',
-  },
-
-  /* ── In-Chat Payment Prompt Card ── */
+  /* ── In-Chat Escrow Prompt Card ── */
   promptCard: {
-    marginTop: 10,
-    backgroundColor: '#FFFFFF',
+    marginTop: 8,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 10,
+    padding: 10,
   },
   promptHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   promptHeaderText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#15803D',
+    color: '#008069',
   },
   promptAmountRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   promptAmountLabel: {
     fontSize: 12,
     color: '#64748B',
   },
   promptAmountValue: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#111B21',
   },
   promptPayBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1E40AF',
-    paddingVertical: 10,
-    borderRadius: 10,
+    backgroundColor: '#008069',
+    paddingVertical: 9,
+    borderRadius: 8,
     gap: 6,
   },
   promptPayBtnText: {
@@ -1136,8 +1183,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#DCFCE7',
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
     gap: 6,
   },
   promptPaidText: {
@@ -1148,70 +1195,147 @@ const styles = StyleSheet.create({
 
   /* ── Unlock Direct Chat Floating Banner ── */
   unlockBanner: {
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    backgroundColor: '#111B21',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: '#334155',
+    borderTopColor: '#202C33',
   },
   unlockLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 10,
+    marginRight: 8,
   },
   lockCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#E11D48',
     alignItems: 'center',
     justifyContent: 'center',
   },
   unlockTextCol: {
-    marginLeft: 10,
+    marginLeft: 8,
     flex: 1,
   },
   unlockTitle: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#FFFFFF',
   },
   unlockSubtitle: {
-    fontSize: 10.5,
-    color: '#94A3B8',
+    fontSize: 10,
+    color: '#8696A0',
     marginTop: 1,
   },
   unlockPayBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#16A34A',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
+    backgroundColor: '#00A884',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 7,
+    gap: 5,
   },
   unlockPayBtnText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  unlockedActiveBanner: {
+
+  /* ── Quick Replies ── */
+  quickRepliesContainer: {
+    paddingVertical: 6,
+    backgroundColor: '#EFEAE2',
+  },
+  quickRepliesScroll: {
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  quickReplyPill: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  quickReplyText: {
+    fontSize: 12,
+    color: '#111B21',
+    fontWeight: '500',
+  },
+
+  /* ── WhatsApp Input Bar ── */
+  inputBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: '#EFEAE2',
+    paddingHorizontal: 8,
+    paddingTop: 6,
+    gap: 6,
+  },
+  inputPillContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    gap: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#DCFCE7',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 10,
+    minHeight: 44,
+    maxHeight: 110,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  unlockedActiveText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#15803D',
+  inputInnerIconBtn: {
+    padding: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111B21',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+  },
+  lockedInputTouchable: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+  },
+  lockedInputPlaceholder: {
+    fontSize: 13,
+    color: '#8696A0',
+  },
+  whatsappSendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#00A884',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#00A884',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  whatsappLockBtn: {
+    backgroundColor: '#2563EB',
   },
 });
