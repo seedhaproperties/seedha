@@ -9,7 +9,8 @@
     "moduleResolution": "bundler",
     "customConditions": ["react-native"],
     "allowJs": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": []
   },
   "include": [
     "src/**/*",
