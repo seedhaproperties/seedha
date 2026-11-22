@@ -150,6 +150,10 @@ export class QueryPropertyDto {
     maxPrice;
     bhk;
     propertyType;
+    radiusKm;
+    pincode;
+    userLat;
+    userLng;
 }
 __decorate([
     ApiPropertyOptional({ enum: ListingTypeEnum }),
@@ -184,6 +188,31 @@ __decorate([
 __decorate([
     ApiPropertyOptional({ example: 'apartment' }),
     IsOptional(),
+    IsString(),
     __metadata("design:type", String)
 ], QueryPropertyDto.prototype, "propertyType", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 30, description: 'Search radius in km: 30, 60, 100' }),
+    IsOptional(),
+    IsNumber(),
+    __metadata("design:type", Number)
+], QueryPropertyDto.prototype, "radiusKm", void 0);
+__decorate([
+    ApiPropertyOptional({ example: '500081', description: 'Search by postal pincode' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], QueryPropertyDto.prototype, "pincode", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 17.4401 }),
+    IsOptional(),
+    IsNumber(),
+    __metadata("design:type", Number)
+], QueryPropertyDto.prototype, "userLat", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 78.3489 }),
+    IsOptional(),
+    IsNumber(),
+    __metadata("design:type", Number)
+], QueryPropertyDto.prototype, "userLng", void 0);
 //# sourceMappingURL=properties.dto.js.map

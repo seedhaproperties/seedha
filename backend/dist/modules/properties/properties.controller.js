@@ -20,6 +20,13 @@ let PropertiesController = class PropertiesController {
     constructor(propertiesService) {
         this.propertiesService = propertiesService;
     }
+    async getSuggestions(query) {
+        return this.propertiesService.getLocationSuggestions(query || '');
+    }
+    async getMySaved(req) {
+        const userId = req.user?.sub || req.headers?.['x-user-id'] || 'user_guest_default';
+        return this.propertiesService.getMySaved(userId);
+    }
     async findAll(query) {
         return this.propertiesService.findAll(query);
     }
@@ -29,13 +36,33 @@ let PropertiesController = class PropertiesController {
     async getOwnerDetails(id) {
         return this.propertiesService.getOwnerDetails(id);
     }
+    async toggleSave(id, req) {
+        const userId = req.user?.sub || req.headers?.['x-user-id'] || 'user_guest_default';
+        return this.propertiesService.toggleSave(id, userId);
+    }
     async create(dto, req) {
         return this.propertiesService.create(dto, req.user?.sub);
     }
 };
 __decorate([
+    Get('suggestions'),
+    ApiOperation({ summary: 'Get location suggestions including city, locality, and pincode' }),
+    __param(0, Query('query')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], PropertiesController.prototype, "getSuggestions", null);
+__decorate([
+    Get('my/saved'),
+    ApiOperation({ summary: 'Get all saved/liked properties for the user' }),
+    __param(0, Request()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PropertiesController.prototype, "getMySaved", null);
+__decorate([
     Get(),
-    ApiOperation({ summary: 'Search and filter published properties (Buy, Rent, Commercial)' }),
+    ApiOperation({ summary: 'Search and filter published properties with distance and radius' }),
     __param(0, Query()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [QueryPropertyDto]),
@@ -59,6 +86,15 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], PropertiesController.prototype, "getOwnerDetails", null);
+__decorate([
+    Post(':id/toggle-save'),
+    ApiOperation({ summary: 'Toggle like/save status for a property' }),
+    __param(0, Param('id')),
+    __param(1, Request()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], PropertiesController.prototype, "toggleSave", null);
 __decorate([
     Post(),
     UseGuards(JwtAuthGuard),

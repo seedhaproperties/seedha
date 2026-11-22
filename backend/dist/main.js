@@ -10,6 +10,10 @@ async function bootstrap() {
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
     });
+    app.use((_req, res, next) => {
+        res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+        next();
+    });
     app.useGlobalPipes(new ValidationPipe({
         whitelist: true,
         transform: true,
