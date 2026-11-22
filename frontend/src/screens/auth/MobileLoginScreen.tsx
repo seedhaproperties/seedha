@@ -1076,6 +1076,18 @@ export default function MobileLoginScreen() {
                 ))}
               </View>
 
+              {/* Development Test OTP Auto-Fill Helper */}
+              <TouchableOpacity
+                onPress={() => {
+                  setOtpDigits(['1', '2', '3', '4', '5', '6']);
+                  setErrorMessage(null);
+                }}
+                style={styles.testOtpBadge}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.testOtpBadgeText}>⚡ Testing? Tap to Auto-fill OTP (123456)</Text>
+              </TouchableOpacity>
+
               {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
               {/* Verify & Continue Button */}
@@ -1766,5 +1778,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#94A3B8',
     fontWeight: '500',
+  },
+  testOtpBadge: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    marginVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  testOtpBadgeText: {
+    color: '#92400E',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

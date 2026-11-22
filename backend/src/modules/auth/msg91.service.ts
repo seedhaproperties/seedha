@@ -154,7 +154,7 @@ export class Msg91Service {
    * - In REAL SMS mode (MSG91_MOCK="false" with configured keys):
    *   Strictly dispatches SMS via official MSG91 SendOTP API with rate-limiting.
    */
-  async sendOtp(rawMobile: string): Promise<{ success: boolean; message: string; mobile: string }> {
+  async sendOtp(rawMobile: string): Promise<{ success: boolean; message: string; mobile: string; devOtp?: string }> {
     const { e164, msg91 } = this.normalizeMobile(rawMobile);
     const now = Date.now();
 
@@ -221,11 +221,17 @@ export class Msg91Service {
 
       this.lastRequestTime.set(msg91, now);
       this.logger.log(`📲 [MSG91 REAL SMS DISPATCHED] Mobile: ${e164} | RequestId: ${data.request_id || 'N/A'}`);
+      if (this.isDevelopment) {
+        this.logger.log(`💡 [Dev Note] If SMS is delayed or MSG91 balance is 0, enter test OTP: 123456`);
+      }
 
       return {
         success: true,
-        message: 'OTP sent successfully to your mobile number via SMS',
+        message: this.isDevelopment
+          ? 'OTP dispatched! (Development Test OTP: 123456)'
+          : 'OTP sent successfully to your mobile number via SMS',
         mobile: e164,
+        devOtp: this.isDevelopment ? '123456' : undefined,
       };
     } catch (err: any) {
       if (err instanceof BadRequestException) throw err;
@@ -310,7 +316,7 @@ export class Msg91Service {
   /**
    * Resends OTP via MSG91 retry API or sends fresh OTP.
    */
-  async resendOtp(rawMobile: string, forceCooldown = false): Promise<{ success: boolean; message: string; mobile: string }> {
+  async resendOtp(rawMobile: string, forceCooldown = false): Promise<{ success: boolean; message: string; mobile: string; devOtp?: string }> {
     const { e164, msg91 } = this.normalizeMobile(rawMobile);
     const now = Date.now();
 

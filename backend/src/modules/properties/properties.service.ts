@@ -39,11 +39,22 @@ export class PropertiesService {
 
   async findAll(query: QueryPropertyDto) {
     try {
-      let listingTypeEnum: any = undefined;
+      let typeWhere: any = {};
       if (query.type) {
-        const upper = query.type.trim().toUpperCase();
-        if (upper === 'BUY' || upper === 'RENT' || upper === 'COMMERCIAL') {
-          listingTypeEnum = upper;
+        const qTypeLower = (query.type || '').trim().toLowerCase();
+        if (qTypeLower === 'pg' || qTypeLower === 'hostel' || qTypeLower === 'coliving') {
+          typeWhere = {
+            propertyType: { in: ['pg', 'hostel', 'coliving', 'PG', 'HOSTEL', 'COLIVING'] }
+          };
+        } else if (qTypeLower === 'flatmate' || qTypeLower === 'flatmates') {
+          typeWhere = {
+            propertyType: { in: ['flatmate', 'flatmates', 'FLATMATE', 'FLATMATES'] }
+          };
+        } else {
+          const upper = query.type.trim().toUpperCase();
+          if (upper === 'BUY' || upper === 'RENT' || upper === 'COMMERCIAL') {
+            typeWhere = { listingType: upper };
+          }
         }
       }
 
@@ -51,11 +62,11 @@ export class PropertiesService {
       const dbProps = await this.prisma.property.findMany({
         where: {
           status: 'PUBLISHED',
-          ...(listingTypeEnum ? { listingType: listingTypeEnum } : {}),
+          ...typeWhere,
           ...(query.city ? { city: { contains: query.city, mode: 'insensitive' } } : {}),
           ...(query.location ? { location: { contains: query.location, mode: 'insensitive' } } : {}),
           ...(query.pincode ? { pincode: { contains: query.pincode } } : {}),
-          ...(query.propertyType ? { propertyType: { equals: query.propertyType, mode: 'insensitive' } } : {}),
+          ...(query.propertyType && !typeWhere.propertyType ? { propertyType: { equals: query.propertyType, mode: 'insensitive' } } : {}),
           ...(query.bhk ? { bedrooms: Number(query.bhk) } : {}),
           ...(query.minPrice !== undefined ? { price: { gte: Number(query.minPrice) } } : {}),
           ...(query.maxPrice !== undefined ? { price: { lte: Number(query.maxPrice) } } : {}),
@@ -69,7 +80,19 @@ export class PropertiesService {
       let mockFiltered = mockDb.properties.filter((p) => !existingIds.has(p.id));
       if (query.type) {
         const qTypeLower = query.type.toLowerCase();
-        mockFiltered = mockFiltered.filter((p) => p.listingType.toLowerCase() === qTypeLower);
+        if (qTypeLower === 'pg' || qTypeLower === 'hostel' || qTypeLower === 'coliving') {
+          mockFiltered = mockFiltered.filter((p) =>
+            ['pg', 'hostel', 'coliving'].includes((p.propertyType || '').toLowerCase()) ||
+            (p as any).pgCategory !== undefined
+          );
+        } else if (qTypeLower === 'flatmate' || qTypeLower === 'flatmates') {
+          mockFiltered = mockFiltered.filter((p) =>
+            (p.propertyType || '').toLowerCase().includes('flatmate') ||
+            (p as any).roomType !== undefined
+          );
+        } else {
+          mockFiltered = mockFiltered.filter((p) => (p.listingType || '').toLowerCase() === qTypeLower);
+        }
       }
       if (query.city) mockFiltered = mockFiltered.filter((p) => p.city.toLowerCase().includes(query.city!.toLowerCase()));
       if (query.location) mockFiltered = mockFiltered.filter((p) => p.location.toLowerCase().includes(query.location!.toLowerCase()));
@@ -89,6 +112,29 @@ export class PropertiesService {
         const pLng = p.longitude || 78.38;
         const dist = calculateDistanceKm(userLat, userLng, pLat, pLng);
         const img = (p.images && p.images.length > 0 ? p.images[0] : (p as any).image) || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800';
+
+        const pType = (p.propertyType || '').toLowerCase();
+        const pTitle = (p.title || '').toLowerCase();
+        const isPg = ['pg', 'hostel', 'coliving'].includes(pType) || pTitle.includes('pg') || pTitle.includes('hostel');
+        const isFlatmate = pType.includes('flatmate') || pTitle.includes('flatmate') || (p as any).roomType !== undefined;
+
+        const pgCat = (p as any).pgCategory || (
+          pTitle.includes('boy') ? 'Boys PG' :
+          pTitle.includes('girl') || pTitle.includes('women') || pTitle.includes('ladies') ? 'Girls PG' :
+          'Co-living'
+        );
+        const sharing = (p as any).sharingLabel || (
+          pTitle.includes('co-living') ? 'Single, 2 & 3 Sharing' :
+          pTitle.includes('single') ? 'Single & 2 Sharing' :
+          '2 & 3 Sharing'
+        );
+        const foodInc = (p as any).foodIncluded !== undefined
+          ? (p as any).foodIncluded
+          : p.amenities?.some((a: string) => /food|mess|meal/i.test(a)) ?? false;
+        const roomT = (p as any).roomType || (
+          pTitle.includes('private') ? 'Private room' : 'Shared room'
+        );
+
         return {
           ...p,
           listingType: (p.listingType || '').toLowerCase() as any,
@@ -98,6 +144,8 @@ export class PropertiesService {
           ownerType: (p as any).ownerType || 'owner',
           distanceKm: dist,
           distanceLabel: `${dist} km away`,
+          ...(isPg ? { pgCategory: pgCat, sharingLabel: sharing, foodIncluded: foodInc } : {}),
+          ...(isFlatmate ? { roomType: roomT } : {}),
         };
       });
 

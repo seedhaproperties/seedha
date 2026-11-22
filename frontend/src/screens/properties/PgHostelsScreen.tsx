@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Platform,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import {
   ChevronLeft,
@@ -22,10 +23,13 @@ import {
   LocateFixed,
   BedDouble,
   Utensils,
+  MessageSquare,
+  Compass,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import type { Property } from '../../types';
+import { api } from '../../services/api';
 
 type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest';
 
@@ -251,8 +255,70 @@ export default function PgHostelsScreen() {
   const [showSortModal, setShowSortModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
 
+  // Live Backend State & Geolocation
+  const [liveListings, setLiveListings] = useState<PgListing[]>([]);
+  const [isFetchingLive, setIsFetchingLive] = useState(false);
+  const [selectedRadius, setSelectedRadius] = useState<number>(30);
+  const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number }>({
+    latitude: 17.4401,
+    longitude: 78.3489,
+  });
+
+  // Auto-detect geolocation
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCurrentCoords({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          });
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  }, []);
+
+  // Fetch real-time PG/Hostel properties from backend Supabase PostgreSQL
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLivePgs = async () => {
+      try {
+        setIsFetchingLive(true);
+        const res = await api.properties.list({
+          type: 'pg',
+          userLat: currentCoords.latitude,
+          userLng: currentCoords.longitude,
+          radiusKm: selectedRadius,
+          city: selectedLocation !== 'All' ? selectedLocation : undefined,
+        });
+        const list = Array.isArray(res) ? res : res?.data || [];
+        if (isMounted && list.length > 0) {
+          setLiveListings(list as any);
+        }
+      } catch (err) {
+        console.warn('Live PG properties fetch notice:', err);
+      } finally {
+        if (isMounted) setIsFetchingLive(false);
+      }
+    };
+    fetchLivePgs();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentCoords.latitude, currentCoords.longitude, selectedRadius, selectedLocation]);
+
+  // Merge live backend listings with offline catalog
+  const combinedListings = useMemo(() => {
+    if (liveListings.length === 0) return PG_HOSTEL_LISTINGS;
+    const existingIds = new Set(liveListings.map((p) => p.id));
+    const offlineUnique = PG_HOSTEL_LISTINGS.filter((p) => !existingIds.has(p.id));
+    return [...liveListings, ...offlineUnique];
+  }, [liveListings]);
+
   const filteredListings = useMemo(() => {
-    return PG_HOSTEL_LISTINGS.filter((item) => {
+    return combinedListings.filter((item) => {
       if (selectedTab !== 'All' && item.pgCategory !== selectedTab) {
         return false;
       }
@@ -270,7 +336,7 @@ export default function PgHostelsScreen() {
         const match =
           item.title.toLowerCase().includes(q) ||
           item.location.toLowerCase().includes(q) ||
-          item.pgCategory.toLowerCase().includes(q);
+          (item.pgCategory && item.pgCategory.toLowerCase().includes(q));
         if (!match) return false;
       }
 
@@ -281,7 +347,7 @@ export default function PgHostelsScreen() {
       if (selectedSort === 'newest') return (b.yearBuilt || 2024) - (a.yearBuilt || 2024);
       return 0;
     });
-  }, [selectedTab, selectedLocation, searchQuery, selectedSort]);
+  }, [combinedListings, selectedTab, selectedLocation, searchQuery, selectedSort]);
 
   const activeSortLabel =
     SORT_OPTIONS.find((o) => o.value === selectedSort)?.label || 'Relevance';
@@ -377,6 +443,28 @@ export default function PgHostelsScreen() {
             {selectedLocation === 'All' ? 'location' : selectedLocation}
           </Text>
         </TouchableOpacity>
+      </View>
+
+      {/* ── Radius Selection Bar ── */}
+      <View style={styles.radiusRow}>
+        <Compass size={14} color="#64748B" strokeWidth={2} />
+        <Text style={styles.radiusLabel}>Radius:</Text>
+        {[30, 60, 100].map((r) => {
+          const isSelected = selectedRadius === r;
+          return (
+            <TouchableOpacity
+              key={r}
+              onPress={() => setSelectedRadius(r)}
+              style={[styles.radiusPill, isSelected && styles.radiusPillActive]}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.radiusPillText, isSelected && styles.radiusPillTextActive]}>
+                {r} km
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+        {isFetchingLive && <ActivityIndicator size="small" color="#0F172A" style={{ marginLeft: 6 }} />}
       </View>
 
       {/* ── Grid Listings ── */}
@@ -482,6 +570,27 @@ export default function PgHostelsScreen() {
                           <Text style={[styles.metaText, { color: '#059669' }]}>Food</Text>
                         </View>
                       )}
+                    </View>
+
+                    <View style={styles.cardActionsRow}>
+                      {(item as any).distanceLabel ? (
+                        <Text style={styles.distanceTag} numberOfLines={1}>
+                          {(item as any).distanceLabel}
+                        </Text>
+                      ) : (
+                        <View />
+                      )}
+                      <TouchableOpacity
+                        style={styles.chatOwnerBtn}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          push({ name: 'chat', params: { property: item } });
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <MessageSquare size={11} color="#FFFFFF" strokeWidth={2.2} />
+                        <Text style={styles.chatOwnerBtnText}>Chat</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -962,5 +1071,66 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  radiusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    gap: 8,
+  },
+  radiusLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  radiusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+  },
+  radiusPillActive: {
+    backgroundColor: '#0F172A',
+  },
+  radiusPillText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  radiusPillTextActive: {
+    color: '#FFFFFF',
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  distanceTag: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#2563EB',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  chatOwnerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  chatOwnerBtnText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
