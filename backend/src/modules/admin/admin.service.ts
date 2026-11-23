@@ -202,7 +202,16 @@ export class AdminService {
 
   // Common Property Workflow: After verify -> Publish the post / Approve
   async verifyAndPublishProperty(id: string) {
-    const prop = mockDb.properties.find((p) => p.id === id);
+    let prop = mockDb.properties.find((p) => p.id === id);
+    if (!prop && this.prisma?.isConnected) {
+      try {
+        const dbP: any = await this.prisma.property.findUnique({ where: { id } });
+        if (dbP) {
+          prop = dbP;
+          mockDb.properties.unshift(dbP);
+        }
+      } catch {}
+    }
     if (!prop) throw new NotFoundException(`Property ${id} not found`);
 
     prop.status = PropertyStatusEnum.PUBLISHED;
@@ -236,6 +245,8 @@ export class AdminService {
           ownerId: prop.ownerId,
           status: 'PUBLISHED',
           verified: true,
+          listingType: prop.listingType,
+          propertyType: prop.propertyType,
           title: prop.title,
           message: `Your property "${prop.title}" has been approved and published!`,
         });
@@ -255,7 +266,16 @@ export class AdminService {
   }
 
   async rejectProperty(id: string, dto: RejectItemDto) {
-    const prop = mockDb.properties.find((p) => p.id === id);
+    let prop = mockDb.properties.find((p) => p.id === id);
+    if (!prop && this.prisma?.isConnected) {
+      try {
+        const dbP: any = await this.prisma.property.findUnique({ where: { id } });
+        if (dbP) {
+          prop = dbP;
+          mockDb.properties.unshift(dbP);
+        }
+      } catch {}
+    }
     if (!prop) throw new NotFoundException(`Property ${id} not found`);
 
     prop.status = PropertyStatusEnum.REJECTED;
@@ -288,6 +308,8 @@ export class AdminService {
           status: 'REJECTED',
           verified: false,
           rejectionReason: dto.reason,
+          listingType: prop.listingType,
+          propertyType: prop.propertyType,
           title: prop.title,
           message: `Your property "${prop.title}" listing review was rejected: ${dto.reason}`,
         });
@@ -537,6 +559,7 @@ export class AdminService {
     for (const p of properties) {
       let mod = 'flat_building';
       const isPg =
+        p.details?.category === 'pg_hostel' ||
         p.propertyType?.toLowerCase().includes('pg') ||
         p.propertyType?.toLowerCase().includes('hostel') ||
         p.details?.pgAccommodationType ||
@@ -545,10 +568,19 @@ export class AdminService {
 
       if (isPg) {
         mod = 'pg_hostel';
-      } else if (p.listingType === ListingTypeEnum.RENT || p.listingType === 'RENT') {
-        mod = 'rent';
-      } else if (p.listingType === ListingTypeEnum.COMMERCIAL || p.listingType === 'COMMERCIAL') {
+      } else if (
+        p.listingType === ListingTypeEnum.COMMERCIAL ||
+        p.listingType === 'COMMERCIAL' ||
+        p.details?.category === 'commercial' ||
+        ['commercial', 'shop', 'office'].some((x) => (p.propertyType || '').toLowerCase().includes(x))
+      ) {
         mod = 'commercial';
+      } else if (
+        p.listingType === ListingTypeEnum.RENT ||
+        p.listingType === 'RENT' ||
+        p.details?.category === 'rent'
+      ) {
+        mod = 'rent';
       } else {
         mod = 'flat_building';
       }

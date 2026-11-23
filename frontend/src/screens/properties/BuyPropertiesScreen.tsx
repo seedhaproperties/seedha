@@ -29,6 +29,7 @@ import {
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
+import { userSocket } from '../../services/socket';
 import { properties } from '../../data/properties';
 import type { Property } from '../../types';
 
@@ -142,8 +143,17 @@ export default function BuyPropertiesScreen() {
     };
 
     fetchLiveProperties();
+
+    userSocket.connect();
+    const unsub = userSocket.onStatusUpdated((event) => {
+      if (event.status === 'PUBLISHED' || event.status === 'REJECTED') {
+        fetchLiveProperties();
+      }
+    });
+
     return () => {
       isMounted = false;
+      unsub();
     };
   }, [currentCoords.latitude, currentCoords.longitude, selectedRadius]);
 

@@ -50,17 +50,59 @@ export class PropertiesService {
         const qTypeLower = (query.type || '').trim().toLowerCase();
         if (qTypeLower === 'pg' || qTypeLower === 'hostel' || qTypeLower === 'coliving') {
           typeWhere = {
-            propertyType: { in: ['pg', 'hostel', 'coliving', 'PG', 'HOSTEL', 'COLIVING'] }
+            OR: [
+              { propertyType: { in: ['pg', 'hostel', 'coliving', 'PG', 'HOSTEL', 'COLIVING', 'PG / Hostel'] } },
+              { listingType: 'PG' },
+              { listingType: 'HOSTEL' },
+            ],
           };
         } else if (qTypeLower === 'flatmate' || qTypeLower === 'flatmates') {
           typeWhere = {
-            propertyType: { in: ['flatmate', 'flatmates', 'FLATMATE', 'FLATMATES'] }
+            OR: [
+              { propertyType: { in: ['flatmate', 'flatmates', 'FLATMATE', 'FLATMATES', 'Flatmate', 'roommate', 'Roommate'] } },
+              { listingType: 'FLATMATE' },
+            ],
+          };
+        } else if (qTypeLower === 'commercial') {
+          typeWhere = {
+            OR: [
+              { listingType: 'COMMERCIAL' },
+              { propertyType: { in: ['commercial', 'Commercial', 'COMMERCIAL', 'shop', 'Shop', 'office', 'Office', 'showroom', 'Showroom', 'warehouse', 'Warehouse', 'industrial', 'Industrial'] } },
+            ],
+          };
+        } else if (qTypeLower === 'buy') {
+          typeWhere = {
+            listingType: 'BUY',
+            NOT: {
+              propertyType: {
+                in: [
+                  'commercial', 'Commercial', 'COMMERCIAL',
+                  'shop', 'Shop', 'office', 'Office',
+                  'showroom', 'Showroom', 'warehouse', 'Warehouse', 'industrial', 'Industrial',
+                  'pg', 'PG', 'hostel', 'Hostel', 'coliving', 'Coliving', 'PG / Hostel',
+                  'flatmate', 'Flatmate', 'flatmates', 'Flatmates', 'roommate', 'Roommate',
+                ],
+              },
+            },
+          };
+        } else if (qTypeLower === 'rent') {
+          typeWhere = {
+            listingType: 'RENT',
+            NOT: {
+              propertyType: {
+                in: [
+                  'commercial', 'Commercial', 'COMMERCIAL',
+                  'shop', 'Shop', 'office', 'Office',
+                  'showroom', 'Showroom', 'warehouse', 'Warehouse', 'industrial', 'Industrial',
+                  'pg', 'PG', 'hostel', 'Hostel', 'coliving', 'Coliving', 'PG / Hostel',
+                  'flatmate', 'Flatmate', 'flatmates', 'Flatmates', 'roommate', 'Roommate',
+                ],
+              },
+            },
           };
         } else {
           const upper = query.type.trim().toUpperCase();
-          if (upper === 'BUY' || upper === 'RENT' || upper === 'COMMERCIAL') {
-            typeWhere = { listingType: upper };
-          }
+          typeWhere = { listingType: upper };
         }
       }
 
@@ -109,17 +151,55 @@ export class PropertiesService {
       );
 
       if (query.type) {
-        const qTypeLower = query.type.toLowerCase();
+        const qTypeLower = query.type.toLowerCase().trim();
         if (qTypeLower === 'pg' || qTypeLower === 'hostel' || qTypeLower === 'coliving') {
-          mockFiltered = mockFiltered.filter((p) =>
-            ['pg', 'hostel', 'coliving'].includes((p.propertyType || '').toLowerCase()) ||
-            (p as any).pgCategory !== undefined
-          );
+          mockFiltered = mockFiltered.filter((p) => {
+            const pt = (p.propertyType || '').toLowerCase();
+            const title = (p.title || '').toLowerCase();
+            return (
+              ['pg', 'hostel', 'coliving', 'pg / hostel'].includes(pt) ||
+              title.includes('pg') ||
+              title.includes('hostel') ||
+              (p as any).pgCategory !== undefined ||
+              (p as any).details?.pgAccommodationType !== undefined
+            );
+          });
         } else if (qTypeLower === 'flatmate' || qTypeLower === 'flatmates') {
-          mockFiltered = mockFiltered.filter((p) =>
-            (p.propertyType || '').toLowerCase().includes('flatmate') ||
-            (p as any).roomType !== undefined
-          );
+          mockFiltered = mockFiltered.filter((p) => {
+            const pt = (p.propertyType || '').toLowerCase();
+            const title = (p.title || '').toLowerCase();
+            return (
+              pt.includes('flatmate') ||
+              title.includes('flatmate') ||
+              (p as any).roomType !== undefined ||
+              (p as any).details?.flatmateName !== undefined
+            );
+          });
+        } else if (qTypeLower === 'buy') {
+          mockFiltered = mockFiltered.filter((p) => {
+            const lt = (p.listingType || '').toLowerCase();
+            const pt = (p.propertyType || '').toLowerCase();
+            const isCommercial = ['commercial', 'shop', 'office', 'showroom', 'warehouse', 'industrial'].some((x) => pt.includes(x));
+            const isPgOrFlatmate = ['pg', 'hostel', 'coliving', 'flatmate'].some((x) => pt.includes(x)) || (p as any).pgCategory !== undefined || (p as any).roomType !== undefined;
+            return lt === 'buy' && !isCommercial && !isPgOrFlatmate;
+          });
+        } else if (qTypeLower === 'rent') {
+          mockFiltered = mockFiltered.filter((p) => {
+            const lt = (p.listingType || '').toLowerCase();
+            const pt = (p.propertyType || '').toLowerCase();
+            const isCommercial = ['commercial', 'shop', 'office', 'showroom', 'warehouse', 'industrial'].some((x) => pt.includes(x));
+            const isPgOrFlatmate = ['pg', 'hostel', 'coliving', 'flatmate'].some((x) => pt.includes(x)) || (p as any).pgCategory !== undefined || (p as any).roomType !== undefined;
+            return lt === 'rent' && !isCommercial && !isPgOrFlatmate;
+          });
+        } else if (qTypeLower === 'commercial') {
+          mockFiltered = mockFiltered.filter((p) => {
+            const lt = (p.listingType || '').toLowerCase();
+            const pt = (p.propertyType || '').toLowerCase();
+            return (
+              lt === 'commercial' ||
+              ['commercial', 'shop', 'office', 'showroom', 'warehouse', 'industrial'].some((x) => pt.includes(x))
+            );
+          });
         } else {
           mockFiltered = mockFiltered.filter((p) => (p.listingType || '').toLowerCase() === qTypeLower);
         }
@@ -502,7 +582,7 @@ export class PropertiesService {
     // Sync to PostgreSQL if connected
     if (this.prisma?.isConnected) {
       try {
-        await this.prisma.property.create({
+        const dbProp = await this.prisma.property.create({
           data: {
             title: dto.title,
             description: dto.description || '',
@@ -527,6 +607,10 @@ export class PropertiesService {
             ownerPhone: dto.ownerPhone,
           },
         });
+        if (dbProp && dbProp.id) {
+          newProperty.id = dbProp.id;
+          mockDb.saveToDisk();
+        }
       } catch (err: any) {
         this.logger.warn(`Prisma create sync fallback: ${err.message}`);
       }

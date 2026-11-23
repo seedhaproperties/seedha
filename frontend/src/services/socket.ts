@@ -9,6 +9,8 @@ export interface PropertyStatusEvent {
   status: string;
   verified: boolean;
   rejectionReason?: string;
+  listingType?: string;
+  propertyType?: string;
   title: string;
   message: string;
 }

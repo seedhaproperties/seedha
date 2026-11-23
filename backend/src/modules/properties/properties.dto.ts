@@ -158,9 +158,10 @@ export class UploadPropertyImageDto {
 }
 
 export class QueryPropertyDto {
-  @ApiPropertyOptional({ enum: ListingTypeEnum })
+  @ApiPropertyOptional({ example: 'buy' })
   @IsOptional()
-  type?: ListingTypeEnum;
+  @IsString()
+  type?: string;
 
   @ApiPropertyOptional({ example: 'Hyderabad' })
   @IsOptional()

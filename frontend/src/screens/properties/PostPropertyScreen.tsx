@@ -855,13 +855,24 @@ export default function PostPropertyScreen() {
 
     try {
       const category: AdminCategory =
-        mode === 'sell' ? 'flat_building' : mode === 'commercial' ? 'commercial' : 'rent';
+        mode === 'pg'
+          ? 'pg_hostel'
+          : mode === 'sell'
+            ? 'flat_building'
+            : mode === 'commercial'
+              ? 'commercial'
+              : 'rent';
 
       const computedTitle =
         form.title ||
-        `${form.bhk ? form.bhk + ' BHK ' : ''}${form.propertyType ||
-        form.propertySubtype ||
-        (mode === 'pg' ? 'PG Room' : mode === 'flatmate' ? 'Flatmate Room' : 'Residential Property')
+        `${form.bhk ? form.bhk + ' BHK ' : ''}${
+          mode === 'commercial'
+            ? (form.propertyType || form.propertySubtype || 'Commercial Property')
+            : mode === 'pg'
+              ? (form.pgAccommodationType || 'PG Room')
+              : mode === 'flatmate'
+                ? 'Flatmate Room'
+                : (form.propertyType || form.propertySubtype || 'Residential Property')
         } in ${form.locality || 'Hyderabad'}`;
 
       const computedLocation = `${form.locality ? form.locality + ', ' : ''}${form.city || 'Hyderabad'}`;
@@ -882,8 +893,17 @@ export default function PostPropertyScreen() {
         mode === 'sell'
           ? 'BUY'
           : mode === 'commercial'
-            ? (form.commercialPurpose === 'sell' ? 'BUY' : 'COMMERCIAL')
+            ? 'COMMERCIAL'
             : 'RENT';
+
+      const propertyType =
+        mode === 'commercial'
+          ? (form.propertyType || form.propertySubtype || 'Commercial')
+          : mode === 'pg'
+            ? (form.pgAccommodationType || 'PG / Hostel')
+            : mode === 'flatmate'
+              ? 'Flatmate'
+              : (form.propertyType || form.propertySubtype || 'Apartment');
 
       const payload = {
         title: computedTitle,
@@ -891,11 +911,7 @@ export default function PostPropertyScreen() {
           form.description ||
           `${computedTitle} located at ${computedLocation}. Features excellent light & ventilation, quality fittings, and prime accessibility in ${form.city || 'Hyderabad'}.`,
         listingType,
-        propertyType:
-          form.propertyType ||
-          form.propertySubtype ||
-          form.pgAccommodationType ||
-          (mode === 'commercial' ? 'Commercial' : mode === 'pg' ? 'PG / Hostel' : 'Apartment'),
+        propertyType,
         price: priceNum,
         priceLabel: computedAmount,
         location: form.locality || form.streetArea || 'Madhapur',
@@ -924,6 +940,12 @@ export default function PostPropertyScreen() {
           ...form,
           photos: [], // keep photos in images array only to avoid doubling payload size
           photosCount: form.photos.length,
+          category,
+          listingType,
+          propertyType,
+          commercialPurpose: mode === 'commercial' ? (form.commercialPurpose || 'rent') : undefined,
+          pgCategory: mode === 'pg' ? (form.pgAccommodationType || 'Boys PG') : undefined,
+          roomType: mode === 'flatmate' ? (form.propertySubtype?.includes('Private') || (form as any).roomType === 'Private room' ? 'Private room' : 'Shared room') : undefined,
           state: form.state || 'Telangana',
           pincode: form.pincode || '500081',
           latitude: form.latitude || 17.4482,

@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import type { Property } from '../../types';
 import { api } from '../../services/api';
+import { userSocket } from '../../services/socket';
 
 type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest';
 
@@ -304,8 +305,17 @@ export default function PgHostelsScreen() {
       }
     };
     fetchLivePgs();
+
+    userSocket.connect();
+    const unsub = userSocket.onStatusUpdated((event) => {
+      if (event.status === 'PUBLISHED' || event.status === 'REJECTED') {
+        fetchLivePgs();
+      }
+    });
+
     return () => {
       isMounted = false;
+      unsub();
     };
   }, [currentCoords.latitude, currentCoords.longitude, selectedRadius, selectedLocation]);
 

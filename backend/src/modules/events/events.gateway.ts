@@ -26,6 +26,8 @@ export interface PropertyStatusUpdatedEvent {
   status: string;
   verified: boolean;
   rejectionReason?: string;
+  listingType?: string;
+  propertyType?: string;
   title: string;
   message: string;
 }
@@ -202,6 +204,8 @@ export class EventsGateway
     status: string;
     verified: boolean;
     rejectionReason?: string;
+    listingType?: string;
+    propertyType?: string;
     title: string;
     message: string;
   }) {
