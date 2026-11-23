@@ -21,6 +21,7 @@ export interface Property {
   description: string;
   ownerName: string;
   ownerAvatar: string;
+  ownerPhone?: string;
   ownerType: 'owner' | 'builder' | 'agent';
   possessionDate?: string;
   furnishing: 'unfurnished' | 'semi-furnished' | 'fully-furnished';

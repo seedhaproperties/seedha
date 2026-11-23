@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { ChevronLeft, Search, Clock, MapPin, TrendingUp, X } from 'lucide-react-native';
+import { ChevronLeft, Search, Clock, MapPin, TrendingUp, X, Hash } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { colors } from '../../theme/colors';
 import { properties } from '../../data/properties';
@@ -9,19 +9,20 @@ import PropertyCard from '../../components/PropertyCard';
 import type { ListingType, Property } from '../../types';
 
 const popularLocations = [
-  { name: 'Madhapur, Hyderabad', count: '234 properties' },
-  { name: 'Gachibowli, Hyderabad', count: '187 properties' },
-  { name: 'Kondapur, Hyderabad', count: '145 properties' },
-  { name: 'Madhurawada, Vizag', count: '98 properties' },
-  { name: 'Jubilee Hills, Hyderabad', count: '76 properties' },
-  { name: 'Banjara Hills, Hyderabad', count: '65 properties' },
+  { name: 'Madhapur, Hyderabad - 500081', locality: 'Madhapur', city: 'Hyderabad', pincode: '500081', count: '234 properties' },
+  { name: 'Gachibowli, Hyderabad - 500032', locality: 'Gachibowli', city: 'Hyderabad', pincode: '500032', count: '187 properties' },
+  { name: 'Kondapur, Hyderabad - 500084', locality: 'Kondapur', city: 'Hyderabad', pincode: '500084', count: '145 properties' },
+  { name: 'Madhurawada, Vizag - 530048', locality: 'Madhurawada', city: 'Vizag', pincode: '530048', count: '98 properties' },
+  { name: 'Gajuwaka, Vizag - 530026', locality: 'Gajuwaka', city: 'Vizag', pincode: '530026', count: '84 properties' },
+  { name: 'Jubilee Hills, Hyderabad - 500033', locality: 'Jubilee Hills', city: 'Hyderabad', pincode: '500033', count: '76 properties' },
+  { name: 'Banjara Hills, Hyderabad - 500034', locality: 'Banjara Hills', city: 'Hyderabad', pincode: '500034', count: '65 properties' },
 ];
 
 const recentSearches = [
-  '3 BHK in Madhapur',
-  'Flats in Gachibowli under 80L',
-  'Commercial HITEC City',
-  '2 BHK Rent in Kondapur',
+  'Madhapur, Hyderabad - 500081',
+  'Gachibowli - 500032',
+  'Madhurawada, Vizag - 530048',
+  '3 BHK in Kondapur',
 ];
 
 export default function SearchScreen() {
@@ -29,6 +30,7 @@ export default function SearchScreen() {
   const searchType = ((currentScreen.params?.type as ListingType) || 'buy');
   const [query, setQuery] = useState('');
   const [liveProperties, setLiveProperties] = useState<Property[]>([]);
+  const [apiSuggestions, setApiSuggestions] = useState<any[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -70,6 +72,25 @@ export default function SearchScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    if (query.trim().length >= 1) {
+      api.properties
+        .getLocationSuggestions(query.trim())
+        .then((data) => {
+          if (isMounted && Array.isArray(data)) {
+            setApiSuggestions(data);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setApiSuggestions([]);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [query]);
+
   const allSearchable = useMemo(() => {
     const combined = [...liveProperties, ...properties];
     const seen = new Set<string>();
@@ -80,21 +101,15 @@ export default function SearchScreen() {
     });
   }, [liveProperties]);
 
-  const results = query.length > 1
-    ? allSearchable.filter((p: Property) =>
-        p.title.toLowerCase().includes(query.toLowerCase()) ||
-        p.location.toLowerCase().includes(query.toLowerCase()) ||
-        p.city.toLowerCase().includes(query.toLowerCase())
+  const cleanQ = query.toLowerCase().trim();
+  const results = cleanQ.length > 1
+    ? allSearchable.filter((p: any) =>
+        p.title.toLowerCase().includes(cleanQ) ||
+        p.location.toLowerCase().includes(cleanQ) ||
+        p.city.toLowerCase().includes(cleanQ) ||
+        p.pincode?.includes(cleanQ)
       )
     : [];
-
-  const suggestions = query.length > 1 ? [
-    `${query}, Hyderabad`,
-    `Properties in ${query}`,
-    `Projects in ${query}`,
-    `${query} nearby areas`,
-    `${query}, Vizag`,
-  ] : [];
 
   return (
     <View style={styles.container}>
@@ -123,17 +138,40 @@ export default function SearchScreen() {
 
       <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
         {/* Suggestions while typing */}
-        {query.length > 1 && suggestions.length > 0 && (
+        {query.length >= 1 && apiSuggestions.length > 0 && (
           <View style={styles.sectionPadding}>
+            <Text style={styles.suggestionsHeaderTitle}>Location & Pincode Suggestions</Text>
             <View style={styles.cardContainer}>
-              {suggestions.map((s, i) => (
+              {apiSuggestions.map((item, i) => (
                 <TouchableOpacity
                   key={i}
-                  onPress={() => push({ name: 'propertyListing', params: { type: searchType, title: s, location: query } })}
+                  onPress={() => {
+                    setQuery(item.locality);
+                    push({
+                      name: 'propertyListing',
+                      params: {
+                        type: searchType,
+                        title: `${item.locality}, ${item.city}`,
+                        location: item.locality,
+                        city: item.city,
+                        pincode: item.pincode,
+                      },
+                    });
+                  }}
                   style={styles.suggestionRow}
                 >
-                  <MapPin size={15} color={colors.textMuted} />
-                  <Text style={styles.suggestionText}>{s}</Text>
+                  <View style={styles.suggestionIconBox}>
+                    <MapPin size={16} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.suggestionTitleText}>
+                      {item.locality}, <Text style={styles.suggestionCityText}>{item.city}</Text>
+                    </Text>
+                    <Text style={styles.suggestionPincodeText}>PIN: {item.pincode}</Text>
+                  </View>
+                  <View style={styles.pincodePill}>
+                    <Text style={styles.pincodePillText}>{item.pincode}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -271,6 +309,48 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textPrimary,
     marginLeft: 10,
+  },
+  suggestionsHeaderTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  suggestionIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: colors.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  suggestionTitleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  suggestionCityText: {
+    fontWeight: '400',
+    color: colors.textSecondary,
+  },
+  suggestionPincodeText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  pincodePill: {
+    backgroundColor: colors.tertiaryBg,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  pincodePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
   },
   sectionHeader: {
     fontSize: 11,

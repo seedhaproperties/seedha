@@ -184,5 +184,26 @@ export class QueryPropertyDto {
 
   @ApiPropertyOptional({ example: 'apartment' })
   @IsOptional()
+  @IsString()
   propertyType?: string;
+
+  @ApiPropertyOptional({ example: 30, description: 'Search radius in km: 30, 60, 100' })
+  @IsOptional()
+  @IsNumber()
+  radiusKm?: number;
+
+  @ApiPropertyOptional({ example: '500081', description: 'Search by postal pincode' })
+  @IsOptional()
+  @IsString()
+  pincode?: string;
+
+  @ApiPropertyOptional({ example: 17.4401 })
+  @IsOptional()
+  @IsNumber()
+  userLat?: number;
+
+  @ApiPropertyOptional({ example: 78.3489 })
+  @IsOptional()
+  @IsNumber()
+  userLng?: number;
 }

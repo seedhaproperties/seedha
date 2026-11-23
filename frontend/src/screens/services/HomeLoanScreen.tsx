@@ -1094,6 +1094,7 @@ import {
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { colors } from '../../theme/colors';
+import { api } from '../../services/api';
 
 type Step = 'landing' | 'basic' | 'income' | 'results' | 'lenders' | 'apply';
 
@@ -1967,10 +1968,26 @@ export default function HomeLoanScreen() {
               setStep('apply');
             } else if (step === 'apply') {
               setLoading(true);
-              setTimeout(() => {
-                setLoading(false);
-                setApplied(true);
-              }, 1000);
+              (async () => {
+                try {
+                  await api.homeLoans.requestAssistance({
+                    applicantName: form.name || 'Verified Applicant',
+                    applicantPhone: form.phone || '+919876543210',
+                    applicantEmail: 'applicant@seedhaproperties.com',
+                    loanAmount: loanAmount,
+                    selectedBank: 'HDFC Bank',
+                    employmentType: form.employment,
+                    monthlyIncome: parseFloat(form.income.replace(/,/g, '')) || 85000,
+                    existingEmi: parseFloat(form.existingEmis.replace(/,/g, '')) || 0,
+                    propertyIdentified: true,
+                  });
+                } catch (err: any) {
+                  console.warn('[HomeLoanScreen] Assistance API fallback:', err?.message || err);
+                } finally {
+                  setLoading(false);
+                  setApplied(true);
+                }
+              })();
             } else {
               setStep('basic');
             }

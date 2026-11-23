@@ -107,11 +107,13 @@ export declare class AuthController {
         emailSent: boolean;
         isExistingUser: boolean;
         mobile?: undefined;
+        devOtp?: undefined;
     } | {
         success: boolean;
         message: string;
         mobile: string;
         isExistingUser: boolean;
+        devOtp: any;
         emailSent?: undefined;
     }>;
     resendOtp(dto: SendOtpDto): Promise<{
@@ -120,11 +122,13 @@ export declare class AuthController {
         emailSent: boolean;
         isExistingUser: boolean;
         mobile?: undefined;
+        devOtp?: undefined;
     } | {
         success: boolean;
         message: string;
         mobile: string;
         isExistingUser: boolean;
+        devOtp: any;
         emailSent?: undefined;
     }>;
     verifyOtp(dto: VerifyOtpDto): Promise<{

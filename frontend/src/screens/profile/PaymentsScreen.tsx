@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,9 +25,11 @@ import {
   X,
   Plus,
   CheckCircle2,
+  FileText,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 
 export interface Transaction {
   id: string;
@@ -170,6 +172,54 @@ export default function PaymentsScreen() {
   // Transactions State
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
+  // Load real user transactions from Supabase PostgreSQL database
+  useEffect(() => {
+    let isMounted = true;
+    api.payments
+      .my()
+      .then((data) => {
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          const mapped: Transaction[] = data.map((t: any) => ({
+            id: t.id,
+            title: t.purpose,
+            subtitle: `${new Date(t.createdAt).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })} · ${t.gateway}`,
+            amount: t.amount,
+            amountLabel: `₹${t.amount.toLocaleString('en-IN')}`,
+            status:
+              t.paymentStatus === 'PAID'
+                ? 'Paid'
+                : t.paymentStatus === 'REFUNDED'
+                ? 'Refunded'
+                : 'Pending',
+            paidFor: t.purpose,
+            paidTo: 'Seedha Properties Escrow',
+            dateTime: new Date(t.createdAt).toLocaleString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            paymentMethod: t.gateway,
+            referenceId: t.gatewayTxnId || t.id,
+            baseAmount: `₹${Math.round(t.amount / 1.18).toLocaleString('en-IN')}`,
+            gstAmount: `₹${(t.amount - Math.round(t.amount / 1.18)).toLocaleString('en-IN')}`,
+            totalAmount: `₹${t.amount.toLocaleString('en-IN')}`,
+          }));
+          setTransactions([...mapped, ...INITIAL_TRANSACTIONS]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Saved Payment Methods State
   const [savedMethods, setSavedMethods] = useState<SavedPaymentMethod[]>(INITIAL_SAVED_METHODS);
@@ -419,9 +469,45 @@ export default function PaymentsScreen() {
               <Plus size={15} color="#1E293B" strokeWidth={2.4} />
               <Text style={styles.addMethodText}>Add payment method</Text>
             </TouchableOpacity>
+
+            {/* Terms and conditions link */}
+            <TouchableOpacity
+              style={styles.termsTriggerBtn}
+              onPress={() => setShowTermsModal(true)}
+              activeOpacity={0.85}
+            >
+              <Shield size={15} color="#15803D" />
+              <Text style={styles.termsTriggerText}>Payment Terms & 100% Refund Policy</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
+
+      {/* Terms & Conditions Modal */}
+      <Modal visible={showTermsModal} transparent animationType="fade" onRequestClose={() => setShowTermsModal(false)}>
+        <View style={styles.termsOverlay}>
+          <View style={styles.termsCard}>
+            <View style={styles.termsHeader}>
+              <Shield size={24} color="#16A34A" />
+              <Text style={styles.termsHeaderTitle}>Payment Terms & Refund Guarantee</Text>
+              <TouchableOpacity onPress={() => setShowTermsModal(false)}>
+                <X size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 350, marginVertical: 12 }}>
+              <Text style={styles.termsSectionTitle}>1. Zero Brokerage Guarantee</Text>
+              <Text style={styles.termsBodyText}>Seedha Properties operates on a strict 100% direct owner-to-buyer/tenant model. No commission or hidden broker charges are ever levied on any transactions.</Text>
+              <Text style={styles.termsSectionTitle}>2. 100% Instant Refund Policy</Text>
+              <Text style={styles.termsBodyText}>If an owner verification fails, or title deed disputes arise, all verification and token fees are refunded in full within 24 hours back to your original payment method.</Text>
+              <Text style={styles.termsSectionTitle}>3. Escrow Deposit Protection</Text>
+              <Text style={styles.termsBodyText}>All advance tokens paid through in-chat or checkout are safeguarded in an RBI-compliant escrow account until possession or mutual agreement execution.</Text>
+            </ScrollView>
+            <TouchableOpacity style={styles.termsDoneBtn} onPress={() => setShowTermsModal(false)}>
+              <Text style={styles.termsDoneText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* ========================================================= */}
       {/* MODAL 1: Transaction details (Image 2)                    */}
@@ -1524,5 +1610,72 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: '#0F172A',
+  },
+  termsTriggerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    marginTop: 8,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  termsTriggerText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  termsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  termsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+  },
+  termsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+  },
+  termsHeaderTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  termsSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  termsBodyText: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  termsDoneBtn: {
+    backgroundColor: '#0F172A',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  termsDoneText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

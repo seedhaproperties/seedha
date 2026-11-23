@@ -4,3 +4,4 @@ export { default as PropertyCard } from './PropertyCard';
 export { default as SeedhaLogo } from './SeedhaLogo';
 export { SkeletonCard, SkeletonList } from './SkeletonCard';
 export { default as TopBar } from './TopBar';
+export { PaymentGatewayModal } from './PaymentGatewayModal';

@@ -277,6 +277,7 @@ export class AuthService {
       message: msg91Res.message || 'OTP sent successfully',
       mobile: normalized.e164,
       isExistingUser: !!existingUser,
+      devOtp: (msg91Res as any).devOtp,
     };
   }
 
@@ -299,6 +300,7 @@ export class AuthService {
       message: msg91Res.message || 'OTP resent successfully',
       mobile: normalized.e164,
       isExistingUser: !!existingUser,
+      devOtp: (msg91Res as any).devOtp,
     };
   }
 

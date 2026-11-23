@@ -291,6 +291,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     verifyStoredSession();
+    // Load persisted saved properties from Supabase
+    api.properties.getMySaved().then((savedList) => {
+      if (Array.isArray(savedList) && savedList.length > 0) {
+        setSavedIds(new Set(savedList.map((p: any) => p.id)));
+      }
+    }).catch(() => {});
+
     return () => {
       isMounted = false;
     };
@@ -416,6 +423,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               next.has(id) ? next.delete(id) : next.add(id);
               return next;
             });
+            api.properties.toggleSave(id).catch(err => {
+              console.warn('[AppContext] Failed to persist toggleSave to database:', err);
+            });
           },
           undefined,
           'Save Property'
@@ -443,6 +453,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return updated;
         });
         return next;
+      });
+      api.properties.toggleSave(id).catch(err => {
+        console.warn('[AppContext] Failed to persist toggleSave to database:', err);
       });
     },
     [effectiveIsAuthenticated, requireAuth]

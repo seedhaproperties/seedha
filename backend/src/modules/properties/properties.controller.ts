@@ -20,8 +20,21 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 export class PropertiesController {
   constructor(private readonly propertiesService: PropertiesService) { }
 
+  @Get('suggestions')
+  @ApiOperation({ summary: 'Get location suggestions including city, locality, and pincode' })
+  async getSuggestions(@Query('query') query: string) {
+    return this.propertiesService.getLocationSuggestions(query || '');
+  }
+
+  @Get('my/saved')
+  @ApiOperation({ summary: 'Get all saved/liked properties for the user' })
+  async getMySaved(@Request() req: any) {
+    const userId = req.user?.sub || req.headers?.['x-user-id'] || 'user_guest_default';
+    return this.propertiesService.getMySaved(userId);
+  }
+
   @Get()
-  @ApiOperation({ summary: 'Search and filter published properties (Buy, Rent, Commercial)' })
+  @ApiOperation({ summary: 'Search and filter published properties with distance and radius' })
   async findAll(
     @Query() query: QueryPropertyDto,
     @Query('userId') userId?: string,
@@ -92,6 +105,13 @@ export class PropertiesController {
     return this.propertiesService.getOwnerDetails(id);
   }
 
+  @Post(':id/toggle-save')
+  @ApiOperation({ summary: 'Toggle like/save status for a property' })
+  async toggleSave(@Param('id') id: string, @Request() req: any) {
+    const userId = req.user?.sub || req.headers?.['x-user-id'] || 'user_guest_default';
+    return this.propertiesService.toggleSave(id, userId);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -109,3 +129,4 @@ export class PropertiesController {
     return this.propertiesService.remove(id, req.user?.sub);
   }
 }
+

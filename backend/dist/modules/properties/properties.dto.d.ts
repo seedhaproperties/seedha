@@ -42,4 +42,8 @@ export declare class QueryPropertyDto {
     maxPrice?: number;
     bhk?: number;
     propertyType?: string;
+    radiusKm?: number;
+    pincode?: string;
+    userLat?: number;
+    userLng?: number;
 }

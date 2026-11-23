@@ -225,6 +225,7 @@ let AuthService = AuthService_1 = class AuthService {
             message: msg91Res.message || 'OTP sent successfully',
             mobile: normalized.e164,
             isExistingUser: !!existingUser,
+            devOtp: msg91Res.devOtp,
         };
     }
     async resendOtp(identifier) {
@@ -243,6 +244,7 @@ let AuthService = AuthService_1 = class AuthService {
             message: msg91Res.message || 'OTP resent successfully',
             mobile: normalized.e164,
             isExistingUser: !!existingUser,
+            devOtp: msg91Res.devOtp,
         };
     }
     async verifyOtp(identifier, code, name) {

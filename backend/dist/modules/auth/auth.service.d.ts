@@ -54,11 +54,13 @@ export declare class AuthService {
         emailSent: boolean;
         isExistingUser: boolean;
         mobile?: undefined;
+        devOtp?: undefined;
     } | {
         success: boolean;
         message: string;
         mobile: string;
         isExistingUser: boolean;
+        devOtp: any;
         emailSent?: undefined;
     }>;
     resendOtp(identifier: string): Promise<{
@@ -67,11 +69,13 @@ export declare class AuthService {
         emailSent: boolean;
         isExistingUser: boolean;
         mobile?: undefined;
+        devOtp?: undefined;
     } | {
         success: boolean;
         message: string;
         mobile: string;
         isExistingUser: boolean;
+        devOtp: any;
         emailSent?: undefined;
     }>;
     verifyOtp(identifier: string, code: string, name?: string): Promise<{

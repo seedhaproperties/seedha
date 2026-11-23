@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,20 +24,53 @@ import {
   BedDouble,
   Bath,
   Square,
+  Navigation,
+  Compass,
+  AlertCircle,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 import { properties } from '../../data/properties';
 import type { Property } from '../../types';
 
-type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest';
+type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest' | 'distance';
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'relevance', label: 'Relevance' },
+  { value: 'distance', label: 'Nearest First (Distance)' },
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
   { value: 'newest', label: 'Newest First' },
 ];
+
+function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
+
+const LOCALITY_COORDS: Record<string, { lat: number; lng: number }> = {
+  madhapur: { lat: 17.4483, lng: 78.3915 },
+  gachibowli: { lat: 17.4401, lng: 78.3489 },
+  kondapur: { lat: 17.4699, lng: 78.3578 },
+  hitec: { lat: 17.4435, lng: 78.3772 },
+  jubilee: { lat: 17.4319, lng: 78.4073 },
+  banjara: { lat: 17.4156, lng: 78.4358 },
+  financial: { lat: 17.4159, lng: 78.3427 },
+  vizag: { lat: 17.6868, lng: 83.2185 },
+  madhurawada: { lat: 17.8015, lng: 83.3524 },
+  gajuwaka: { lat: 17.6908, lng: 83.2104 },
+  mvp: { lat: 17.7412, lng: 83.3324 },
+};
 
 const CATEGORY_TABS = ['All Homes', 'Independent House', 'Apartments'] as const;
 type CategoryTab = typeof CATEGORY_TABS[number];
@@ -55,84 +88,206 @@ export default function RentHomesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState<CategoryTab>('All Homes');
   const [selectedSort, setSelectedSort] = useState<SortOption>('relevance');
+  const [selectedRadius, setSelectedRadius] = useState<number>(30); // 30km default
+  const [autoExpandedNotice, setAutoExpandedNotice] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
   const [showSortModal, setShowSortModal] = useState(false);
+  const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number }>({
+    latitude: 17.4401,
+    longitude: 78.3489,
+  });
+  const [liveProperties, setLiveProperties] = useState<Property[]>([]);
+  const [isFetchingLive, setIsFetchingLive] = useState(false);
 
-  // Available Rent Properties
+  // Auto-detect user's location on screen mount
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCurrentCoords({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          });
+        },
+        () => {},
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      );
+    }
+  }, []);
+
+  // Fetch real-time rent properties from backend Supabase PostgreSQL
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveRentals = async () => {
+      try {
+        setIsFetchingLive(true);
+        const res = await api.properties.list({
+          type: 'rent',
+          userLat: currentCoords.latitude,
+          userLng: currentCoords.longitude,
+          radiusKm: selectedRadius,
+        });
+        const list = res?.properties || res?.data || (Array.isArray(res) ? res : []);
+        if (isMounted && list.length > 0) {
+          setLiveProperties(list);
+        }
+      } catch (err) {
+        console.warn('Live rent properties fetch notice:', err);
+      } finally {
+        if (isMounted) setIsFetchingLive(false);
+      }
+    };
+
+    fetchLiveRentals();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentCoords.latitude, currentCoords.longitude, selectedRadius]);
+
+  const getPropertyCoords = (p: Property) => {
+    if ((p as any).latitude && (p as any).longitude) {
+      return { lat: (p as any).latitude, lng: (p as any).longitude };
+    }
+    const locLower = ((p.location || '') + ' ' + (p.city || '')).toLowerCase();
+    for (const [key, coords] of Object.entries(LOCALITY_COORDS)) {
+      if (locLower.includes(key)) return coords;
+    }
+    return { lat: 17.4483, lng: 78.3915 };
+  };
+
+  // Available Rent Properties: Uses live Supabase backend data with instant fallback
   const rentProperties = useMemo(() => {
+    const source = liveProperties.length > 0 ? liveProperties : properties;
     const targetProps: Property[] = [];
     TARGET_RENTAL_IDS.forEach((id) => {
-      const found = properties.find((p) => p.id === id);
+      const found = source.find((p) => p.id === id);
       if (found) targetProps.push(found);
     });
 
-    const otherRent = properties.filter(
+    const otherRent = source.filter(
       (p) => p.listingType === 'rent' && !TARGET_RENTAL_IDS.includes(p.id)
     );
 
     return [...targetProps, ...otherRent];
-  }, []);
+  }, [liveProperties]);
 
-  // Filtered and sorted properties
+  // Filtered and sorted properties with distance and radius auto-expansion
   const filteredProperties = useMemo(() => {
-    return rentProperties
-      .filter((p) => {
-        // Category Filter
-        if (selectedTab === 'Independent House') {
-          if (p.propertyType !== 'house') return false;
-        } else if (selectedTab === 'Apartments') {
-          if (p.propertyType !== 'apartment') return false;
+    const userLat = currentCoords.latitude;
+    const userLng = currentCoords.longitude;
+
+    const withDistance = rentProperties.map((p) => {
+      const pCoords = getPropertyCoords(p);
+      const dist = calculateDistanceKm(userLat, userLng, pCoords.lat, pCoords.lng);
+      return {
+        ...p,
+        distanceKm: dist,
+      };
+    });
+
+    const matched = withDistance.filter((p) => {
+      // Category Filter
+      if (selectedTab === 'Independent House') {
+        if (p.propertyType !== 'house') return false;
+      } else if (selectedTab === 'Apartments') {
+        if (p.propertyType !== 'apartment') return false;
+      }
+
+      // Search Query (Filters by title, location, or city)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const match =
+          p.title.toLowerCase().includes(q) ||
+          p.location.toLowerCase().includes(q) ||
+          p.city?.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+
+      // Global Filters (if applied)
+      if (activeFilters) {
+        if (activeFilters.locations && activeFilters.locations.length > 0) {
+          const matchesCity = activeFilters.locations.some(
+            (loc) =>
+              p.city?.toLowerCase().includes(loc.toLowerCase()) ||
+              p.location?.toLowerCase().includes(loc.toLowerCase())
+          );
+          if (!matchesCity) return false;
         }
 
-        // Search Query (Filters by title, location, or city)
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase().trim();
-          const match =
-            p.title.toLowerCase().includes(q) ||
-            p.location.toLowerCase().includes(q) ||
-            p.city?.toLowerCase().includes(q);
-          if (!match) return false;
+        if (activeFilters.bhk && activeFilters.bhk.length > 0) {
+          const matchesBhk = activeFilters.bhk.some((b) =>
+            b.startsWith(`${p.bedrooms}`)
+          );
+          if (!matchesBhk) return false;
         }
 
-        // Global Filters (if applied)
-        if (activeFilters) {
-          if (activeFilters.locations && activeFilters.locations.length > 0) {
-            const matchesCity = activeFilters.locations.some(
-              (loc) =>
-                p.city?.toLowerCase().includes(loc.toLowerCase()) ||
-                p.location?.toLowerCase().includes(loc.toLowerCase())
-            );
-            if (!matchesCity) return false;
+        if (activeFilters.furnishing && activeFilters.furnishing.length > 0) {
+          const matchesFurnish = activeFilters.furnishing.some(
+            (f) =>
+              f.toLowerCase().replace('-', ' ') ===
+              p.furnishing?.toLowerCase().replace('-', ' ')
+          );
+          if (!matchesFurnish) return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Radius Filter & 30km -> 60km -> 100km auto-expansion
+    let radiusResults = matched;
+    let noticeText: string | null = null;
+
+    if (selectedRadius < 9999) {
+      radiusResults = matched.filter((p) => p.distanceKm <= selectedRadius);
+
+      if (radiusResults.length === 0 && selectedRadius <= 30) {
+        const within60 = matched.filter((p) => p.distanceKm <= 60);
+        if (within60.length > 0) {
+          radiusResults = within60;
+          noticeText = 'No rental properties within 30 km. Showing 60 km radius.';
+        } else {
+          const within100 = matched.filter((p) => p.distanceKm <= 100);
+          if (within100.length > 0) {
+            radiusResults = within100;
+            noticeText = 'No rental properties within 60 km. Showing 100 km radius.';
+          } else {
+            radiusResults = matched;
+            noticeText = 'Showing all available rental homes across cities.';
           }
-
-          if (activeFilters.bhk && activeFilters.bhk.length > 0) {
-            const matchesBhk = activeFilters.bhk.some((b) =>
-              b.startsWith(`${p.bedrooms}`)
-            );
-            if (!matchesBhk) return false;
-          }
-
-          if (activeFilters.furnishing && activeFilters.furnishing.length > 0) {
-            const matchesFurnish = activeFilters.furnishing.some(
-              (f) =>
-                f.toLowerCase().replace('-', ' ') ===
-                p.furnishing?.toLowerCase().replace('-', ' ')
-            );
-            if (!matchesFurnish) return false;
-          }
         }
-
-        return true;
-      })
-      .sort((a, b) => {
-        if (selectedSort === 'price_asc') return a.price - b.price;
-        if (selectedSort === 'price_desc') return b.price - a.price;
-        if (selectedSort === 'newest') {
-          return (b.yearBuilt || 2024) - (a.yearBuilt || 2024);
+      } else if (radiusResults.length === 0 && selectedRadius <= 60) {
+        const within100 = matched.filter((p) => p.distanceKm <= 100);
+        if (within100.length > 0) {
+          radiusResults = within100;
+          noticeText = 'No rental properties within 60 km. Showing 100 km radius.';
+        } else {
+          radiusResults = matched;
+          noticeText = 'Showing all available rental homes across cities.';
         }
-        return 0; // relevance
-      });
-  }, [rentProperties, selectedTab, searchQuery, selectedSort, activeFilters]);
+      }
+    }
+
+    setAutoExpandedNotice(noticeText);
+
+    return radiusResults.sort((a, b) => {
+      if (selectedSort === 'distance') return a.distanceKm - b.distanceKm;
+      if (selectedSort === 'price_asc') return a.price - b.price;
+      if (selectedSort === 'price_desc') return b.price - a.price;
+      if (selectedSort === 'newest') {
+        return (b.yearBuilt || 2024) - (a.yearBuilt || 2024);
+      }
+      return 0;
+    });
+  }, [
+    rentProperties,
+    selectedTab,
+    searchQuery,
+    selectedSort,
+    activeFilters,
+    selectedRadius,
+    currentCoords,
+  ]);
 
   const handleCardPress = (property: Property) => {
     push({ name: 'propertyDetail', params: { property, flow: 'rent' } });
@@ -257,6 +412,48 @@ export default function RentHomesScreen() {
         </View>
       </View>
 
+      {/* ── Radius Filter Row (30km, 60km, 100km, All City) ── */}
+      <View style={styles.radiusContainer}>
+        <View style={styles.radiusHeaderRow}>
+          <View style={styles.radiusTitleBox}>
+            <Navigation size={13} color="#7C3AED" />
+            <Text style={styles.radiusTitleText}>Rental Radius:</Text>
+          </View>
+          <Text style={styles.radiusGpsHint}>
+            📍 {currentCoords.latitude.toFixed(2)}, {currentCoords.longitude.toFixed(2)}
+          </Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.radiusPillsRow}>
+          {[
+            { id: 30, label: '30 km (Nearby)' },
+            { id: 60, label: '60 km' },
+            { id: 100, label: '100 km' },
+            { id: 9999, label: 'All City' },
+          ].map((r) => {
+            const isRadActive = selectedRadius === r.id;
+            return (
+              <TouchableOpacity
+                key={r.id}
+                onPress={() => setSelectedRadius(r.id)}
+                style={[styles.radiusPill, isRadActive && styles.radiusPillActive]}
+              >
+                <Text style={[styles.radiusPillText, isRadActive && styles.radiusPillTextActive]}>
+                  {r.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Auto-expansion banner */}
+      {autoExpandedNotice && (
+        <View style={styles.autoExpandBanner}>
+          <AlertCircle size={14} color="#D97706" />
+          <Text style={styles.autoExpandText}>{autoExpandedNotice}</Text>
+        </View>
+      )}
+
       {/* ── 5. Property Grid / Map View Presentation ── */}
       {viewMode === 'map' ? (
         <View style={styles.mapPlaceholder}>
@@ -357,6 +554,15 @@ export default function RentHomesScreen() {
                           {item.location}
                         </Text>
                       </View>
+
+                      {(item as any).distanceKm !== undefined && (
+                        <View style={styles.cardDistanceRow}>
+                          <Compass size={10} color="#7C3AED" />
+                          <Text style={styles.cardDistanceText}>
+                            {(item as any).distanceKm} km away
+                          </Text>
+                        </View>
+                      )}
 
                       <Text style={styles.cardPrice}>
                         {item.priceLabel || `₹${item.price.toLocaleString('en-IN')}/month`}
@@ -628,6 +834,89 @@ const styles = StyleSheet.create({
   },
   viewIconButtonInactive: {
     backgroundColor: '#FFFFFF',
+  },
+
+  /* ── Radius Filter Bar ── */
+  radiusContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  radiusHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  radiusTitleBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  radiusTitleText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#7C3AED',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  radiusGpsHint: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  radiusPillsRow: {
+    gap: 8,
+  },
+  radiusPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  radiusPillActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+  },
+  radiusPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  radiusPillTextActive: {
+    color: '#FFFFFF',
+  },
+  autoExpandBanner: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  autoExpandText: {
+    flex: 1,
+    fontSize: 11.5,
+    color: '#92400E',
+    fontWeight: '600',
+  },
+  cardDistanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  cardDistanceText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#7C3AED',
   },
 
   /* ── Grid Scroll & List ── */
