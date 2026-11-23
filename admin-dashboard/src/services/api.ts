@@ -198,17 +198,24 @@ export const adminService = {
   ): Promise<PropertyRequest> {
     try {
       if (updater.status === 'published' || (updater.status as any) === 'approved') {
-        await apiClient.post(`/admin/properties/${id}/approve`, {
-          note: auditNote,
-        });
+        try {
+          await apiClient.post(`/admin/requests/${id}/approve`, { note: auditNote });
+        } catch {
+          await apiClient.post(`/admin/properties/${id}/approve`, { note: auditNote });
+        }
       } else if (updater.status === 'rejected') {
-        await apiClient.post(`/admin/properties/${id}/reject`, {
-          reason: updater.rejectionReason || auditNote || 'Property rejected by verification team',
-        });
+        const reason = updater.rejectionReason || auditNote || 'Rejected by verification team';
+        try {
+          await apiClient.post(`/admin/requests/${id}/reject`, { reason });
+        } catch {
+          await apiClient.post(`/admin/properties/${id}/reject`, { reason });
+        }
       } else if (updater.status === 'in_review' && updater.postPublishState === 'unpublished') {
-        await apiClient.post(`/admin/properties/${id}/unpublish`, {
-          note: auditNote,
-        });
+        try {
+          await apiClient.post(`/admin/requests/${id}/unpublish`, { note: auditNote });
+        } catch {
+          await apiClient.post(`/admin/properties/${id}/unpublish`, { note: auditNote });
+        }
       } else if (updater.status === 'assigned' || updater.assignedToId) {
         await apiClient.post(`/admin/properties/${id}/assign-field-work`, {
           fieldAgentName: updater.assignedTo?.name || updater.assignedToName || 'Field Agent',

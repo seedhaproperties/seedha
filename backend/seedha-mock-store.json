@@ -2582,7 +2582,32 @@
   "siteVisits": [],
   "propertyManagementRequests": [],
   "homeLoanRequests": [],
-  "rentalAgreementOrders": [],
+  "rentalAgreementOrders": [
+    {
+      "id": "agr-1795437671953",
+      "userId": null,
+      "landlordName": "Rao Owner",
+      "landlordPhone": "+919876543210",
+      "landlordEmail": null,
+      "landlordAddress": "Madhapur, Hyderabad",
+      "tenantName": "Sharma Tenant",
+      "tenantPhone": "+919988776655",
+      "tenantEmail": null,
+      "tenantAddress": "Madhapur, Hyderabad",
+      "propertyAddress": "Madhapur, Hyderabad",
+      "monthlyRent": 35000,
+      "securityDeposit": 70000,
+      "leaseTermMonths": 11,
+      "agreementStartDate": "2026-11-23",
+      "status": "COMPLETED",
+      "paymentAmount": 599,
+      "paymentTxnId": "txn_test_123",
+      "documentUrl": "/api/v1/rental-agreements/documents/agr-1795437671953.pdf",
+      "preparedByStaff": null,
+      "createdAt": "2026-11-23T12:41:11.955Z",
+      "updatedAt": "2026-11-23T13:53:33.817Z"
+    }
+  ],
   "ownerBackgroundChecks": [],
   "teamMembers": [
     {

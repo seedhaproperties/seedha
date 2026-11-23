@@ -137,6 +137,139 @@ let AdminService = AdminService_1 = class AdminService {
         };
     }
     async verifyAndPublishProperty(id) {
+        if (id.startsWith('agr-') || mockDb.rentalAgreementOrders.some((a) => a.id === id)) {
+            let agr = mockDb.rentalAgreementOrders.find((a) => a.id === id);
+            if (!agr && this.prisma?.isConnected) {
+                try {
+                    const dbAgr = await this.prisma.rentalAgreementOrder.findUnique({ where: { id } });
+                    if (dbAgr) {
+                        agr = dbAgr;
+                        mockDb.rentalAgreementOrders.unshift(dbAgr);
+                    }
+                }
+                catch { }
+            }
+            if (agr) {
+                agr.status = 'COMPLETED';
+                agr.updatedAt = new Date().toISOString();
+                mockDb.saveToDisk();
+                if (this.prisma?.isConnected) {
+                    try {
+                        await this.prisma.rentalAgreementOrder.updateMany({
+                            where: { id },
+                            data: { status: 'COMPLETED' },
+                        });
+                    }
+                    catch (err) {
+                        this.logger.warn(`Prisma agreement approve sync: ${err.message}`);
+                    }
+                }
+                return {
+                    message: `Rental agreement order ${id} approved and marked completed!`,
+                    item: agr,
+                };
+            }
+        }
+        if (id.startsWith('pm-') || mockDb.propertyManagementRequests.some((p) => p.id === id)) {
+            let pm = mockDb.propertyManagementRequests.find((p) => p.id === id);
+            if (!pm && this.prisma?.isConnected) {
+                try {
+                    const dbPm = await this.prisma.propertyManagementRequest.findUnique({ where: { id } });
+                    if (dbPm) {
+                        pm = dbPm;
+                        mockDb.propertyManagementRequests.unshift(dbPm);
+                    }
+                }
+                catch { }
+            }
+            if (pm) {
+                pm.status = 'LOCATION_CHECK_PASSED';
+                pm.locationMatched = true;
+                pm.updatedAt = new Date().toISOString();
+                mockDb.saveToDisk();
+                if (this.prisma?.isConnected) {
+                    try {
+                        await this.prisma.propertyManagementRequest.updateMany({
+                            where: { id },
+                            data: { status: 'LOCATION_CHECK_PASSED', locationMatched: true },
+                        });
+                    }
+                    catch (err) {
+                        this.logger.warn(`Prisma pm approve sync: ${err.message}`);
+                    }
+                }
+                return {
+                    message: `Property management request ${id} approved!`,
+                    item: pm,
+                };
+            }
+        }
+        if (id.startsWith('hl-') || mockDb.homeLoanRequests.some((h) => h.id === id)) {
+            let hl = mockDb.homeLoanRequests.find((h) => h.id === id);
+            if (!hl && this.prisma?.isConnected) {
+                try {
+                    const dbHl = await this.prisma.homeLoanRequest.findUnique({ where: { id } });
+                    if (dbHl) {
+                        hl = dbHl;
+                        mockDb.homeLoanRequests.unshift(dbHl);
+                    }
+                }
+                catch { }
+            }
+            if (hl) {
+                hl.status = 'APPROVED';
+                hl.updatedAt = new Date().toISOString();
+                mockDb.saveToDisk();
+                if (this.prisma?.isConnected) {
+                    try {
+                        await this.prisma.homeLoanRequest.updateMany({
+                            where: { id },
+                            data: { status: 'APPROVED' },
+                        });
+                    }
+                    catch (err) {
+                        this.logger.warn(`Prisma loan approve sync: ${err.message}`);
+                    }
+                }
+                return {
+                    message: `Home loan request ${id} approved!`,
+                    item: hl,
+                };
+            }
+        }
+        if (id.startsWith('bg-') || mockDb.ownerBackgroundChecks.some((b) => b.id === id)) {
+            let bg = mockDb.ownerBackgroundChecks.find((b) => b.id === id);
+            if (!bg && this.prisma?.isConnected) {
+                try {
+                    const dbBg = await this.prisma.ownerBackgroundCheck.findUnique({ where: { id } });
+                    if (dbBg) {
+                        bg = dbBg;
+                        mockDb.ownerBackgroundChecks.unshift(dbBg);
+                    }
+                }
+                catch { }
+            }
+            if (bg) {
+                bg.status = 'COMPLETED';
+                bg.updatedAt = new Date().toISOString();
+                mockDb.saveToDisk();
+                if (this.prisma?.isConnected) {
+                    try {
+                        await this.prisma.ownerBackgroundCheck.updateMany({
+                            where: { id },
+                            data: { status: 'COMPLETED' },
+                        });
+                    }
+                    catch (err) {
+                        this.logger.warn(`Prisma bg approve sync: ${err.message}`);
+                    }
+                }
+                return {
+                    message: `Owner background check ${id} approved!`,
+                    item: bg,
+                };
+            }
+        }
         let prop = mockDb.properties.find((p) => p.id === id);
         if (!prop && this.prisma?.isConnected) {
             try {
@@ -149,7 +282,7 @@ let AdminService = AdminService_1 = class AdminService {
             catch { }
         }
         if (!prop)
-            throw new NotFoundException(`Property ${id} not found`);
+            throw new NotFoundException(`Request or Property ${id} not found`);
         prop.status = PropertyStatusEnum.PUBLISHED;
         prop.verified = true;
         prop.verifiedAt = new Date().toISOString();
@@ -197,6 +330,120 @@ let AdminService = AdminService_1 = class AdminService {
         return this.verifyAndPublishProperty(id);
     }
     async rejectProperty(id, dto) {
+        if (id.startsWith('agr-') || mockDb.rentalAgreementOrders.some((a) => a.id === id)) {
+            let agr = mockDb.rentalAgreementOrders.find((a) => a.id === id);
+            if (!agr && this.prisma?.isConnected) {
+                try {
+                    const dbAgr = await this.prisma.rentalAgreementOrder.findUnique({ where: { id } });
+                    if (dbAgr) {
+                        agr = dbAgr;
+                        mockDb.rentalAgreementOrders.unshift(dbAgr);
+                    }
+                }
+                catch { }
+            }
+            if (agr) {
+                agr.status = 'REJECTED';
+                agr.rejectionReason = dto.reason;
+                agr.updatedAt = new Date().toISOString();
+                mockDb.saveToDisk();
+                if (this.prisma?.isConnected) {
+                    try {
+                        await this.prisma.rentalAgreementOrder.updateMany({
+                            where: { id },
+                            data: { status: 'REJECTED' },
+                        });
+                    }
+                    catch { }
+                }
+                return { message: `Rental agreement ${id} rejected.`, item: agr };
+            }
+        }
+        if (id.startsWith('pm-') || mockDb.propertyManagementRequests.some((p) => p.id === id)) {
+            let pm = mockDb.propertyManagementRequests.find((p) => p.id === id);
+            if (!pm && this.prisma?.isConnected) {
+                try {
+                    const dbPm = await this.prisma.propertyManagementRequest.findUnique({ where: { id } });
+                    if (dbPm) {
+                        pm = dbPm;
+                        mockDb.propertyManagementRequests.unshift(dbPm);
+                    }
+                }
+                catch { }
+            }
+            if (pm) {
+                pm.status = 'LOCATION_CHECK_REJECTED';
+                pm.rejectionMessage = dto.reason;
+                pm.updatedAt = new Date().toISOString();
+                mockDb.saveToDisk();
+                if (this.prisma?.isConnected) {
+                    try {
+                        await this.prisma.propertyManagementRequest.updateMany({
+                            where: { id },
+                            data: { status: 'LOCATION_CHECK_REJECTED', rejectionMessage: dto.reason },
+                        });
+                    }
+                    catch { }
+                }
+                return { message: `Property management request ${id} rejected.`, item: pm };
+            }
+        }
+        if (id.startsWith('hl-') || mockDb.homeLoanRequests.some((h) => h.id === id)) {
+            let hl = mockDb.homeLoanRequests.find((h) => h.id === id);
+            if (!hl && this.prisma?.isConnected) {
+                try {
+                    const dbHl = await this.prisma.homeLoanRequest.findUnique({ where: { id } });
+                    if (dbHl) {
+                        hl = dbHl;
+                        mockDb.homeLoanRequests.unshift(dbHl);
+                    }
+                }
+                catch { }
+            }
+            if (hl) {
+                hl.status = 'REJECTED';
+                hl.updatedAt = new Date().toISOString();
+                mockDb.saveToDisk();
+                if (this.prisma?.isConnected) {
+                    try {
+                        await this.prisma.homeLoanRequest.updateMany({
+                            where: { id },
+                            data: { status: 'REJECTED' },
+                        });
+                    }
+                    catch { }
+                }
+                return { message: `Home loan request ${id} rejected.`, item: hl };
+            }
+        }
+        if (id.startsWith('bg-') || mockDb.ownerBackgroundChecks.some((b) => b.id === id)) {
+            let bg = mockDb.ownerBackgroundChecks.find((b) => b.id === id);
+            if (!bg && this.prisma?.isConnected) {
+                try {
+                    const dbBg = await this.prisma.ownerBackgroundCheck.findUnique({ where: { id } });
+                    if (dbBg) {
+                        bg = dbBg;
+                        mockDb.ownerBackgroundChecks.unshift(dbBg);
+                    }
+                }
+                catch { }
+            }
+            if (bg) {
+                bg.status = 'REJECTED';
+                bg.updatedAt = new Date().toISOString();
+                mockDb.saveToDisk();
+                if (this.prisma?.isConnected) {
+                    try {
+                        await this.prisma.ownerBackgroundCheck.updateMany({
+                            where: { id },
+                            data: { status: 'REJECTED' },
+                        });
+                    }
+                    catch { }
+                }
+                return { message: `Owner background check ${id} rejected.`, item: bg };
+            }
+        }
         let prop = mockDb.properties.find((p) => p.id === id);
         if (!prop && this.prisma?.isConnected) {
             try {
@@ -209,7 +456,7 @@ let AdminService = AdminService_1 = class AdminService {
             catch { }
         }
         if (!prop)
-            throw new NotFoundException(`Property ${id} not found`);
+            throw new NotFoundException(`Request or Property ${id} not found`);
         prop.status = PropertyStatusEnum.REJECTED;
         prop.verified = false;
         prop.rejectionReason = dto.reason;

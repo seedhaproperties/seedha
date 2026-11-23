@@ -200,16 +200,16 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "verifyAndPublish", null);
 __decorate([
-    Post('properties/:id/approve'),
-    ApiOperation({ summary: 'Approve and publish property listing' }),
+    Post(['properties/:id/approve', 'requests/:id/approve']),
+    ApiOperation({ summary: 'Approve and publish property listing or service request' }),
     __param(0, Param('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "approveProperty", null);
 __decorate([
-    Post('properties/:id/reject'),
-    ApiOperation({ summary: 'Reject property listing with reasons' }),
+    Post(['properties/:id/reject', 'requests/:id/reject']),
+    ApiOperation({ summary: 'Reject property listing or service request with reasons' }),
     __param(0, Param('id')),
     __param(1, Body()),
     __metadata("design:type", Function),
@@ -217,7 +217,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "rejectProperty", null);
 __decorate([
-    Post('properties/:id/unpublish'),
+    Post(['properties/:id/unpublish', 'requests/:id/unpublish']),
     ApiOperation({ summary: 'Unpublish property listing back to pending review' }),
     __param(0, Param('id')),
     __param(1, Body('note')),

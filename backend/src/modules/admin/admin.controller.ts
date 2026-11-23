@@ -96,19 +96,19 @@ export class AdminController {
     return this.adminService.verifyAndPublishProperty(id);
   }
 
-  @Post('properties/:id/approve')
-  @ApiOperation({ summary: 'Approve and publish property listing' })
+  @Post(['properties/:id/approve', 'requests/:id/approve'])
+  @ApiOperation({ summary: 'Approve and publish property listing or service request' })
   approveProperty(@Param('id') id: string) {
     return this.adminService.approveProperty(id);
   }
 
-  @Post('properties/:id/reject')
-  @ApiOperation({ summary: 'Reject property listing with reasons' })
+  @Post(['properties/:id/reject', 'requests/:id/reject'])
+  @ApiOperation({ summary: 'Reject property listing or service request with reasons' })
   rejectProperty(@Param('id') id: string, @Body() dto: RejectItemDto) {
     return this.adminService.rejectProperty(id, dto);
   }
 
-  @Post('properties/:id/unpublish')
+  @Post(['properties/:id/unpublish', 'requests/:id/unpublish'])
   @ApiOperation({ summary: 'Unpublish property listing back to pending review' })
   unpublishProperty(@Param('id') id: string, @Body('note') note?: string) {
     return this.adminService.unpublishProperty(id, note);

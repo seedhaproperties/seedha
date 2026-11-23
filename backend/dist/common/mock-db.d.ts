@@ -148,7 +148,7 @@ export interface OwnerBackgroundRecord {
     details?: any;
     views?: number;
     leads?: number;
-    status: 'SUBMITTED' | 'PAYMENT_PENDING' | 'PAID' | 'ADMIN_CHECKING' | 'FIELD_WORK_ASSIGNED' | 'DETAILS_COLLECTED' | 'REPORT_GENERATED' | 'SENT_DIGITALLY' | 'REJECTED';
+    status: 'SUBMITTED' | 'PAYMENT_PENDING' | 'PAID' | 'ADMIN_CHECKING' | 'FIELD_WORK_ASSIGNED' | 'DETAILS_COLLECTED' | 'REPORT_GENERATED' | 'SENT_DIGITALLY' | 'COMPLETED' | 'REJECTED';
     paymentAmount: number;
     paymentTxnId?: string;
     ownershipVerified: boolean;

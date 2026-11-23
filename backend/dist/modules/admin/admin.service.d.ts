@@ -53,15 +53,66 @@ export declare class AdminService {
     };
     verifyAndPublishProperty(id: string): Promise<{
         message: string;
+        item: import("../../common/mock-db.js").RentalAgreementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").PropertyManagementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").HomeLoanRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").OwnerBackgroundRecord;
+        property?: undefined;
+    } | {
+        message: string;
         property: PropertyRecord;
+        item?: undefined;
     }>;
     approveProperty(id: string): Promise<{
         message: string;
+        item: import("../../common/mock-db.js").RentalAgreementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").PropertyManagementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").HomeLoanRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").OwnerBackgroundRecord;
+        property?: undefined;
+    } | {
+        message: string;
         property: PropertyRecord;
+        item?: undefined;
     }>;
     rejectProperty(id: string, dto: RejectItemDto): Promise<{
         message: string;
+        item: import("../../common/mock-db.js").RentalAgreementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").PropertyManagementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").HomeLoanRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").OwnerBackgroundRecord;
+        property?: undefined;
+    } | {
+        message: string;
         property: PropertyRecord;
+        item?: undefined;
     }>;
     getPropertyManagementQueue(): import("../../common/mock-db.js").PropertyManagementRecord[];
     checkPropertyManagementLocation(id: string, dto: LocationCheckDecisionDto): Promise<{

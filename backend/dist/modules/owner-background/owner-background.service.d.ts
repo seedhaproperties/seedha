@@ -23,7 +23,7 @@ export declare class OwnerBackgroundService {
         city: string;
         ownerName: string;
         ownerPhone: string;
-        status: "SUBMITTED" | "REJECTED" | "PAYMENT_PENDING" | "PAID" | "ADMIN_CHECKING" | "FIELD_WORK_ASSIGNED" | "DETAILS_COLLECTED" | "REPORT_GENERATED" | "SENT_DIGITALLY";
+        status: "SUBMITTED" | "REJECTED" | "COMPLETED" | "PAYMENT_PENDING" | "PAID" | "ADMIN_CHECKING" | "FIELD_WORK_ASSIGNED" | "DETAILS_COLLECTED" | "REPORT_GENERATED" | "SENT_DIGITALLY";
         verificationChecklist: {
             ownershipTitleDeed: string;
             encumbranceCertificateEC: string;

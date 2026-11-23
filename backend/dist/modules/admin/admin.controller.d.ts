@@ -66,15 +66,66 @@ export declare class AdminController {
     };
     verifyAndPublish(id: string): Promise<{
         message: string;
+        item: import("../../common/mock-db.js").RentalAgreementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").PropertyManagementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").HomeLoanRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").OwnerBackgroundRecord;
+        property?: undefined;
+    } | {
+        message: string;
         property: import("../../common/mock-db.js").PropertyRecord;
+        item?: undefined;
     }>;
     approveProperty(id: string): Promise<{
         message: string;
+        item: import("../../common/mock-db.js").RentalAgreementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").PropertyManagementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").HomeLoanRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").OwnerBackgroundRecord;
+        property?: undefined;
+    } | {
+        message: string;
         property: import("../../common/mock-db.js").PropertyRecord;
+        item?: undefined;
     }>;
     rejectProperty(id: string, dto: RejectItemDto): Promise<{
         message: string;
+        item: import("../../common/mock-db.js").RentalAgreementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").PropertyManagementRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").HomeLoanRecord;
+        property?: undefined;
+    } | {
+        message: string;
+        item: import("../../common/mock-db.js").OwnerBackgroundRecord;
+        property?: undefined;
+    } | {
+        message: string;
         property: import("../../common/mock-db.js").PropertyRecord;
+        item?: undefined;
     }>;
     unpublishProperty(id: string, note?: string): {
         message: string;
