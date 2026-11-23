@@ -30,7 +30,6 @@ import {
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
 import { properties } from '../../data/properties';
-import { api } from '../../services/api';
 import type { Property } from '../../types';
 
 type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest' | 'distance';
