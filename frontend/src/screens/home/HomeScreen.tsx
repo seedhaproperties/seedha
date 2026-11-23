@@ -239,7 +239,7 @@ export default function HomeScreen() {
         <View style={styles.headerLeft}>
           <TouchableOpacity
             style={styles.menuButton}
-            onPress={() => handleProtectedNavigate({ name: 'profile' }, 'Profile')}
+            onPress={() => push({ name: 'landing' })}
             activeOpacity={0.7}
           >
             <Menu size={20} color="#000000" strokeWidth={2.2} />
