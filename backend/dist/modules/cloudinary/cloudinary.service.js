@@ -150,6 +150,16 @@ let CloudinaryService = CloudinaryService_1 = class CloudinaryService {
                 bytes: 124500,
             };
         }
+        if (imageInput.startsWith('data:image/')) {
+            return {
+                url: imageInput,
+                publicId,
+                format: 'jpg',
+                width: 1200,
+                height: 800,
+                bytes: Math.round((imageInput.length * 3) / 4),
+            };
+        }
         const sampleCloudinaryUrl = `https://res.cloudinary.com/${this.cloudName}/image/upload/v1/${publicId}.jpg`;
         this.logger.log(`[Cloudinary:Simulated] Upload processed. Public ID: ${publicId}`);
         return {

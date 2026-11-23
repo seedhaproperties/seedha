@@ -31,6 +31,7 @@ export class PropertyManagementService {
       city: dto.city,
       locality: dto.locality,
       serviceRequested: dto.serviceRequested,
+      photos: dto.photos || [],
       status: 'SUBMITTED', // Directed to Admin
       locationMatched: isServiceable,
       createdAt: new Date().toISOString(),
@@ -52,6 +53,7 @@ export class PropertyManagementService {
             city: dto.city,
             locality: dto.locality,
             serviceRequested: dto.serviceRequested,
+            photos: dto.photos || [],
             status: 'SUBMITTED',
             locationMatched: isServiceable,
           },

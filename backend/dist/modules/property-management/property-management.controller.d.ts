@@ -7,6 +7,44 @@ export declare class PropertyManagementController {
         message: string;
         request: import("../../common/mock-db.js").PropertyManagementRecord;
     }>;
-    getMyRequests(req: any): Promise<import("../../common/mock-db.js").PropertyManagementRecord[]>;
-    findOne(id: string): Promise<import("../../common/mock-db.js").PropertyManagementRecord>;
+    getMyRequests(req: any): Promise<import("../../common/mock-db.js").PropertyManagementRecord[] | {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        city: string;
+        ownerPhone: string;
+        ownerId: string | null;
+        ownerName: string;
+        ownerEmail: string | null;
+        status: string;
+        flatDetails: string;
+        address: string;
+        locality: string;
+        serviceRequested: string;
+        photos: string[];
+        locationMatched: boolean;
+        rejectionMessage: string | null;
+        assignedTeamMember: string | null;
+        contactNotes: string | null;
+    }[]>;
+    findOne(id: string): Promise<import("../../common/mock-db.js").PropertyManagementRecord | {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        city: string;
+        ownerPhone: string;
+        ownerId: string | null;
+        ownerName: string;
+        ownerEmail: string | null;
+        status: string;
+        flatDetails: string;
+        address: string;
+        locality: string;
+        serviceRequested: string;
+        photos: string[];
+        locationMatched: boolean;
+        rejectionMessage: string | null;
+        assignedTeamMember: string | null;
+        contactNotes: string | null;
+    }>;
 }

@@ -34,5 +34,27 @@ export declare class OwnerBackgroundController {
         digitalSentAt: string | undefined;
     }>;
     downloadPdf(id: string, res: Response): Promise<void>;
-    getMyRequests(req: any): Promise<import("../../common/mock-db.js").OwnerBackgroundRecord[]>;
+    getMyRequests(req: any): Promise<import("../../common/mock-db.js").OwnerBackgroundRecord[] | {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        city: string;
+        userId: string | null;
+        ownerPhone: string;
+        ownerName: string;
+        status: string;
+        propertyAddress: string;
+        paymentTxnId: string | null;
+        paymentAmount: number;
+        flatNumber: string;
+        buildingName: string;
+        ownershipVerified: boolean;
+        legalDisputeClear: boolean;
+        taxReceiptsVerified: boolean;
+        societyDuesClear: boolean;
+        reportSummary: string | null;
+        reportPdfUrl: string | null;
+        digitalSentAt: Date | null;
+        fieldAgentNotes: string | null;
+    }[]>;
 }

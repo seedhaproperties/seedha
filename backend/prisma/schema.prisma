@@ -168,6 +168,7 @@ model PropertyManagementRequest {
   locality           String
   serviceRequested   String
   status             String   @default("SUBMITTED")
+  photos             String[] @default([])
   locationMatched    Boolean  @default(false)
   rejectionMessage   String?
   assignedTeamMember String?

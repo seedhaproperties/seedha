@@ -1,17 +1,24 @@
 export declare class RentalAgreementDetailsDto {
-    landlordName: string;
-    landlordPhone: string;
+    landlordName?: string;
+    ownerName?: string;
+    landlordPhone?: string;
+    ownerPhone?: string;
     landlordEmail?: string;
-    landlordAddress: string;
+    landlordAddress?: string;
     tenantName: string;
     tenantPhone: string;
     tenantEmail?: string;
-    tenantAddress: string;
+    tenantAddress?: string;
     propertyAddress: string;
-    monthlyRent: number;
-    securityDeposit: number;
-    leaseTermMonths: number;
-    agreementStartDate: string;
+    monthlyRent?: number;
+    rentAmount?: number;
+    securityDeposit?: number;
+    depositAmount?: number;
+    leaseTermMonths?: number;
+    durationMonths?: number;
+    agreementStartDate?: string;
+    role?: string;
+    stampDutyType?: string;
 }
 export declare class OrderAgreementDto {
     paymentTxnId: string;

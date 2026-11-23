@@ -81,33 +81,33 @@ export declare class AdminController {
         property: import("../../common/mock-db.js").PropertyRecord;
     };
     getPropertyManagementQueue(): import("../../common/mock-db.js").PropertyManagementRecord[];
-    checkLocation(id: string, dto: LocationCheckDecisionDto): {
+    checkLocation(id: string, dto: LocationCheckDecisionDto): Promise<{
         message: string;
         request: import("../../common/mock-db.js").PropertyManagementRecord;
-    };
-    contactOwner(id: string, dto: ContactOwnerDto): {
+    }>;
+    contactOwner(id: string, dto: ContactOwnerDto): Promise<{
         message: string;
         request: import("../../common/mock-db.js").PropertyManagementRecord;
-    };
+    }>;
     getHomeLoansQueue(): import("../../common/mock-db.js").HomeLoanRecord[];
-    contactLoanUser(id: string, dto: ContactOwnerDto): {
+    contactLoanUser(id: string, dto: ContactOwnerDto): Promise<{
         message: string;
         request: import("../../common/mock-db.js").HomeLoanRecord;
-    };
+    }>;
     getRentalAgreementsQueue(): import("../../common/mock-db.js").RentalAgreementRecord[];
-    prepareAndSendAgreement(id: string, dto: PrepareAgreementDto): {
+    prepareAndSendAgreement(id: string, dto: PrepareAgreementDto): Promise<{
         message: string;
         agreement: import("../../common/mock-db.js").RentalAgreementRecord;
-    };
+    }>;
     getOwnerBackgroundQueue(): import("../../common/mock-db.js").OwnerBackgroundRecord[];
-    assignOwnerBgFieldWork(id: string, dto: AssignFieldWorkDto): {
+    assignOwnerBgFieldWork(id: string, dto: AssignFieldWorkDto): Promise<{
         message: string;
         check: import("../../common/mock-db.js").OwnerBackgroundRecord;
-    };
-    collectAndSendDigital(id: string, dto: CollectAndSendDigitalDto): {
+    }>;
+    collectAndSendDigital(id: string, dto: CollectAndSendDigitalDto): Promise<{
         message: string;
         check: import("../../common/mock-db.js").OwnerBackgroundRecord;
-    };
+    }>;
     getUsers(): {
         id: string;
         name: string;

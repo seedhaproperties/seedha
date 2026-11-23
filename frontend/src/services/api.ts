@@ -439,7 +439,16 @@ export const api = {
 
   // ── Property Management (Flow D) ──
   propertyManagement: {
-    submit: (payload: { ownerName: string; ownerPhone: string; flatDetails: string; address: string; city: string; locality: string; serviceRequested: string }) =>
+    submit: (payload: {
+      ownerName: string;
+      ownerPhone: string;
+      flatDetails: string;
+      address: string;
+      city: string;
+      locality: string;
+      serviceRequested: string;
+      photos?: string[];
+    }) =>
       request<any>('/property-management/requests', {
         method: 'POST',
         body: JSON.stringify(payload),

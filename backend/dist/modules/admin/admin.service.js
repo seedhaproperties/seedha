@@ -137,7 +137,17 @@ let AdminService = AdminService_1 = class AdminService {
         };
     }
     async verifyAndPublishProperty(id) {
-        const prop = mockDb.properties.find((p) => p.id === id);
+        let prop = mockDb.properties.find((p) => p.id === id);
+        if (!prop && this.prisma?.isConnected) {
+            try {
+                const dbP = await this.prisma.property.findUnique({ where: { id } });
+                if (dbP) {
+                    prop = dbP;
+                    mockDb.properties.unshift(dbP);
+                }
+            }
+            catch { }
+        }
         if (!prop)
             throw new NotFoundException(`Property ${id} not found`);
         prop.status = PropertyStatusEnum.PUBLISHED;
@@ -169,6 +179,8 @@ let AdminService = AdminService_1 = class AdminService {
                     ownerId: prop.ownerId,
                     status: 'PUBLISHED',
                     verified: true,
+                    listingType: prop.listingType,
+                    propertyType: prop.propertyType,
                     title: prop.title,
                     message: `Your property "${prop.title}" has been approved and published!`,
                 });
@@ -185,7 +197,17 @@ let AdminService = AdminService_1 = class AdminService {
         return this.verifyAndPublishProperty(id);
     }
     async rejectProperty(id, dto) {
-        const prop = mockDb.properties.find((p) => p.id === id);
+        let prop = mockDb.properties.find((p) => p.id === id);
+        if (!prop && this.prisma?.isConnected) {
+            try {
+                const dbP = await this.prisma.property.findUnique({ where: { id } });
+                if (dbP) {
+                    prop = dbP;
+                    mockDb.properties.unshift(dbP);
+                }
+            }
+            catch { }
+        }
         if (!prop)
             throw new NotFoundException(`Property ${id} not found`);
         prop.status = PropertyStatusEnum.REJECTED;
@@ -216,6 +238,8 @@ let AdminService = AdminService_1 = class AdminService {
                     status: 'REJECTED',
                     verified: false,
                     rejectionReason: dto.reason,
+                    listingType: prop.listingType,
+                    propertyType: prop.propertyType,
                     title: prop.title,
                     message: `Your property "${prop.title}" listing review was rejected: ${dto.reason}`,
                 });
@@ -231,8 +255,18 @@ let AdminService = AdminService_1 = class AdminService {
     getPropertyManagementQueue() {
         return mockDb.propertyManagementRequests;
     }
-    checkPropertyManagementLocation(id, dto) {
-        const req = mockDb.propertyManagementRequests.find((r) => r.id === id);
+    async checkPropertyManagementLocation(id, dto) {
+        let req = mockDb.propertyManagementRequests.find((r) => r.id === id);
+        if (!req && this.prisma?.isConnected) {
+            try {
+                const dbReq = await this.prisma.propertyManagementRequest.findUnique({ where: { id } });
+                if (dbReq) {
+                    req = dbReq;
+                    mockDb.propertyManagementRequests.unshift(dbReq);
+                }
+            }
+            catch { }
+        }
         if (!req)
             throw new NotFoundException(`Request ${id} not found`);
         if (dto.matchesLocation) {
@@ -240,6 +274,17 @@ let AdminService = AdminService_1 = class AdminService {
             req.locationMatched = true;
             req.updatedAt = new Date().toISOString();
             mockDb.saveToDisk();
+            if (this.prisma?.isConnected) {
+                try {
+                    await this.prisma.propertyManagementRequest.updateMany({
+                        where: { id },
+                        data: { status: 'LOCATION_CHECK_PASSED', locationMatched: true },
+                    });
+                }
+                catch (err) {
+                    this.logger.warn(`Prisma PM location pass error: ${err.message}`);
+                }
+            }
             return {
                 message: 'Location matches serviceability rules! Ready for team contact to owner.',
                 request: req,
@@ -252,14 +297,39 @@ let AdminService = AdminService_1 = class AdminService {
                 dto.rejectMessage || 'Sorry, this location is currently outside our service coverage.';
             req.updatedAt = new Date().toISOString();
             mockDb.saveToDisk();
+            if (this.prisma?.isConnected) {
+                try {
+                    await this.prisma.propertyManagementRequest.updateMany({
+                        where: { id },
+                        data: {
+                            status: 'LOCATION_CHECK_REJECTED',
+                            locationMatched: false,
+                            rejectionMessage: req.rejectionMessage,
+                        },
+                    });
+                }
+                catch (err) {
+                    this.logger.warn(`Prisma PM location reject error: ${err.message}`);
+                }
+            }
             return {
                 message: 'Location does not match service zone. Rejection message sent to owner.',
                 request: req,
             };
         }
     }
-    contactPropertyManagementOwner(id, dto) {
-        const req = mockDb.propertyManagementRequests.find((r) => r.id === id);
+    async contactPropertyManagementOwner(id, dto) {
+        let req = mockDb.propertyManagementRequests.find((r) => r.id === id);
+        if (!req && this.prisma?.isConnected) {
+            try {
+                const dbReq = await this.prisma.propertyManagementRequest.findUnique({ where: { id } });
+                if (dbReq) {
+                    req = dbReq;
+                    mockDb.propertyManagementRequests.unshift(dbReq);
+                }
+            }
+            catch { }
+        }
         if (!req)
             throw new NotFoundException(`Request ${id} not found`);
         if (!req.locationMatched && req.status === 'LOCATION_CHECK_REJECTED') {
@@ -270,6 +340,21 @@ let AdminService = AdminService_1 = class AdminService {
         req.contactNotes = dto.notes;
         req.updatedAt = new Date().toISOString();
         mockDb.saveToDisk();
+        if (this.prisma?.isConnected) {
+            try {
+                await this.prisma.propertyManagementRequest.updateMany({
+                    where: { id },
+                    data: {
+                        status: 'OWNER_CONTACTED',
+                        assignedTeamMember: req.assignedTeamMember,
+                        contactNotes: req.contactNotes,
+                    },
+                });
+            }
+            catch (err) {
+                this.logger.warn(`Prisma PM contact error: ${err.message}`);
+            }
+        }
         return {
             message: 'Owner successfully contacted by operations team. Property management process onboarded.',
             request: req,
@@ -278,8 +363,18 @@ let AdminService = AdminService_1 = class AdminService {
     getHomeLoansQueue() {
         return mockDb.homeLoanRequests;
     }
-    contactHomeLoanUser(id, dto) {
-        const loan = mockDb.homeLoanRequests.find((h) => h.id === id);
+    async contactHomeLoanUser(id, dto) {
+        let loan = mockDb.homeLoanRequests.find((h) => h.id === id);
+        if (!loan && this.prisma?.isConnected) {
+            try {
+                const dbLoan = await this.prisma.homeLoanRequest.findUnique({ where: { id } });
+                if (dbLoan) {
+                    loan = dbLoan;
+                    mockDb.homeLoanRequests.unshift(dbLoan);
+                }
+            }
+            catch { }
+        }
         if (!loan)
             throw new NotFoundException(`Loan request ${id} not found`);
         loan.status = 'TEAM_CONTACTED';
@@ -287,6 +382,21 @@ let AdminService = AdminService_1 = class AdminService {
         loan.contactNotes = dto.notes;
         loan.updatedAt = new Date().toISOString();
         mockDb.saveToDisk();
+        if (this.prisma?.isConnected) {
+            try {
+                await this.prisma.homeLoanRequest.updateMany({
+                    where: { id },
+                    data: {
+                        status: 'TEAM_CONTACTED',
+                        assignedStaff: loan.assignedStaff,
+                        contactNotes: loan.contactNotes,
+                    },
+                });
+            }
+            catch (err) {
+                this.logger.warn(`Prisma loan contact error: ${err.message}`);
+            }
+        }
         return {
             message: 'Team directly contacted customer regarding home loan processing and document pickup.',
             request: loan,
@@ -295,8 +405,18 @@ let AdminService = AdminService_1 = class AdminService {
     getRentalAgreementsQueue() {
         return mockDb.rentalAgreementOrders;
     }
-    prepareAndSendAgreement(id, dto) {
-        const agr = mockDb.rentalAgreementOrders.find((a) => a.id === id);
+    async prepareAndSendAgreement(id, dto) {
+        let agr = mockDb.rentalAgreementOrders.find((a) => a.id === id);
+        if (!agr && this.prisma?.isConnected) {
+            try {
+                const dbAgr = await this.prisma.rentalAgreementOrder.findUnique({ where: { id } });
+                if (dbAgr) {
+                    agr = dbAgr;
+                    mockDb.rentalAgreementOrders.unshift(dbAgr);
+                }
+            }
+            catch { }
+        }
         if (!agr)
             throw new NotFoundException(`Rental agreement ${id} not found`);
         agr.status = 'SENT_TO_USER';
@@ -304,6 +424,20 @@ let AdminService = AdminService_1 = class AdminService {
         agr.documentUrl = dto.documentUrl || `/api/v1/rental-agreements/documents/${agr.id}.pdf`;
         agr.updatedAt = new Date().toISOString();
         mockDb.saveToDisk();
+        if (this.prisma?.isConnected) {
+            try {
+                await this.prisma.rentalAgreementOrder.updateMany({
+                    where: { id },
+                    data: {
+                        status: 'SENT_TO_USER',
+                        documentUrl: agr.documentUrl,
+                    },
+                });
+            }
+            catch (err) {
+                this.logger.warn(`Prisma agreement prepare error: ${err.message}`);
+            }
+        }
         return {
             message: 'Legal rental agreement prepared and dispatched to user digitally.',
             agreement: agr,
@@ -312,21 +446,55 @@ let AdminService = AdminService_1 = class AdminService {
     getOwnerBackgroundQueue() {
         return mockDb.ownerBackgroundChecks;
     }
-    assignOwnerBackgroundFieldWork(id, dto) {
-        const check = mockDb.ownerBackgroundChecks.find((o) => o.id === id);
+    async assignOwnerBackgroundFieldWork(id, dto) {
+        let check = mockDb.ownerBackgroundChecks.find((o) => o.id === id);
+        if (!check && this.prisma?.isConnected) {
+            try {
+                const dbCheck = await this.prisma.ownerBackgroundCheck.findUnique({ where: { id } });
+                if (dbCheck) {
+                    check = dbCheck;
+                    mockDb.ownerBackgroundChecks.unshift(dbCheck);
+                }
+            }
+            catch { }
+        }
         if (!check)
             throw new NotFoundException(`Owner background check ${id} not found`);
         check.status = 'FIELD_WORK_ASSIGNED';
         check.fieldAgentNotes = `${dto.fieldAgentName}: ${dto.fieldNotes || 'Field verification initiated'}`;
         check.updatedAt = new Date().toISOString();
         mockDb.saveToDisk();
+        if (this.prisma?.isConnected) {
+            try {
+                await this.prisma.ownerBackgroundCheck.updateMany({
+                    where: { id },
+                    data: {
+                        status: 'FIELD_WORK_ASSIGNED',
+                        fieldAgentNotes: check.fieldAgentNotes,
+                    },
+                });
+            }
+            catch (err) {
+                this.logger.warn(`Prisma owner bg assign error: ${err.message}`);
+            }
+        }
         return {
             message: `Field verification assigned to ${dto.fieldAgentName} to contact owner and inspect records.`,
             check,
         };
     }
-    collectAndSendDigitalOwnerDetails(id, dto) {
-        const check = mockDb.ownerBackgroundChecks.find((o) => o.id === id);
+    async collectAndSendDigitalOwnerDetails(id, dto) {
+        let check = mockDb.ownerBackgroundChecks.find((o) => o.id === id);
+        if (!check && this.prisma?.isConnected) {
+            try {
+                const dbCheck = await this.prisma.ownerBackgroundCheck.findUnique({ where: { id } });
+                if (dbCheck) {
+                    check = dbCheck;
+                    mockDb.ownerBackgroundChecks.unshift(dbCheck);
+                }
+            }
+            catch { }
+        }
         if (!check)
             throw new NotFoundException(`Owner background check ${id} not found`);
         check.status = 'SENT_DIGITALLY';
@@ -339,6 +507,26 @@ let AdminService = AdminService_1 = class AdminService {
         check.reportPdfUrl = `/api/v1/owner-background/${check.id}/report-pdf`;
         check.updatedAt = new Date().toISOString();
         mockDb.saveToDisk();
+        if (this.prisma?.isConnected) {
+            try {
+                await this.prisma.ownerBackgroundCheck.updateMany({
+                    where: { id },
+                    data: {
+                        status: 'SENT_DIGITALLY',
+                        ownershipVerified: dto.ownershipVerified,
+                        legalDisputeClear: dto.legalDisputeClear,
+                        taxReceiptsVerified: true,
+                        societyDuesClear: true,
+                        reportSummary: dto.summary,
+                        reportPdfUrl: check.reportPdfUrl,
+                        digitalSentAt: new Date(),
+                    },
+                });
+            }
+            catch (err) {
+                this.logger.warn(`Prisma owner bg digital send error: ${err.message}`);
+            }
+        }
         return {
             message: 'Details collected and background verification report sent to user through digital delivery.',
             check,
@@ -362,7 +550,7 @@ let AdminService = AdminService_1 = class AdminService {
                     ]);
                     return { dbProps, dbPm, dbLoans, dbAgr, dbBg };
                 };
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Prisma query timeout (1000ms)')), 1000));
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Prisma query timeout (8000ms)')), 8000));
                 const { dbProps, dbPm, dbLoans, dbAgr, dbBg } = await Promise.race([
                     fetchDbData(),
                     timeoutPromise,
@@ -409,8 +597,7 @@ let AdminService = AdminService_1 = class AdminService {
                 }
             }
             catch (err) {
-                this.prisma.isConnected = false;
-                this.logger.warn(`Prisma query fallback: ${err.message}`);
+                this.logger.warn(`Prisma unified requests query notice: ${err.message}`);
             }
         }
         const unified = [];
@@ -437,7 +624,8 @@ let AdminService = AdminService_1 = class AdminService {
         };
         for (const p of properties) {
             let mod = 'flat_building';
-            const isPg = p.propertyType?.toLowerCase().includes('pg') ||
+            const isPg = p.details?.category === 'pg_hostel' ||
+                p.propertyType?.toLowerCase().includes('pg') ||
                 p.propertyType?.toLowerCase().includes('hostel') ||
                 p.details?.pgAccommodationType ||
                 p.title?.toLowerCase().includes('pg') ||
@@ -445,11 +633,16 @@ let AdminService = AdminService_1 = class AdminService {
             if (isPg) {
                 mod = 'pg_hostel';
             }
-            else if (p.listingType === ListingTypeEnum.RENT || p.listingType === 'RENT') {
-                mod = 'rent';
-            }
-            else if (p.listingType === ListingTypeEnum.COMMERCIAL || p.listingType === 'COMMERCIAL') {
+            else if (p.listingType === ListingTypeEnum.COMMERCIAL ||
+                p.listingType === 'COMMERCIAL' ||
+                p.details?.category === 'commercial' ||
+                ['commercial', 'shop', 'office'].some((x) => (p.propertyType || '').toLowerCase().includes(x))) {
                 mod = 'commercial';
+            }
+            else if (p.listingType === ListingTypeEnum.RENT ||
+                p.listingType === 'RENT' ||
+                p.details?.category === 'rent') {
+                mod = 'rent';
             }
             else {
                 mod = 'flat_building';
@@ -563,7 +756,8 @@ let AdminService = AdminService_1 = class AdminService {
                     whatsapp: pm.ownerPhone,
                 },
                 visualVariant: 'management',
-                images: ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800'],
+                images: pm.photos && pm.photos.length > 0 ? pm.photos : ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800'],
+                photos: pm.photos && pm.photos.length > 0 ? pm.photos : [],
                 documents: [],
                 auditLog: [
                     {
@@ -582,7 +776,7 @@ let AdminService = AdminService_1 = class AdminService {
                 },
                 fieldVisit: {
                     gpsCheckedIn: false,
-                    photos: [],
+                    photos: pm.photos && pm.photos.length > 0 ? pm.photos : [],
                     ownerConfirmed: false,
                     notes: pm.contactNotes || '',
                 },

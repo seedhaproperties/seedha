@@ -64,33 +64,33 @@ export declare class AdminService {
         property: PropertyRecord;
     }>;
     getPropertyManagementQueue(): import("../../common/mock-db.js").PropertyManagementRecord[];
-    checkPropertyManagementLocation(id: string, dto: LocationCheckDecisionDto): {
+    checkPropertyManagementLocation(id: string, dto: LocationCheckDecisionDto): Promise<{
         message: string;
         request: import("../../common/mock-db.js").PropertyManagementRecord;
-    };
-    contactPropertyManagementOwner(id: string, dto: ContactOwnerDto): {
+    }>;
+    contactPropertyManagementOwner(id: string, dto: ContactOwnerDto): Promise<{
         message: string;
         request: import("../../common/mock-db.js").PropertyManagementRecord;
-    };
+    }>;
     getHomeLoansQueue(): import("../../common/mock-db.js").HomeLoanRecord[];
-    contactHomeLoanUser(id: string, dto: ContactOwnerDto): {
+    contactHomeLoanUser(id: string, dto: ContactOwnerDto): Promise<{
         message: string;
         request: import("../../common/mock-db.js").HomeLoanRecord;
-    };
+    }>;
     getRentalAgreementsQueue(): import("../../common/mock-db.js").RentalAgreementRecord[];
-    prepareAndSendAgreement(id: string, dto: PrepareAgreementDto): {
+    prepareAndSendAgreement(id: string, dto: PrepareAgreementDto): Promise<{
         message: string;
         agreement: import("../../common/mock-db.js").RentalAgreementRecord;
-    };
+    }>;
     getOwnerBackgroundQueue(): import("../../common/mock-db.js").OwnerBackgroundRecord[];
-    assignOwnerBackgroundFieldWork(id: string, dto: AssignFieldWorkDto): {
+    assignOwnerBackgroundFieldWork(id: string, dto: AssignFieldWorkDto): Promise<{
         message: string;
         check: import("../../common/mock-db.js").OwnerBackgroundRecord;
-    };
-    collectAndSendDigitalOwnerDetails(id: string, dto: CollectAndSendDigitalDto): {
+    }>;
+    collectAndSendDigitalOwnerDetails(id: string, dto: CollectAndSendDigitalDto): Promise<{
         message: string;
         check: import("../../common/mock-db.js").OwnerBackgroundRecord;
-    };
+    }>;
     getAllUnifiedRequests(filters?: {
         module?: string;
         status?: string;

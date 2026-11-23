@@ -229,6 +229,7 @@ __decorate([
 ], UploadPropertyImageDto.prototype, "imageUrl", void 0);
 export class QueryPropertyDto {
     type;
+    category;
     city;
     location;
     minPrice;
@@ -241,10 +242,17 @@ export class QueryPropertyDto {
     userLng;
 }
 __decorate([
-    ApiPropertyOptional({ enum: ListingTypeEnum }),
+    ApiPropertyOptional({ example: 'buy' }),
     IsOptional(),
+    IsString(),
     __metadata("design:type", String)
 ], QueryPropertyDto.prototype, "type", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 'BUY' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], QueryPropertyDto.prototype, "category", void 0);
 __decorate([
     ApiPropertyOptional({ example: 'Hyderabad' }),
     IsOptional(),

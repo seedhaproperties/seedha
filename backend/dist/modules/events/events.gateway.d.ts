@@ -14,6 +14,8 @@ export interface PropertyStatusUpdatedEvent {
     status: string;
     verified: boolean;
     rejectionReason?: string;
+    listingType?: string;
+    propertyType?: string;
     title: string;
     message: string;
 }
@@ -51,6 +53,8 @@ export declare class EventsGateway implements OnGatewayInit, OnGatewayConnection
         status: string;
         verified: boolean;
         rejectionReason?: string;
+        listingType?: string;
+        propertyType?: string;
         title: string;
         message: string;
     }): PropertyStatusUpdatedEvent;

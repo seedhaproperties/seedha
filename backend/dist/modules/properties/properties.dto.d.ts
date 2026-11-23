@@ -35,7 +35,8 @@ export declare class UploadPropertyImageDto {
     imageUrl?: string;
 }
 export declare class QueryPropertyDto {
-    type?: ListingTypeEnum;
+    type?: string;
+    category?: string;
     city?: string;
     location?: string;
     minPrice?: number;

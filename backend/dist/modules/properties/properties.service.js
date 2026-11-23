@@ -55,19 +55,64 @@ let PropertiesService = PropertiesService_1 = class PropertiesService {
                 const qTypeLower = (query.type || '').trim().toLowerCase();
                 if (qTypeLower === 'pg' || qTypeLower === 'hostel' || qTypeLower === 'coliving') {
                     typeWhere = {
-                        propertyType: { in: ['pg', 'hostel', 'coliving', 'PG', 'HOSTEL', 'COLIVING'] }
+                        OR: [
+                            { propertyType: { in: ['pg', 'hostel', 'coliving', 'PG', 'HOSTEL', 'COLIVING', 'PG / Hostel'] } },
+                            { listingType: 'PG' },
+                            { listingType: 'HOSTEL' },
+                        ],
                     };
                 }
                 else if (qTypeLower === 'flatmate' || qTypeLower === 'flatmates') {
                     typeWhere = {
-                        propertyType: { in: ['flatmate', 'flatmates', 'FLATMATE', 'FLATMATES'] }
+                        OR: [
+                            { propertyType: { in: ['flatmate', 'flatmates', 'FLATMATE', 'FLATMATES', 'Flatmate', 'roommate', 'Roommate'] } },
+                            { listingType: 'FLATMATE' },
+                        ],
+                    };
+                }
+                else if (qTypeLower === 'commercial') {
+                    typeWhere = {
+                        OR: [
+                            { listingType: 'COMMERCIAL' },
+                            { propertyType: { in: ['commercial', 'Commercial', 'COMMERCIAL', 'shop', 'Shop', 'office', 'Office', 'showroom', 'Showroom', 'warehouse', 'Warehouse', 'industrial', 'Industrial'] } },
+                        ],
+                    };
+                }
+                else if (qTypeLower === 'buy') {
+                    typeWhere = {
+                        listingType: 'BUY',
+                        NOT: {
+                            propertyType: {
+                                in: [
+                                    'commercial', 'Commercial', 'COMMERCIAL',
+                                    'shop', 'Shop', 'office', 'Office',
+                                    'showroom', 'Showroom', 'warehouse', 'Warehouse', 'industrial', 'Industrial',
+                                    'pg', 'PG', 'hostel', 'Hostel', 'coliving', 'Coliving', 'PG / Hostel',
+                                    'flatmate', 'Flatmate', 'flatmates', 'Flatmates', 'roommate', 'Roommate',
+                                ],
+                            },
+                        },
+                    };
+                }
+                else if (qTypeLower === 'rent') {
+                    typeWhere = {
+                        listingType: 'RENT',
+                        NOT: {
+                            propertyType: {
+                                in: [
+                                    'commercial', 'Commercial', 'COMMERCIAL',
+                                    'shop', 'Shop', 'office', 'Office',
+                                    'showroom', 'Showroom', 'warehouse', 'Warehouse', 'industrial', 'Industrial',
+                                    'pg', 'PG', 'hostel', 'Hostel', 'coliving', 'Coliving', 'PG / Hostel',
+                                    'flatmate', 'Flatmate', 'flatmates', 'Flatmates', 'roommate', 'Roommate',
+                                ],
+                            },
+                        },
                     };
                 }
                 else {
                     const upper = query.type.trim().toUpperCase();
-                    if (upper === 'BUY' || upper === 'RENT' || upper === 'COMMERCIAL') {
-                        typeWhere = { listingType: upper };
-                    }
+                    typeWhere = { listingType: upper };
                 }
             }
             let dbProps = [];
@@ -87,7 +132,7 @@ let PropertiesService = PropertiesService_1 = class PropertiesService {
                                 ...(query.maxPrice !== undefined ? { price: { lte: Number(query.maxPrice) } } : {}),
                             },
                         }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Prisma timeout')), 1000)),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Prisma timeout')), 8000)),
                     ]);
                 }
                 catch {
@@ -108,14 +153,53 @@ let PropertiesService = PropertiesService_1 = class PropertiesService {
                 p.status !== 'SUBMITTED' &&
                 p.status !== 'UNDER_REVIEW');
             if (query.type) {
-                const qTypeLower = query.type.toLowerCase();
+                const qTypeLower = query.type.toLowerCase().trim();
                 if (qTypeLower === 'pg' || qTypeLower === 'hostel' || qTypeLower === 'coliving') {
-                    mockFiltered = mockFiltered.filter((p) => ['pg', 'hostel', 'coliving'].includes((p.propertyType || '').toLowerCase()) ||
-                        p.pgCategory !== undefined);
+                    mockFiltered = mockFiltered.filter((p) => {
+                        const pt = (p.propertyType || '').toLowerCase();
+                        const title = (p.title || '').toLowerCase();
+                        return (['pg', 'hostel', 'coliving', 'pg / hostel'].includes(pt) ||
+                            title.includes('pg') ||
+                            title.includes('hostel') ||
+                            p.pgCategory !== undefined ||
+                            p.details?.pgAccommodationType !== undefined);
+                    });
                 }
                 else if (qTypeLower === 'flatmate' || qTypeLower === 'flatmates') {
-                    mockFiltered = mockFiltered.filter((p) => (p.propertyType || '').toLowerCase().includes('flatmate') ||
-                        p.roomType !== undefined);
+                    mockFiltered = mockFiltered.filter((p) => {
+                        const pt = (p.propertyType || '').toLowerCase();
+                        const title = (p.title || '').toLowerCase();
+                        return (pt.includes('flatmate') ||
+                            title.includes('flatmate') ||
+                            p.roomType !== undefined ||
+                            p.details?.flatmateName !== undefined);
+                    });
+                }
+                else if (qTypeLower === 'buy') {
+                    mockFiltered = mockFiltered.filter((p) => {
+                        const lt = (p.listingType || '').toLowerCase();
+                        const pt = (p.propertyType || '').toLowerCase();
+                        const isCommercial = ['commercial', 'shop', 'office', 'showroom', 'warehouse', 'industrial'].some((x) => pt.includes(x));
+                        const isPgOrFlatmate = ['pg', 'hostel', 'coliving', 'flatmate'].some((x) => pt.includes(x)) || p.pgCategory !== undefined || p.roomType !== undefined;
+                        return lt === 'buy' && !isCommercial && !isPgOrFlatmate;
+                    });
+                }
+                else if (qTypeLower === 'rent') {
+                    mockFiltered = mockFiltered.filter((p) => {
+                        const lt = (p.listingType || '').toLowerCase();
+                        const pt = (p.propertyType || '').toLowerCase();
+                        const isCommercial = ['commercial', 'shop', 'office', 'showroom', 'warehouse', 'industrial'].some((x) => pt.includes(x));
+                        const isPgOrFlatmate = ['pg', 'hostel', 'coliving', 'flatmate'].some((x) => pt.includes(x)) || p.pgCategory !== undefined || p.roomType !== undefined;
+                        return lt === 'rent' && !isCommercial && !isPgOrFlatmate;
+                    });
+                }
+                else if (qTypeLower === 'commercial') {
+                    mockFiltered = mockFiltered.filter((p) => {
+                        const lt = (p.listingType || '').toLowerCase();
+                        const pt = (p.propertyType || '').toLowerCase();
+                        return (lt === 'commercial' ||
+                            ['commercial', 'shop', 'office', 'showroom', 'warehouse', 'industrial'].some((x) => pt.includes(x)));
+                    });
                 }
                 else {
                     mockFiltered = mockFiltered.filter((p) => (p.listingType || '').toLowerCase() === qTypeLower);
@@ -167,17 +251,27 @@ let PropertiesService = PropertiesService_1 = class PropertiesService {
                     ...(isFlatmate ? { roomType: roomT } : {}),
                 };
             });
-            let radiusMatched = results.filter((p) => p.distanceKm <= requestedRadius);
+            results.sort((a, b) => a.distanceKm - b.distanceKm);
+            let finalProps = results;
             let activeRadiusUsed = requestedRadius;
-            if (radiusMatched.length === 0 && requestedRadius < 60) {
-                radiusMatched = results.filter((p) => p.distanceKm <= 60);
-                activeRadiusUsed = 60;
+            if (requestedRadius < 9999) {
+                let radiusMatched = results.filter((p) => p.distanceKm <= requestedRadius);
+                if (radiusMatched.length === 0 && requestedRadius < 60) {
+                    radiusMatched = results.filter((p) => p.distanceKm <= 60);
+                    activeRadiusUsed = 60;
+                }
+                if (radiusMatched.length === 0 && activeRadiusUsed < 100) {
+                    radiusMatched = results.filter((p) => p.distanceKm <= 100);
+                    activeRadiusUsed = 100;
+                }
+                if (radiusMatched.length > 0 && radiusMatched.length < results.length) {
+                    const outside = results.filter((p) => p.distanceKm > activeRadiusUsed);
+                    finalProps = [...radiusMatched, ...outside];
+                }
+                else {
+                    finalProps = radiusMatched.length > 0 ? radiusMatched : results;
+                }
             }
-            if (radiusMatched.length === 0 && activeRadiusUsed < 100) {
-                radiusMatched = results.filter((p) => p.distanceKm <= 100);
-                activeRadiusUsed = 100;
-            }
-            const finalProps = radiusMatched.length > 0 ? radiusMatched : results;
             return {
                 total: finalProps.length,
                 radiusUsedKm: activeRadiusUsed,
@@ -426,7 +520,7 @@ let PropertiesService = PropertiesService_1 = class PropertiesService {
         mockDb.saveToDisk();
         if (this.prisma?.isConnected) {
             try {
-                await this.prisma.property.create({
+                const dbProp = await this.prisma.property.create({
                     data: {
                         title: dto.title,
                         description: dto.description || '',
@@ -451,6 +545,10 @@ let PropertiesService = PropertiesService_1 = class PropertiesService {
                         ownerPhone: dto.ownerPhone,
                     },
                 });
+                if (dbProp && dbProp.id) {
+                    newProperty.id = dbProp.id;
+                    mockDb.saveToDisk();
+                }
             }
             catch (err) {
                 this.logger.warn(`Prisma create sync fallback: ${err.message}`);

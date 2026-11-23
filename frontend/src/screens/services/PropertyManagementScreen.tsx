@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -57,21 +57,154 @@ export default function PropertyManagementScreen() {
   const [stateName, setStateName] = useState('Karnataka');
   const [photos, setPhotos] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState<any | null>(null);
+  const fileInputRef = useRef<any>(null);
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const rawData = (e.target?.result as string) || '';
+        if (typeof window === 'undefined' || typeof document === 'undefined') {
+          resolve(rawData);
+          return;
+        }
+
+        const img = new (window as any).Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const maxDim = 1200;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              const compressed = canvas.toDataURL('image/jpeg', 0.8);
+              resolve(compressed);
+            } else {
+              resolve(rawData);
+            }
+          } catch {
+            resolve(rawData);
+          }
+        };
+        img.onerror = () => resolve(rawData);
+        img.src = rawData;
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileInputChange = async (e: any) => {
+    const files: File[] = Array.from(e.target?.files || []);
+    if (!files.length) return;
+
+    if (photos.length + files.length > 10) {
+      Alert.alert('Limit Reached', 'You can upload up to 10 photos in total.');
+    }
+
+    const availableSlots = Math.max(0, 10 - photos.length);
+    const selectedFiles = files.slice(0, availableSlots);
+    if (!selectedFiles.length) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const promises = selectedFiles.map((file) => compressImage(file));
+      const compressedList = (await Promise.all(promises)).filter(Boolean);
+
+      if (!compressedList.length) return;
+
+      // 1. Immediately show user's uploaded photos in the preview so they NEVER see a blank box
+      setPhotos((prev) => [...prev, ...compressedList]);
+
+      // 2. Background upload to Cloudinary/server
+      try {
+        const uploadPromises = compressedList.map(async (base64) => {
+          try {
+            const res = await api.uploads.uploadImage({
+              imageBase64: base64,
+              folder: 'seedha-properties/property-management',
+            });
+            if (res?.url && res.url.startsWith('http')) {
+              return res.url;
+            }
+            return base64;
+          } catch {
+            return base64;
+          }
+        });
+
+        const uploadedUrls = await Promise.all(uploadPromises);
+        setPhotos((current) =>
+          current.map((p) => {
+            const idx = compressedList.indexOf(p);
+            return idx !== -1 && uploadedUrls[idx] ? uploadedUrls[idx] : p;
+          }),
+        );
+      } catch (uploadErr) {
+        console.warn('[PropertyManagement] Background photo upload notice:', uploadErr);
+      }
+    } catch (err) {
+      console.error('[PropertyManagement] Error reading photos:', err);
+    } finally {
+      setIsUploadingPhoto(false);
+      if (e.target) {
+        e.target.value = '';
+      }
+    }
+  };
 
   const handleUploadPhoto = () => {
     if (photos.length >= 10) {
       Alert.alert('Limit Reached', 'You can upload up to 10 photos.');
       return;
     }
-    const samplePhotos = [
-      'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&q=80',
-      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80',
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
-      'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80',
-    ];
-    const nextPhoto = samplePhotos[photos.length % samplePhotos.length];
-    setPhotos([...photos, nextPhoto]);
+
+    if (Platform.OS === 'web' && fileInputRef.current) {
+      fileInputRef.current.click();
+      return;
+    }
+
+    if (typeof document !== 'undefined') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.multiple = true;
+      input.style.display = 'none';
+      document.body.appendChild(input);
+      input.onchange = (e: any) => {
+        handleFileInputChange(e);
+        setTimeout(() => {
+          if (input.parentNode) input.parentNode.removeChild(input);
+        }, 1000);
+      };
+      input.click();
+    } else {
+      const samplePhotos = [
+        'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&q=80',
+        'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=80',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
+        'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80',
+      ];
+      const nextPhoto = samplePhotos[photos.length % samplePhotos.length];
+      setPhotos([...photos, nextPhoto]);
+    }
   };
 
   const handleRemovePhoto = (index: number) => {
@@ -89,6 +222,7 @@ export default function PropertyManagementScreen() {
         city: city || 'Bangalore',
         locality: locality || 'Indiranagar',
         serviceRequested: `Full Property Care (${selectedPropertyType})`,
+        photos,
       });
       setSubmittedRequest(res.request);
     } catch {
@@ -102,6 +236,7 @@ export default function PropertyManagementScreen() {
         city: city || 'Bangalore',
         locality: locality || 'Indiranagar',
         serviceRequested: `Full Property Care (${selectedPropertyType})`,
+        photos,
         status: 'SUBMITTED',
         locationMatched: true,
       });
@@ -463,11 +598,37 @@ export default function PropertyManagementScreen() {
           style={styles.uploadPhotosDashedContainer}
           onPress={handleUploadPhoto}
           activeOpacity={0.78}
+          disabled={isUploadingPhoto}
         >
-          <View style={styles.uploadPlusCircleBtn}>
-            <Plus size={22} color="#111827" strokeWidth={2.4} />
-          </View>
-          <Text style={styles.uploadPhotosBtnTitle}>Tap to upload photos</Text>
+          {Platform.OS === 'web' && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0,
+                cursor: 'pointer',
+                zIndex: 10,
+              }}
+              onChange={handleFileInputChange}
+            />
+          )}
+          {isUploadingPhoto ? (
+            <ActivityIndicator size="small" color="#111827" />
+          ) : (
+            <View style={styles.uploadPlusCircleBtn}>
+              <Plus size={22} color="#111827" strokeWidth={2.4} />
+            </View>
+          )}
+          <Text style={styles.uploadPhotosBtnTitle}>
+            {isUploadingPhoto ? 'Uploading photos...' : 'Tap to upload photos'}
+          </Text>
         </TouchableOpacity>
 
         {/* Uploaded Thumbnails Preview */}
@@ -475,7 +636,21 @@ export default function PropertyManagementScreen() {
           <View style={styles.uploadedPhotosThumbRow}>
             {photos.map((uri, idx) => (
               <View key={idx} style={styles.uploadedThumbWrap}>
-                <RNImage source={{ uri }} style={styles.uploadedThumbImg} />
+                {Platform.OS === 'web' ? (
+                  <img
+                    src={uri}
+                    alt={`Property photo ${idx + 1}`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                      borderRadius: 12,
+                    }}
+                  />
+                ) : (
+                  <RNImage source={{ uri }} style={styles.uploadedThumbImg} resizeMode="cover" />
+                )}
                 <TouchableOpacity
                   style={styles.uploadedThumbDeleteBtn}
                   onPress={() => handleRemovePhoto(idx)}
@@ -483,6 +658,11 @@ export default function PropertyManagementScreen() {
                 >
                   <X size={12} color="#FFFFFF" strokeWidth={3} />
                 </TouchableOpacity>
+                {idx === 0 && (
+                  <View style={styles.photoCoverBadgeSmall}>
+                    <Text style={styles.photoCoverBadgeSmallText}>Cover</Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -1558,6 +1738,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 5,
+  },
+  photoCoverBadgeSmall: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: '#000000',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    zIndex: 5,
+  },
+  photoCoverBadgeSmallText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '700',
   },
   formContinueBtn: {
     backgroundColor: '#000000',

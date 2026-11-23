@@ -82,6 +82,7 @@ export interface PropertyManagementRecord {
   fullAddress?: string;
   locality: string;
   serviceRequested: string;
+  photos?: string[];
   status: 'SUBMITTED' | 'ADMIN_REVIEW' | 'LOCATION_CHECK_PASSED' | 'LOCATION_CHECK_REJECTED' | 'ASSIGNED_TEAM' | 'OWNER_CONTACTED' | 'COMPLETED';
   locationMatched: boolean;
   rejectionMessage?: string;
