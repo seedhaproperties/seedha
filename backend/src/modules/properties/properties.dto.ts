@@ -163,6 +163,11 @@ export class QueryPropertyDto {
   @IsString()
   type?: string;
 
+  @ApiPropertyOptional({ example: 'BUY' })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
   @ApiPropertyOptional({ example: 'Hyderabad' })
   @IsOptional()
   city?: string;

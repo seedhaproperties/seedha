@@ -248,10 +248,11 @@ export const api = {
     getToken: getAuthToken,
   },
 
-  // ── Properties (Buy, Rent, Commercial) ──
+  // ── Properties (Buy, Rent, Commercial, Flatmates, PG) ──
   properties: {
     list: (params?: {
       type?: string;
+      category?: string;
       location?: string;
       city?: string;
       minPrice?: number;
@@ -263,7 +264,8 @@ export const api = {
       userLng?: number;
     }) => {
       const searchParams = new URLSearchParams();
-      if (params?.type) searchParams.append('type', params.type.toUpperCase());
+      const listingType = params?.type || params?.category;
+      if (listingType) searchParams.append('type', listingType.toUpperCase());
       if (params?.location) searchParams.append('location', params.location);
       if (params?.city) searchParams.append('city', params.city);
       if (params?.bhk) searchParams.append('bhk', String(params.bhk));
@@ -276,6 +278,7 @@ export const api = {
       const q = searchParams.toString();
       return request<any>(`/properties${q ? `?${q}` : ''}`);
     },
+    getAll: (params?: any) => api.properties.list(params),
     get: (id: string) => request<any>(`/properties/${id}`),
     getOwner: (id: string) => request<any>(`/properties/${id}/owner`),
     getMyProperties: async (userId?: string) => {
@@ -398,7 +401,7 @@ export const api = {
         format?: string;
         width?: number;
         height?: number;
-      }>('/uploads/image', {
+      }>('/properties/upload-image', {
         method: 'POST',
         body: JSON.stringify(payload),
       }),

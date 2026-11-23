@@ -115,7 +115,7 @@ export default function FlatmatesScreen() {
   // Live Backend State
   const [liveListings, setLiveListings] = useState<FlatmateProperty[]>([]);
   const [isFetchingLive, setIsFetchingLive] = useState(false);
-  const [selectedRadius, setSelectedRadius] = useState<number>(30);
+  const [selectedRadius, setSelectedRadius] = useState<number>(9999);
 
   // GPS / Google Maps Location modal & feedback states
   const [locationStatus, setLocationStatus] = useState<

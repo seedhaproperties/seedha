@@ -259,7 +259,7 @@ export default function PgHostelsScreen() {
   // Live Backend State & Geolocation
   const [liveListings, setLiveListings] = useState<PgListing[]>([]);
   const [isFetchingLive, setIsFetchingLive] = useState(false);
-  const [selectedRadius, setSelectedRadius] = useState<number>(30);
+  const [selectedRadius, setSelectedRadius] = useState<number>(9999);
   const [currentCoords, setCurrentCoords] = useState<{ latitude: number; longitude: number }>({
     latitude: 17.4401,
     longitude: 78.3489,

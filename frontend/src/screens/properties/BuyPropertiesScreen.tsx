@@ -82,7 +82,7 @@ export default function BuyPropertiesScreen() {
   const [selectedTab, setSelectedTab] = useState<TabType>('All Properties');
   const [selectedSort, setSelectedSort] = useState<SortOption>('relevance');
   const [selectedLocation, setSelectedLocation] = useState<string>('All');
-  const [selectedRadius, setSelectedRadius] = useState<number>(30); // 30km default
+  const [selectedRadius, setSelectedRadius] = useState<number>(9999); // Default: All City (shows all verified properties, sorted nearest first)
   const [autoExpandedNotice, setAutoExpandedNotice] = useState<string | null>(null);
   const [showSortModal, setShowSortModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -132,7 +132,7 @@ export default function BuyPropertiesScreen() {
           radiusKm: selectedRadius,
         });
         const list = res?.properties || res?.data || (Array.isArray(res) ? res : []);
-        if (isMounted && list.length > 0) {
+        if (isMounted) {
           setLiveProperties(list);
         }
       } catch (err) {
@@ -215,9 +215,11 @@ export default function BuyPropertiesScreen() {
     const matched = withDistance.filter((p) => {
       // Tab filter
       if (selectedTab === 'Apartments') {
-        if (p.propertyType !== 'apartment') return false;
+        const pt = (p.propertyType || '').toLowerCase();
+        if (!pt.includes('apartment') && !pt.includes('flat')) return false;
       } else if (selectedTab === 'Villas') {
-        if (p.propertyType !== 'villa') return false;
+        const pt = (p.propertyType || '').toLowerCase();
+        if (!pt.includes('villa') && !pt.includes('house')) return false;
       }
 
       // Location filter from location selection interface
@@ -285,32 +287,16 @@ export default function BuyPropertiesScreen() {
     let noticeText: string | null = null;
 
     if (selectedRadius < 9999) {
-      radiusResults = matched.filter((p) => p.distanceKm <= selectedRadius);
-
-      if (radiusResults.length === 0 && selectedRadius <= 30) {
-        const within60 = matched.filter((p) => p.distanceKm <= 60);
-        if (within60.length > 0) {
-          radiusResults = within60;
-          noticeText = 'No properties found within 30 km. Showing 60 km radius.';
-        } else {
-          const within100 = matched.filter((p) => p.distanceKm <= 100);
-          if (within100.length > 0) {
-            radiusResults = within100;
-            noticeText = 'No properties within 60 km. Showing 100 km radius.';
-          } else {
-            radiusResults = matched;
-            noticeText = 'Showing all available properties across cities.';
-          }
-        }
-      } else if (radiusResults.length === 0 && selectedRadius <= 60) {
-        const within100 = matched.filter((p) => p.distanceKm <= 100);
-        if (within100.length > 0) {
-          radiusResults = within100;
-          noticeText = 'No properties within 60 km. Showing 100 km radius.';
-        } else {
-          radiusResults = matched;
-          noticeText = 'Showing all available properties across cities.';
-        }
+      const withinRadius = matched.filter((p) => p.distanceKm <= selectedRadius);
+      if (withinRadius.length === 0) {
+        radiusResults = matched;
+        noticeText = `No properties found within ${selectedRadius} km. Showing all available verified properties.`;
+      } else if (withinRadius.length < matched.length) {
+        const outside = matched.filter((p) => p.distanceKm > selectedRadius);
+        radiusResults = [...withinRadius, ...outside];
+        noticeText = `Showing ${withinRadius.length} nearby properties within ${selectedRadius} km, plus all verified listings below.`;
+      } else {
+        radiusResults = withinRadius;
       }
     }
 
@@ -506,10 +492,10 @@ export default function BuyPropertiesScreen() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.radiusPillsRow}>
           {[
+            { id: 9999, label: 'All City' },
             { id: 30, label: '30 km (Nearby)' },
             { id: 60, label: '60 km' },
             { id: 100, label: '100 km' },
-            { id: 9999, label: 'All City' },
           ].map((r) => {
             const isRadActive = selectedRadius === r.id;
             return (

@@ -2885,7 +2885,21 @@ export default function PostPropertyScreen() {
 
                   {form.photos.map((uri, index) => (
                     <View key={index} style={styles.photoThumbWrap}>
-                      <Image source={{ uri }} style={styles.photoThumbImg} resizeMode="cover" />
+                      {Platform.OS === 'web' ? (
+                        <img
+                          src={uri}
+                          alt={`Uploaded photo ${index + 1}`}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            borderRadius: 16,
+                            display: 'block',
+                          }}
+                        />
+                      ) : (
+                        <Image source={{ uri }} style={styles.photoThumbImg} resizeMode="cover" />
+                      )}
                       <TouchableOpacity
                         style={styles.photoRemoveBtn}
                         onPress={() => handleRemovePhoto(index)}
@@ -3611,7 +3625,20 @@ export default function PostPropertyScreen() {
                 {/* Top Listing Card Preview */}
                 <View style={styles.previewTopCard}>
                   {form.photos.length > 0 ? (
-                    <Image source={{ uri: form.photos[0] }} style={styles.previewCardImg} />
+                    Platform.OS === 'web' ? (
+                      <img
+                        src={form.photos[0]}
+                        alt="Preview cover"
+                        style={{
+                          width: '100%',
+                          height: 180,
+                          objectFit: 'cover',
+                          display: 'block',
+                        }}
+                      />
+                    ) : (
+                      <Image source={{ uri: form.photos[0] }} style={styles.previewCardImg} />
+                    )
                   ) : (
                     <View style={styles.previewImgPlaceholder}>
                       <Camera size={34} color="#000000" strokeWidth={1.8} />

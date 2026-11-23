@@ -94,7 +94,7 @@ export default function CommercialSpacesScreen() {
   const [selectedTab, setSelectedTab] = useState<CategoryTab>('All Spaces');
   const [selectedSort, setSelectedSort] = useState<SortOption>('relevance');
   const [selectedLocation, setSelectedLocation] = useState<string>('All');
-  const [selectedRadius, setSelectedRadius] = useState<number>(30); // 30km default
+  const [selectedRadius, setSelectedRadius] = useState<number>(9999); // Default: All City (shows all verified properties, sorted nearest first)
   const [autoExpandedNotice, setAutoExpandedNotice] = useState<string | null>(null);
   const [showSortModal, setShowSortModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -134,7 +134,7 @@ export default function CommercialSpacesScreen() {
           radiusKm: selectedRadius,
         });
         const list = res?.properties || res?.data || (Array.isArray(res) ? res : []);
-        if (isMounted && list.length > 0) {
+        if (isMounted) {
           setLiveProperties(list);
         }
       } catch (err) {
@@ -202,11 +202,14 @@ export default function CommercialSpacesScreen() {
 
     const matched = withDistance.filter((p) => {
       if (selectedTab === 'Offices') {
-        if (p.propertyType !== 'office') return false;
+        const pt = (p.propertyType || '').toLowerCase();
+        if (!pt.includes('office') && !pt.includes('commercial')) return false;
       } else if (selectedTab === 'Retail Shops') {
-        if (p.propertyType !== 'shop') return false;
+        const pt = (p.propertyType || '').toLowerCase();
+        if (!pt.includes('shop') && !pt.includes('retail') && !pt.includes('showroom')) return false;
       } else if (selectedTab === 'Co-working') {
-        if (p.propertyType !== 'coworking') return false;
+        const pt = (p.propertyType || '').toLowerCase();
+        if (!pt.includes('coworking') && !pt.includes('co-working')) return false;
       }
 
       if (selectedLocation !== 'All') {
@@ -234,32 +237,16 @@ export default function CommercialSpacesScreen() {
     let noticeText: string | null = null;
 
     if (selectedRadius < 9999) {
-      radiusResults = matched.filter((p) => p.distanceKm <= selectedRadius);
-
-      if (radiusResults.length === 0 && selectedRadius <= 30) {
-        const within60 = matched.filter((p) => p.distanceKm <= 60);
-        if (within60.length > 0) {
-          radiusResults = within60;
-          noticeText = 'No commercial spaces within 30 km. Showing 60 km radius.';
-        } else {
-          const within100 = matched.filter((p) => p.distanceKm <= 100);
-          if (within100.length > 0) {
-            radiusResults = within100;
-            noticeText = 'No commercial spaces within 60 km. Showing 100 km radius.';
-          } else {
-            radiusResults = matched;
-            noticeText = 'Showing all available commercial spaces across cities.';
-          }
-        }
-      } else if (radiusResults.length === 0 && selectedRadius <= 60) {
-        const within100 = matched.filter((p) => p.distanceKm <= 100);
-        if (within100.length > 0) {
-          radiusResults = within100;
-          noticeText = 'No commercial spaces within 60 km. Showing 100 km radius.';
-        } else {
-          radiusResults = matched;
-          noticeText = 'Showing all available commercial spaces across cities.';
-        }
+      const withinRadius = matched.filter((p) => p.distanceKm <= selectedRadius);
+      if (withinRadius.length === 0) {
+        radiusResults = matched;
+        noticeText = `No commercial spaces found within ${selectedRadius} km. Showing all available verified spaces.`;
+      } else if (withinRadius.length < matched.length) {
+        const outside = matched.filter((p) => p.distanceKm > selectedRadius);
+        radiusResults = [...withinRadius, ...outside];
+        noticeText = `Showing ${withinRadius.length} nearby spaces within ${selectedRadius} km, plus all verified spaces below.`;
+      } else {
+        radiusResults = withinRadius;
       }
     }
 

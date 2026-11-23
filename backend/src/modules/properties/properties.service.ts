@@ -46,8 +46,9 @@ export class PropertiesService {
   async findAll(query: QueryPropertyDto) {
     try {
       let typeWhere: any = {};
-      if (query.type) {
-        const qTypeLower = (query.type || '').trim().toLowerCase();
+      const activeType = (query.type || query.category || '').trim();
+      if (activeType) {
+        const qTypeLower = activeType.toLowerCase();
         if (qTypeLower === 'pg' || qTypeLower === 'hostel' || qTypeLower === 'coliving') {
           typeWhere = {
             OR: [
@@ -101,7 +102,7 @@ export class PropertiesService {
             },
           };
         } else {
-          const upper = query.type.trim().toUpperCase();
+          const upper = activeType.toUpperCase();
           typeWhere = { listingType: upper };
         }
       }
@@ -150,8 +151,8 @@ export class PropertiesService {
           (p.status as any) !== 'UNDER_REVIEW',
       );
 
-      if (query.type) {
-        const qTypeLower = query.type.toLowerCase().trim();
+      if (activeType) {
+        const qTypeLower = activeType.toLowerCase().trim();
         if (qTypeLower === 'pg' || qTypeLower === 'hostel' || qTypeLower === 'coliving') {
           mockFiltered = mockFiltered.filter((p) => {
             const pt = (p.propertyType || '').toLowerCase();
@@ -259,21 +260,32 @@ export class PropertiesService {
         };
       });
 
-      // If user specified radius, filter or prioritize
-      let radiusMatched = results.filter((p) => p.distanceKm <= requestedRadius);
+      // Sort all results nearest first
+      results.sort((a, b) => a.distanceKm - b.distanceKm);
 
-      // Auto-expansion logic: If 0 or very few in 30km, expand to 60km, then 100km
+      // Radius calculation & auto-expansion
+      let finalProps = results;
       let activeRadiusUsed = requestedRadius;
-      if (radiusMatched.length === 0 && requestedRadius < 60) {
-        radiusMatched = results.filter((p) => p.distanceKm <= 60);
-        activeRadiusUsed = 60;
-      }
-      if (radiusMatched.length === 0 && activeRadiusUsed < 100) {
-        radiusMatched = results.filter((p) => p.distanceKm <= 100);
-        activeRadiusUsed = 100;
-      }
 
-      const finalProps = radiusMatched.length > 0 ? radiusMatched : results;
+      if (requestedRadius < 9999) {
+        let radiusMatched = results.filter((p) => p.distanceKm <= requestedRadius);
+        if (radiusMatched.length === 0 && requestedRadius < 60) {
+          radiusMatched = results.filter((p) => p.distanceKm <= 60);
+          activeRadiusUsed = 60;
+        }
+        if (radiusMatched.length === 0 && activeRadiusUsed < 100) {
+          radiusMatched = results.filter((p) => p.distanceKm <= 100);
+          activeRadiusUsed = 100;
+        }
+
+        // Prioritize nearby properties first, but never discard other verified properties
+        if (radiusMatched.length > 0 && radiusMatched.length < results.length) {
+          const outside = results.filter((p) => p.distanceKm > activeRadiusUsed);
+          finalProps = [...radiusMatched, ...outside];
+        } else {
+          finalProps = radiusMatched.length > 0 ? radiusMatched : results;
+        }
+      }
 
       return {
         total: finalProps.length,
