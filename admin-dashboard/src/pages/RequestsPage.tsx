@@ -17,8 +17,10 @@ import {
   BadgePercent,
   FileText,
   UserCheck,
+  Home,
 } from 'lucide-react';
 import { adminService } from '../services/api';
+import { adminSocket } from '../services/socket';
 import { PropertyRequest, ModuleType, GlobalStatus } from '../types';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { ModuleBadge } from '../components/common/ModuleBadge';
@@ -29,9 +31,10 @@ import { RejectModal } from '../components/modals/RejectModal';
 
 const TABS: Array<{ key: ModuleType | 'all'; label: string; icon?: React.FC<{ className?: string }> }> = [
   { key: 'all', label: 'All Verticals' },
-  { key: 'flat_building', label: 'Flat / Building', icon: Building2 },
+  { key: 'flat_building', label: 'Buy / Sell Property', icon: Building2 },
   { key: 'rent', label: 'Rent', icon: Key },
   { key: 'commercial', label: 'Commercial', icon: Briefcase },
+  { key: 'pg_hostel', label: 'PG & Hostel', icon: Home },
   { key: 'property_management', label: 'Property Mgmt', icon: Wrench },
   { key: 'home_loan', label: 'Home Loan', icon: BadgePercent },
   { key: 'rental_agreements', label: 'Rental Agreement', icon: FileText },
@@ -87,6 +90,56 @@ export const RequestsPage: React.FC = () => {
 
   useEffect(() => {
     loadRequests();
+  }, [currentModule, currentStatus, searchQuery]);
+
+  // Real-time Socket.IO synchronization: automatically update pending properties without page refresh
+  useEffect(() => {
+    adminSocket.connect();
+
+    const unsubCreated = adminSocket.onPropertyCreated((newReq) => {
+      setRequests((prev) => {
+        if (prev.some((r) => r.id === newReq.id)) return prev;
+
+        const matchesModule = currentModule === 'all' || newReq.module === currentModule;
+        const matchesStatus = currentStatus === 'all' || newReq.status === currentStatus;
+        const matchesSearch =
+          !searchQuery ||
+          newReq.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          newReq.locality.toLowerCase().includes(searchQuery.toLowerCase());
+
+        if (matchesModule && matchesStatus && matchesSearch) {
+          return [newReq, ...prev];
+        }
+        return prev;
+      });
+    });
+
+    const unsubStatus = adminSocket.onPropertyStatusUpdated((payload) => {
+      setRequests((prev) =>
+        prev.map((r) => {
+          if (r.id === payload.propertyId) {
+            const mappedStatus =
+              payload.status === 'PUBLISHED' || payload.status === 'APPROVED'
+                ? 'published'
+                : payload.status === 'REJECTED'
+                ? 'rejected'
+                : 'in_review';
+            return {
+              ...r,
+              status: mappedStatus as any,
+              postPublishState: payload.verified ? 'live' : 'unpublished',
+              rejectionReason: payload.rejectionReason || r.rejectionReason,
+            };
+          }
+          return r;
+        })
+      );
+    });
+
+    return () => {
+      unsubCreated();
+      unsubStatus();
+    };
   }, [currentModule, currentStatus, searchQuery]);
 
   const handleTabChange = (mod: ModuleType | 'all') => {
@@ -334,6 +387,27 @@ export const RequestsPage: React.FC = () => {
                             className="p-2 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
                           >
                             <Ban className="w-4 h-4" />
+                          </button>
+                        )}
+                        {req.status !== 'rejected' && req.status !== 'published' && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await adminService.updateRequest(
+                                  req.id,
+                                  { status: 'published', postPublishState: 'live' },
+                                  'Approved and published to public listings by Admin Ops'
+                                );
+                                await loadRequests();
+                              } catch (err: any) {
+                                alert('Error approving property: ' + (err?.message || err));
+                              }
+                            }}
+                            title="Quick Approve & Publish to Public Listings"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Approve</span>
                           </button>
                         )}
                         <Link

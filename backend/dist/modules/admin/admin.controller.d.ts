@@ -3,19 +3,48 @@ import { AssignFieldWorkDto, RejectItemDto, LocationCheckDecisionDto, ContactOwn
 export declare class AdminController {
     private readonly adminService;
     constructor(adminService: AdminService);
-    getOverview(): {
+    getOverview(): Promise<{
+        totalUsers: number;
+        totalProperties: number;
+        totalPublishedProperties: number;
+        totalVerifiedProperties: number;
+        totalIncoming: number;
+        totalRequests: number;
+        newRequests: number;
+        inReview: number;
+        verified: number;
+        published: number;
+        rejected: number;
+        slaAlerts: number;
+        moduleCounts: {
+            flat_building: number;
+            rent: number;
+            commercial: number;
+            pg_hostel: number;
+            property_management: number;
+            home_loan: number;
+            rental_agreements: number;
+            owner_background: number;
+        };
         pendingFlatListings: number;
         pendingRentListings: number;
         pendingCommercialListings: number;
+        pendingPgListings: number;
         pendingPropertyManagement: number;
         pendingHomeLoans: number;
         pendingRentalAgreements: number;
         pendingOwnerBackground: number;
-        totalPublishedProperties: number;
-    };
+        activeAgents: number;
+    }>;
     getAllRequests(module?: string, status?: string, search?: string): Promise<any[]>;
     getRequestById(id: string): Promise<any>;
-    getTeam(): {
+    getTeam(): import("../../common/mock-db.js").TeamMemberRecord[];
+    addTeamMember(body: {
+        name: string;
+        role?: string;
+        phone: string;
+        zone?: string;
+    }): {
         id: string;
         name: string;
         role: string;
@@ -25,11 +54,12 @@ export declare class AdminController {
         completedThisWeek: number;
         avgTurnaroundHrs: number;
         initials: string;
-    }[];
+    };
     getListings(): import("../../common/mock-db.js").PropertyRecord[];
     getFlatsQueue(): import("../../common/mock-db.js").PropertyRecord[];
     getRentQueue(): import("../../common/mock-db.js").PropertyRecord[];
     getCommercialQueue(): import("../../common/mock-db.js").PropertyRecord[];
+    getPgQueue(): import("../../common/mock-db.js").PropertyRecord[];
     assignPropertyFieldWork(id: string, dto: AssignFieldWorkDto): {
         message: string;
         property: import("../../common/mock-db.js").PropertyRecord;
@@ -38,7 +68,15 @@ export declare class AdminController {
         message: string;
         property: import("../../common/mock-db.js").PropertyRecord;
     };
+    approveProperty(id: string): {
+        message: string;
+        property: import("../../common/mock-db.js").PropertyRecord;
+    };
     rejectProperty(id: string, dto: RejectItemDto): {
+        message: string;
+        property: import("../../common/mock-db.js").PropertyRecord;
+    };
+    unpublishProperty(id: string, note?: string): {
         message: string;
         property: import("../../common/mock-db.js").PropertyRecord;
     };
@@ -70,4 +108,37 @@ export declare class AdminController {
         message: string;
         check: import("../../common/mock-db.js").OwnerBackgroundRecord;
     };
+    getUsers(): {
+        id: string;
+        name: string;
+        phone: string;
+        email: string;
+        role: import("../../common/constants.js").UserRole;
+        city: string;
+        createdAt: string;
+    }[];
+    deleteProperty(id: string): Promise<{
+        message: string;
+        id: string;
+    }>;
+    getReports(): {
+        generatedAt: string;
+        summary: {
+            totalProperties: number;
+            publishedProperties: number;
+            verifiedProperties: number;
+            rejectedProperties: number;
+            activeRequests: number;
+            totalRegisteredUsers: number;
+        };
+        auditLogs: {
+            id: string;
+            propertyTitle: string;
+            status: import("../../common/constants.js").PropertyStatusEnum;
+            timestamp: string;
+            owner: string;
+            action: string;
+        }[];
+    };
+    getNotifications(): any[];
 }

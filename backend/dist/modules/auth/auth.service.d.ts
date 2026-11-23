@@ -6,15 +6,17 @@ import { UserRole } from '../../common/constants.js';
 import { EmailService } from '../email/email.service.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { Msg91Service } from './msg91.service.js';
+import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
 export declare class AuthService {
     private readonly jwtService;
     private readonly emailService;
     private readonly prisma;
     private readonly msg91Service;
+    private readonly cloudinaryService;
     private readonly logger;
     private otpStore;
     private googleClient;
-    constructor(jwtService: JwtService, emailService: EmailService, prisma: PrismaService, msg91Service: Msg91Service);
+    constructor(jwtService: JwtService, emailService: EmailService, prisma: PrismaService, msg91Service: Msg91Service, cloudinaryService: CloudinaryService);
     findUser(identifier: string): Promise<UserRecord | null>;
     createUser(userData: {
         name: string;
@@ -173,6 +175,111 @@ export declare class AuthService {
         email: string;
         phone: string;
         role: UserRole;
+        avatarUrl: string | null;
+        dob: string;
+        gender: string;
+        userRole: string;
+        streetAddress: string;
+        city: string;
+        state: string;
+        pincode: string;
+        alternatePhone: string | null;
+        alternateEmail: string | null;
+        summary: {
+            savedCount: any;
+            activityCount: any;
+            propertiesCount: any;
+            servicesCount: any;
+        };
+        settings: any;
     }>;
+    updateProfile(userId: string, dto: any): Promise<{
+        success: boolean;
+        message: string;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: UserRole;
+            avatarUrl: string | null;
+            dob: string;
+            gender: string;
+            userRole: string;
+            streetAddress: string;
+            city: string;
+            state: string;
+            pincode: string;
+            alternatePhone: string | null;
+            alternateEmail: string | null;
+            summary: {
+                savedCount: any;
+                activityCount: any;
+                propertiesCount: any;
+                servicesCount: any;
+            };
+            settings: any;
+        };
+    }>;
+    uploadAvatar(userId: string, avatarInput: string): Promise<{
+        success: boolean;
+        avatarUrl: string;
+        publicId: string;
+        message: string;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: UserRole;
+            avatarUrl: string | null;
+            dob: string;
+            gender: string;
+            userRole: string;
+            streetAddress: string;
+            city: string;
+            state: string;
+            pincode: string;
+            alternatePhone: string | null;
+            alternateEmail: string | null;
+            summary: {
+                savedCount: any;
+                activityCount: any;
+                propertiesCount: any;
+                servicesCount: any;
+            };
+            settings: any;
+        };
+    }>;
+    deleteAvatar(userId: string): Promise<{
+        success: boolean;
+        message: string;
+        avatarUrl: null;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: UserRole;
+            avatarUrl: string | null;
+            dob: string;
+            gender: string;
+            userRole: string;
+            streetAddress: string;
+            city: string;
+            state: string;
+            pincode: string;
+            alternatePhone: string | null;
+            alternateEmail: string | null;
+            summary: {
+                savedCount: any;
+                activityCount: any;
+                propertiesCount: any;
+                servicesCount: any;
+            };
+            settings: any;
+        };
+    }>;
+    verifyAccessToken(token: string): any;
     private generateTokens;
 }

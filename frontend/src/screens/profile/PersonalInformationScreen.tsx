@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,12 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import {
   ChevronLeft,
+  ChevronRight,
   Camera,
   CheckCircle2,
   Phone,
@@ -21,58 +23,288 @@ import {
   Shield,
   X,
   Check,
+  Trash2,
+  Calendar,
+  Sparkles,
+  RotateCcw,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+const DECADES = [2010, 2000, 1990, 1980, 1970, 1960, 1950, 1940];
+
+const getDaysInMonth = (year: number, month: number) => {
+  return new Date(year, month + 1, 0).getDate();
+};
+
+const getFirstDayOfMonth = (year: number, month: number) => {
+  return new Date(year, month, 1).getDay();
+};
+
+const getAgeFromDob = (dateStr: string) => {
+  if (!dateStr || !dateStr.includes('-')) return null;
+  const parts = dateStr.split('-');
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  const mDiff = today.getMonth() - m;
+  if (mDiff < 0 || (mDiff === 0 && today.getDate() < d)) {
+    age--;
+  }
+  return age >= 0 ? age : null;
+};
+
+const formatFriendlyDate = (dateStr: string) => {
+  if (!dateStr || !dateStr.includes('-')) return dateStr;
+  const parts = dateStr.split('-');
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return dateStr;
+  const dateObj = new Date(y, m, d);
+  if (isNaN(dateObj.getTime())) return dateStr;
+  return `${d} ${MONTHS[m]?.slice(0, 3)} ${y}`;
+};
+
+const formatFullDisplayDate = (year: number, month: number, day: number) => {
+  const dateObj = new Date(year, month, day);
+  const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dateObj.getDay()] || 'Day';
+  return `${dayName}, ${day} ${MONTHS[month] || ''} ${year}`;
+};
 
 export default function PersonalInformationScreen() {
-  const { pop, setTab, user } = useApp();
+  const { pop, setTab, user, updateUserProfile, refreshUserProfile } = useApp();
   const insets = useSafeAreaInsets();
 
   // Basic Details State
-  const [fullName, setFullName] = useState(user?.name || 'Aarav Varma');
-  const [dob, setDob] = useState('');
-  const [gender, setGender] = useState('Male');
-  const [userRole, setUserRole] = useState<'Owner' | 'Tenant' | 'Buyer' | 'Broker'>('Owner');
+  const [fullName, setFullName] = useState(user?.name || '');
+  const [dob, setDob] = useState(user?.dob || '');
+  const [gender, setGender] = useState(user?.gender || '');
+  const [userRole, setUserRole] = useState<'Owner' | 'Tenant' | 'Buyer' | 'Broker'>((user?.userRole as any) || 'Owner');
 
   // Contact Details State
-  const [primaryPhone, setPrimaryPhone] = useState(user?.phone || '+91 9876543210');
-  const [primaryEmail, setPrimaryEmail] = useState(user?.email || 'aarav.varma@seedha.com');
-  const [alternatePhone, setAlternatePhone] = useState<string | null>(null);
-  const [alternateEmail, setAlternateEmail] = useState<string | null>(null);
+  const [primaryPhone, setPrimaryPhone] = useState(user?.phone || '');
+  const [primaryEmail, setPrimaryEmail] = useState(user?.email || '');
+  const [alternatePhone, setAlternatePhone] = useState<string | null>(user?.alternatePhone || null);
+  const [alternateEmail, setAlternateEmail] = useState<string | null>(user?.alternateEmail || null);
 
   // Address State
-  const [streetAddress, setStreetAddress] = useState('Plot 42, Road No. 36, Jubilee Hills');
-  const [city, setCity] = useState('Hyderabad');
-  const [pincode, setPincode] = useState('500033');
-  const [stateName, setStateName] = useState('Telangana');
+  const [streetAddress, setStreetAddress] = useState(user?.streetAddress || '');
+  const [city, setCity] = useState(user?.city || '');
+  const [pincode, setPincode] = useState(user?.pincode || '');
+  const [stateName, setStateName] = useState(user?.state || '');
+
+  // Avatar & Async Loading States
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl || null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [saveErrorMsg, setSaveErrorMsg] = useState<string | null>(null);
+
+  // Sync state whenever context user updates or is fetched
+  useEffect(() => {
+    if (user) {
+      if (user.name) setFullName(user.name);
+      if (user.dob) setDob(user.dob);
+      if (user.gender) setGender(user.gender);
+      if (user.userRole) setUserRole(user.userRole as any);
+      if (user.phone) setPrimaryPhone(user.phone);
+      if (user.email) setPrimaryEmail(user.email);
+      if (user.alternatePhone !== undefined) setAlternatePhone(user.alternatePhone || null);
+      if (user.alternateEmail !== undefined) setAlternateEmail(user.alternateEmail || null);
+      if (user.streetAddress) setStreetAddress(user.streetAddress || '');
+      if (user.city) setCity(user.city || '');
+      if (user.pincode) setPincode(user.pincode || '');
+      if (user.state) setStateName(user.state || '');
+      setAvatarUrl(user.avatarUrl || null);
+    }
+  }, [user]);
 
   // Modal 1: Add Alternate Mobile Number State
   const [showAddAlternateModal, setShowAddAlternateModal] = useState(false);
   const [altPhoneStep, setAltPhoneStep] = useState<1 | 2 | 3>(1); // 1: Enter phone, 2: OTP, 3: Success
-  const [altPhoneInput, setAltPhoneInput] = useState('9567889900');
-  const [altOtpDigits, setAltOtpDigits] = useState(['5', '6', '7', '7', '8', '0']);
+  const [altPhoneInput, setAltPhoneInput] = useState('');
+  const [altOtpDigits, setAltOtpDigits] = useState(['', '', '', '', '', '']);
 
   // Modal 2: Change Mobile Number State
   const [showChangePhoneModal, setShowChangePhoneModal] = useState(false);
   const [changePhoneStep, setChangePhoneStep] = useState<1 | 2 | 3 | 4>(1); // 1: Verify current, 2: New phone, 3: OTP new, 4: Success
-  const [changePhoneCurrentOtp, setChangePhoneCurrentOtp] = useState(['9', '8', '7', '6', '5', '4']);
-  const [changePhoneNewInput, setChangePhoneNewInput] = useState('9154765352');
-  const [changePhoneNewOtp, setChangePhoneNewOtp] = useState(['6', '7', '8', '9', '0', '0']);
+  const [changePhoneCurrentOtp, setChangePhoneCurrentOtp] = useState(['', '', '', '', '', '']);
+  const [changePhoneNewInput, setChangePhoneNewInput] = useState('');
+  const [changePhoneNewOtp, setChangePhoneNewOtp] = useState(['', '', '', '', '', '']);
+
+  // Advanced Calendar Date Picker State
+  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
+  const [calViewMode, setCalViewMode] = useState<'days' | 'months' | 'years' | 'presets'>('days');
+  const [calYear, setCalYear] = useState(1995);
+  const [calMonth, setCalMonth] = useState(4); // May (0-indexed)
+  const [calDay, setCalDay] = useState(15);
+  const [selectedDecade, setSelectedDecade] = useState(1990);
+
+  useEffect(() => {
+    if (dob && dob.includes('-')) {
+      const parts = dob.split('-');
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      if (!isNaN(y)) {
+        setCalYear(y);
+        setSelectedDecade(Math.floor(y / 10) * 10);
+      }
+      if (!isNaN(m) && m >= 0 && m < 12) setCalMonth(m);
+      if (!isNaN(d) && d >= 1 && d <= 31) setCalDay(d);
+    }
+  }, [dob]);
 
   // Handle Edit/Save Header Button
   const [isEditing, setIsEditing] = useState(false);
 
-  const handleDoneAddAlternate = () => {
-    setAlternatePhone(`+91 ${altPhoneInput}`);
+  const handleDoneAddAlternate = async () => {
+    const formatted = `+91 ${altPhoneInput.trim()}`;
+    setAlternatePhone(formatted);
     setShowAddAlternateModal(false);
     setAltPhoneStep(1);
+    try {
+      await api.auth.updateProfile({ alternatePhone: formatted });
+      if (updateUserProfile) {
+        updateUserProfile({ alternatePhone: formatted });
+      }
+    } catch (e) {
+      console.warn('Failed updating alternate phone in database:', e);
+    }
   };
 
-  const handleDoneChangePhone = () => {
-    setPrimaryPhone(`+91 ${changePhoneNewInput}`);
+  const handleDoneChangePhone = async () => {
+    const formatted = `+91 ${changePhoneNewInput.trim()}`;
+    setPrimaryPhone(formatted);
     setShowChangePhoneModal(false);
     setChangePhoneStep(1);
+    try {
+      await api.auth.updateProfile({ phone: formatted });
+      if (updateUserProfile) {
+        updateUserProfile({ phone: formatted });
+      }
+    } catch (e) {
+      console.warn('Failed updating primary phone in database:', e);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!fullName.trim()) {
+      Alert.alert('Validation Error', 'Full name cannot be empty.');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveErrorMsg(null);
+
+      const payload = {
+        name: fullName.trim(),
+        phone: primaryPhone.trim(),
+        email: primaryEmail.trim(),
+        dob: dob.trim(),
+        gender: gender.trim(),
+        userRole,
+        streetAddress: streetAddress.trim(),
+        city: city.trim(),
+        pincode: pincode.trim(),
+        state: stateName.trim(),
+        alternatePhone: alternatePhone ? alternatePhone.trim() : null,
+        alternateEmail: alternateEmail ? alternateEmail.trim() : null,
+        avatarUrl,
+      };
+
+      const res = await api.auth.updateProfile(payload);
+      if (res?.user && updateUserProfile) {
+        updateUserProfile(res.user);
+      } else if (updateUserProfile) {
+        updateUserProfile(payload);
+      }
+
+      setSaveSuccessMsg('Profile updated and saved permanently to database.');
+      setTimeout(() => setSaveSuccessMsg(null), 5000);
+      Alert.alert('Profile Saved', 'Your personal information has been updated and saved successfully.');
+    } catch (err: any) {
+      console.error('[PersonalInformationScreen] Save failed:', err);
+      setSaveErrorMsg(err.message || 'Failed to save changes. Please check connection.');
+      Alert.alert('Save Failed', err.message || 'Could not update profile. Please verify your connection.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePickPhoto = () => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async (e: any) => {
+        const file = e.target?.files?.[0];
+        if (!file) return;
+        try {
+          setIsUploadingPhoto(true);
+          const reader = new FileReader();
+          reader.onload = async (uploadEvt) => {
+            const dataUrl = uploadEvt.target?.result as string;
+            if (dataUrl) {
+              setAvatarUrl(dataUrl);
+              try {
+                const res = await api.auth.uploadAvatar({ imageBase64: dataUrl });
+                const newUrl = res?.avatarUrl || dataUrl;
+                setAvatarUrl(newUrl);
+                if (updateUserProfile) {
+                  updateUserProfile({ avatarUrl: newUrl });
+                }
+                Alert.alert('Photo Updated', 'Your profile photo has been updated.');
+              } catch (upErr: any) {
+                // If base64 payload is large or local simulation, still persist in state and context
+                if (updateUserProfile) {
+                  updateUserProfile({ avatarUrl: dataUrl });
+                }
+                Alert.alert('Photo Updated', 'Profile photo updated locally and saved.');
+              }
+            }
+            setIsUploadingPhoto(false);
+          };
+          reader.readAsDataURL(file);
+        } catch (uploadErr: any) {
+          setIsUploadingPhoto(false);
+          Alert.alert('Upload Error', uploadErr.message || 'Failed to upload photo.');
+        }
+      };
+      input.click();
+    } else {
+      Alert.alert('Upload Photo', 'Profile photo upload is active.');
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    try {
+      setIsUploadingPhoto(true);
+      await api.auth.deleteAvatar();
+      setAvatarUrl(null);
+      if (updateUserProfile) {
+        updateUserProfile({ avatarUrl: undefined });
+      }
+      setSaveSuccessMsg('Profile photo deleted.');
+      setTimeout(() => setSaveSuccessMsg(null), 4000);
+      Alert.alert('Photo Removed', 'Your profile photo has been removed.');
+    } catch (err: any) {
+      console.error('[PersonalInformationScreen] Delete avatar failed:', err);
+      Alert.alert('Error', err.message || 'Failed to remove photo.');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
   };
 
   return (
@@ -99,18 +331,35 @@ export default function PersonalInformationScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => {
-              setIsEditing(!isEditing);
-              if (isEditing) {
-                Alert.alert('Saved', 'Your personal information has been updated successfully.');
-              }
-            }}
+            style={[styles.editBtn, isSaving && { opacity: 0.8 }]}
+            onPress={handleSaveProfile}
+            disabled={isSaving}
             activeOpacity={0.8}
           >
-            <Text style={styles.editBtnText}>{isEditing ? 'Save' : 'Edit'}</Text>
+            {isSaving ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.editBtnText}>Save</Text>
+            )}
           </TouchableOpacity>
         </View>
+
+        {/* Status Banners */}
+        {saveSuccessMsg ? (
+          <View style={{ backgroundColor: '#DCFCE7', paddingVertical: 8, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: '#86EFAC' }}>
+            <Text style={{ color: '#166534', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>
+              ✓ {saveSuccessMsg}
+            </Text>
+          </View>
+        ) : null}
+
+        {saveErrorMsg ? (
+          <View style={{ backgroundColor: '#FEE2E2', paddingVertical: 8, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: '#FCA5A5' }}>
+            <Text style={{ color: '#991B1B', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>
+              ✕ {saveErrorMsg}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Scrollable Content */}
@@ -122,22 +371,57 @@ export default function PersonalInformationScreen() {
         {/* Top Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarWrapper}>
-            <Image
-              source={{
-                uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces&auto=format',
-              }}
-              style={styles.avatarImg}
-            />
-            <TouchableOpacity style={styles.cameraBadge} activeOpacity={0.85}>
-              <Camera size={14} color="#FFFFFF" strokeWidth={2.2} />
+            {avatarUrl ? (
+              <Image
+                source={{
+                  uri: avatarUrl,
+                }}
+                style={styles.avatarImg}
+              />
+            ) : (
+              <View style={[styles.avatarImg, { backgroundColor: '#1E293B', justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: '#FFFFFF', fontSize: 28, fontWeight: '700' }}>
+                  {(fullName && fullName.trim().charAt(0).toUpperCase()) || 'U'}
+                </Text>
+              </View>
+            )}
+            <TouchableOpacity style={styles.cameraBadge} onPress={handlePickPhoto} activeOpacity={0.85}>
+              {isUploadingPhoto ? (
+                <ActivityIndicator size={12} color="#FFFFFF" />
+              ) : (
+                <Camera size={14} color="#FFFFFF" strokeWidth={2.2} />
+              )}
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.profileName}>{fullName}</Text>
+          {/* Photo Action Row */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 12 }}>
+            <TouchableOpacity
+              onPress={handlePickPhoto}
+              style={{ paddingVertical: 4, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#334155' }}>
+                {avatarUrl ? 'Change Photo' : 'Upload Photo'}
+              </Text>
+            </TouchableOpacity>
+            {avatarUrl ? (
+              <TouchableOpacity
+                onPress={handleDeletePhoto}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' }}
+                activeOpacity={0.7}
+              >
+                <Trash2 size={12} color="#EF4444" strokeWidth={2} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#EF4444' }}>Remove</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <Text style={styles.profileName}>{fullName || 'Seedha User'}</Text>
 
           <View style={styles.verifiedRow}>
             <CheckCircle2 size={13} color="#10B981" strokeWidth={2.4} />
-            <Text style={styles.verifiedText}>Verified Owner</Text>
+            <Text style={styles.verifiedText}>Verified {userRole || 'User'}</Text>
           </View>
         </View>
 
@@ -151,31 +435,76 @@ export default function PersonalInformationScreen() {
               style={styles.inputBox}
               value={fullName}
               onChangeText={setFullName}
-              editable={isEditing}
+              placeholder="Enter your full name"
+              placeholderTextColor="#94A3B8"
             />
           </View>
 
           <View style={styles.twoColRow}>
             <View style={[styles.fieldGroup, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>Date of birth</Text>
-              <TextInput
-                style={styles.inputBox}
-                value={dob}
-                placeholder="DD/MM/YYYY"
-                placeholderTextColor="#94A3B8"
-                onChangeText={setDob}
-                editable={isEditing}
-              />
+              <View style={styles.dobLabelRow}>
+                <Text style={styles.fieldLabel}>Date of birth</Text>
+                {getAgeFromDob(dob) !== null && (
+                  <View style={styles.inlineAgeBadge}>
+                    <Text style={styles.inlineAgeBadgeText}>{getAgeFromDob(dob)} yrs</Text>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.modernDobTrigger}
+                onPress={() => {
+                  if (dob && dob.includes('-')) {
+                    const parts = dob.split('-');
+                    const y = parseInt(parts[0], 10);
+                    const m = parseInt(parts[1], 10) - 1;
+                    const d = parseInt(parts[2], 10);
+                    if (!isNaN(y)) {
+                      setCalYear(y);
+                      setSelectedDecade(Math.floor(y / 10) * 10);
+                    }
+                    if (!isNaN(m) && m >= 0 && m < 12) setCalMonth(m);
+                    if (!isNaN(d) && d >= 1 && d <= 31) setCalDay(d);
+                  }
+                  setCalViewMode('days');
+                  setShowDatePickerModal(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <Calendar size={17} color="#2563EB" strokeWidth={2.2} />
+                <Text
+                  style={[
+                    styles.modernDobValueText,
+                    !dob && styles.modernDobPlaceholderText,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {dob ? (formatFriendlyDate(dob) || dob) : 'YYYY-MM-DD'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <View style={[styles.fieldGroup, { flex: 1 }]}>
-              <Text style={styles.fieldLabel}>Gender</Text>
-              <TextInput
-                style={styles.inputBox}
-                value={gender}
-                onChangeText={setGender}
-                editable={isEditing}
-              />
+              <View style={styles.dobLabelRow}>
+                <Text style={styles.fieldLabel}>Gender</Text>
+              </View>
+              <View style={styles.genderChipsRow}>
+                {(['Male', 'Female', 'Other'] as const).map((g) => {
+                  const isSelected = gender?.toLowerCase() === g.toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={g}
+                      style={[styles.genderChip, isSelected && styles.genderChipActive]}
+                      onPress={() => setGender(g)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.genderChipText, isSelected && styles.genderChipTextActive]}>
+                        {g}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
           </View>
 
@@ -204,110 +533,60 @@ export default function PersonalInformationScreen() {
         {/* Section 2: Contact details */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionHeading}>Contact details</Text>
-          <Text style={styles.sectionDesc}>Every phone number and email must be verified with an OTP.</Text>
+          <Text style={styles.sectionDesc}>Edit your primary and alternate contact details.</Text>
 
           {/* Primary Mobile */}
-          <View style={styles.contactItem}>
-            <View style={styles.contactIconBox}>
-              <Phone size={16} color="#64748B" strokeWidth={2.2} />
-            </View>
-            <View style={styles.contactInfo}>
-              <Text style={styles.contactLabel}>Mobile number</Text>
-              <View style={styles.contactValRow}>
-                <Text style={styles.contactVal}>{primaryPhone}</Text>
-                <CheckCircle2 size={13} color="#10B981" strokeWidth={2.4} />
-              </View>
-            </View>
-            <TouchableOpacity
-              style={styles.changePillBtn}
-              onPress={() => {
-                setChangePhoneStep(1);
-                setShowChangePhoneModal(true);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.changePillText}>Change</Text>
-            </TouchableOpacity>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Mobile number</Text>
+            <TextInput
+              style={styles.inputBox}
+              value={primaryPhone}
+              onChangeText={setPrimaryPhone}
+              placeholder="+91 98490 63269"
+              placeholderTextColor="#94A3B8"
+              keyboardType="phone-pad"
+            />
           </View>
 
           {/* Primary Email */}
-          <View style={styles.contactItem}>
-            <View style={styles.contactIconBox}>
-              <Mail size={16} color="#64748B" strokeWidth={2.2} />
-            </View>
-            <View style={styles.contactInfo}>
-              <Text style={styles.contactLabel}>Email address</Text>
-              <View style={styles.contactValRow}>
-                <Text style={styles.contactVal}>{primaryEmail}</Text>
-                <CheckCircle2 size={13} color="#10B981" strokeWidth={2.4} />
-              </View>
-            </View>
-            <TouchableOpacity style={styles.changePillBtn} activeOpacity={0.8}>
-              <Text style={styles.changePillText}>Change</Text>
-            </TouchableOpacity>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Email address</Text>
+            <TextInput
+              style={styles.inputBox}
+              value={primaryEmail}
+              onChangeText={setPrimaryEmail}
+              placeholder="user@example.com"
+              placeholderTextColor="#94A3B8"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
           </View>
 
           {/* Alternate Mobile */}
-          <View style={styles.contactItem}>
-            <View style={styles.contactIconBox}>
-              <Phone size={16} color="#64748B" strokeWidth={2.2} />
-            </View>
-            <View style={styles.contactInfo}>
-              <Text style={styles.contactLabel}>Alternate mobile</Text>
-              <View style={styles.contactValRow}>
-                <Text style={[styles.contactVal, !alternatePhone && styles.notAddedText]}>
-                  {alternatePhone || 'Not added'}
-                </Text>
-                {alternatePhone ? (
-                  <CheckCircle2 size={13} color="#10B981" strokeWidth={2.4} />
-                ) : null}
-              </View>
-            </View>
-
-            {alternatePhone ? (
-              <TouchableOpacity
-                style={styles.changePillBtn}
-                onPress={() => {
-                  setAltPhoneStep(1);
-                  setShowAddAlternateModal(true);
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.changePillText}>Change</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.addPillBtn}
-                onPress={() => {
-                  setAltPhoneStep(1);
-                  setShowAddAlternateModal(true);
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.addPillText}>+ Add</Text>
-              </TouchableOpacity>
-            )}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Alternate mobile (Optional)</Text>
+            <TextInput
+              style={styles.inputBox}
+              value={alternatePhone || ''}
+              onChangeText={setAlternatePhone}
+              placeholder="e.g. +91 95678 89900"
+              placeholderTextColor="#94A3B8"
+              keyboardType="phone-pad"
+            />
           </View>
 
           {/* Alternate Email */}
-          <View style={styles.contactItem}>
-            <View style={styles.contactIconBox}>
-              <Mail size={16} color="#64748B" strokeWidth={2.2} />
-            </View>
-            <View style={styles.contactInfo}>
-              <Text style={styles.contactLabel}>Alternate email</Text>
-              <View style={styles.contactValRow}>
-                <Text style={[styles.contactVal, !alternateEmail && styles.notAddedText]}>
-                  {alternateEmail || 'Not added'}
-                </Text>
-                {alternateEmail ? (
-                  <CheckCircle2 size={13} color="#10B981" strokeWidth={2.4} />
-                ) : null}
-              </View>
-            </View>
-            <TouchableOpacity style={styles.addPillBtn} activeOpacity={0.8}>
-              <Text style={styles.addPillText}>+ Add</Text>
-            </TouchableOpacity>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Alternate email (Optional)</Text>
+            <TextInput
+              style={styles.inputBox}
+              value={alternateEmail || ''}
+              onChangeText={setAlternateEmail}
+              placeholder="e.g. alternate@example.com"
+              placeholderTextColor="#94A3B8"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
           </View>
         </View>
 
@@ -321,7 +600,8 @@ export default function PersonalInformationScreen() {
               style={styles.inputBox}
               value={streetAddress}
               onChangeText={setStreetAddress}
-              editable={isEditing}
+              placeholder="Plot / Flat / Street address"
+              placeholderTextColor="#94A3B8"
             />
           </View>
 
@@ -332,7 +612,8 @@ export default function PersonalInformationScreen() {
                 style={styles.inputBox}
                 value={city}
                 onChangeText={setCity}
-                editable={isEditing}
+                placeholder="e.g. Hyderabad"
+                placeholderTextColor="#94A3B8"
               />
             </View>
 
@@ -342,7 +623,10 @@ export default function PersonalInformationScreen() {
                 style={styles.inputBox}
                 value={pincode}
                 onChangeText={setPincode}
-                editable={isEditing}
+                placeholder="e.g. 500033"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+                maxLength={6}
               />
             </View>
           </View>
@@ -353,10 +637,28 @@ export default function PersonalInformationScreen() {
               style={styles.inputBox}
               value={stateName}
               onChangeText={setStateName}
-              editable={isEditing}
+              placeholder="e.g. Telangana"
+              placeholderTextColor="#94A3B8"
             />
           </View>
         </View>
+
+        {/* Bottom Save Action Button */}
+        <TouchableOpacity
+          style={[styles.bottomSaveBtn, isSaving && { opacity: 0.8 }]}
+          onPress={handleSaveProfile}
+          disabled={isSaving}
+          activeOpacity={0.85}
+        >
+          {isSaving ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Check size={18} color="#FFFFFF" strokeWidth={2.4} />
+              <Text style={styles.bottomSaveBtnText}>Save Changes</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </ScrollView>
 
       {/* ========================================================= */}
@@ -696,6 +998,342 @@ export default function PersonalInformationScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ========================================================= */}
+      {/* ADVANCED MODERN CALENDAR DATE PICKER MODAL                */}
+      {/* ========================================================= */}
+      <Modal
+        visible={showDatePickerModal}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setShowDatePickerModal(false)}
+      >
+        <View style={styles.calendarOverlay}>
+          <View style={styles.modernCalContainer}>
+            {/* Dark Top Preview Card */}
+            <View style={styles.modernCalHeaderBanner}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Calendar size={13} color="#94A3B8" strokeWidth={2.4} />
+                  <Text style={styles.modernCalHeaderSub}>DATE OF BIRTH</Text>
+                </View>
+                {getAgeFromDob(`${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(calDay).padStart(2, '0')}`) !== null && (
+                  <View style={styles.calHeaderAgeBadge}>
+                    <Sparkles size={11} color="#60A5FA" strokeWidth={2.2} />
+                    <Text style={styles.calHeaderAgeText}>
+                      {getAgeFromDob(`${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(calDay).padStart(2, '0')}`)} Years Old
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <Text style={styles.modernCalHeaderDate}>
+                {formatFullDisplayDate(calYear, calMonth, calDay)}
+              </Text>
+
+              {/* Segmented Mode Selector Tabs */}
+              <View style={styles.calSegmentedRow}>
+                <TouchableOpacity
+                  style={[styles.calSegmentTab, calViewMode === 'days' && styles.calSegmentTabActive]}
+                  onPress={() => setCalViewMode('days')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.calSegmentText, calViewMode === 'days' && styles.calSegmentTextActive]}>
+                    Calendar
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.calSegmentTab, calViewMode === 'months' && styles.calSegmentTabActive]}
+                  onPress={() => setCalViewMode('months')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.calSegmentText, calViewMode === 'months' && styles.calSegmentTextActive]}>
+                    Month
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.calSegmentTab, calViewMode === 'years' && styles.calSegmentTabActive]}
+                  onPress={() => setCalViewMode('years')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.calSegmentText, calViewMode === 'years' && styles.calSegmentTextActive]}>
+                    Year
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.calSegmentTab, calViewMode === 'presets' && styles.calSegmentTabActive]}
+                  onPress={() => setCalViewMode('presets')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.calSegmentText, calViewMode === 'presets' && styles.calSegmentTextActive]}>
+                    Quick Age
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Modal Content depending on Tab */}
+            <View style={styles.modernCalBody}>
+              {/* TAB 1: DAYS (Calendar View with Month & Year fast controls) */}
+              {calViewMode === 'days' && (
+                <View>
+                  {/* Month & Year Bar */}
+                  <View style={styles.modernMonthNavRow}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (calMonth === 0) {
+                          setCalMonth(11);
+                          setCalYear(prev => prev - 1);
+                        } else {
+                          setCalMonth(prev => prev - 1);
+                        }
+                      }}
+                      style={styles.modernNavArrow}
+                      activeOpacity={0.7}
+                    >
+                      <ChevronLeft size={18} color="#1E293B" strokeWidth={2.4} />
+                    </TouchableOpacity>
+
+                    <View style={styles.monthYearCenterBlock}>
+                      <TouchableOpacity
+                        onPress={() => setCalViewMode('months')}
+                        style={styles.jumpPillBtn}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.modernMonthTitleText}>{MONTHS[calMonth]}</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => setCalViewMode('years')}
+                        style={[styles.jumpPillBtn, styles.jumpPillYearBtn]}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.modernYearBadgeText}>{calYear} ▾</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (calMonth === 11) {
+                          setCalMonth(0);
+                          setCalYear(prev => prev + 1);
+                        } else {
+                          setCalMonth(prev => prev + 1);
+                        }
+                      }}
+                      style={styles.modernNavArrow}
+                      activeOpacity={0.7}
+                    >
+                      <ChevronRight size={18} color="#1E293B" strokeWidth={2.4} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Weekday headers */}
+                  <View style={styles.modernWeekdayRow}>
+                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d, idx) => (
+                      <Text key={idx} style={styles.modernWeekdayText}>{d}</Text>
+                    ))}
+                  </View>
+
+                  {/* Days grid */}
+                  <View style={styles.modernDaysGrid}>
+                    {Array.from({ length: getFirstDayOfMonth(calYear, calMonth) }).map((_, idx) => (
+                      <View key={`empty-${idx}`} style={styles.modernDayCellEmpty} />
+                    ))}
+
+                    {Array.from({ length: getDaysInMonth(calYear, calMonth) }).map((_, idx) => {
+                      const dayNum = idx + 1;
+                      const isSelected = calDay === dayNum;
+                      const today = new Date();
+                      const isToday =
+                        today.getFullYear() === calYear &&
+                        today.getMonth() === calMonth &&
+                        today.getDate() === dayNum;
+
+                      return (
+                        <TouchableOpacity
+                          key={`day-${dayNum}`}
+                          style={[
+                            styles.modernDayCell,
+                            isSelected && styles.modernDayCellSelected,
+                            isToday && !isSelected && styles.modernDayCellToday,
+                          ]}
+                          onPress={() => setCalDay(dayNum)}
+                          activeOpacity={0.75}
+                        >
+                          <Text
+                            style={[
+                              styles.modernDayCellText,
+                              isSelected && styles.modernDayCellTextSelected,
+                              isToday && !isSelected && styles.modernDayCellTextToday,
+                            ]}
+                          >
+                            {dayNum}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {/* TAB 2: MONTHS (12 tiles grid) */}
+              {calViewMode === 'months' && (
+                <View style={styles.tabContentBlock}>
+                  <Text style={styles.tabInstruction}>Tap to select month for {calYear}:</Text>
+                  <View style={styles.monthsGrid}>
+                    {MONTHS.map((m, idx) => {
+                      const isSelected = calMonth === idx;
+                      return (
+                        <TouchableOpacity
+                          key={m}
+                          style={[styles.monthCard, isSelected && styles.monthCardSelected]}
+                          onPress={() => {
+                            setCalMonth(idx);
+                            setCalViewMode('days');
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[styles.monthCardText, isSelected && styles.monthCardTextSelected]}>
+                            {m.slice(0, 3)}
+                          </Text>
+                          <Text style={[styles.monthCardSub, isSelected && styles.monthCardSubSelected]}>
+                            {m}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {/* TAB 3: YEARS (Fast Decades + 10 Years Grid) */}
+              {calViewMode === 'years' && (
+                <View style={styles.tabContentBlock}>
+                  <Text style={styles.tabInstruction}>Choose decade, then pick birth year:</Text>
+                  {/* Decade selector */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.decadeScroll}>
+                    {DECADES.map(dec => (
+                      <TouchableOpacity
+                        key={dec}
+                        style={[styles.decadeChip, selectedDecade === dec && styles.decadeChipActive]}
+                        onPress={() => setSelectedDecade(dec)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.decadeChipText, selectedDecade === dec && styles.decadeChipTextActive]}>
+                          {dec}s
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  {/* Year grid for selected decade */}
+                  <View style={styles.decadeYearsGrid}>
+                    {Array.from({ length: 10 }, (_, i) => selectedDecade + i).map(yr => {
+                      const isSelected = calYear === yr;
+                      return (
+                        <TouchableOpacity
+                          key={yr}
+                          style={[styles.decadeYearBtn, isSelected && styles.decadeYearBtnSelected]}
+                          onPress={() => {
+                            setCalYear(yr);
+                            setCalViewMode('days');
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[styles.decadeYearText, isSelected && styles.decadeYearTextSelected]}>
+                            {yr}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {/* TAB 4: QUICK AGE PRESETS */}
+              {calViewMode === 'presets' && (
+                <View style={styles.tabContentBlock}>
+                  <Text style={styles.tabInstruction}>Select your current age to calculate birth year:</Text>
+                  <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
+                    <View style={styles.presetsGrid}>
+                      {[18, 20, 22, 24, 25, 27, 30, 32, 35, 38, 40, 45, 50, 55, 60, 65].map(age => {
+                        const currentYear = new Date().getFullYear();
+                        const birthYear = currentYear - age;
+                        const isCurrent = calYear === birthYear;
+
+                        return (
+                          <TouchableOpacity
+                            key={age}
+                            style={[styles.presetCard, isCurrent && styles.presetCardActive]}
+                            onPress={() => {
+                              setCalYear(birthYear);
+                              setSelectedDecade(Math.floor(birthYear / 10) * 10);
+                              setCalViewMode('days');
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={[styles.presetCardAge, isCurrent && styles.presetCardAgeActive]}>
+                              {age} yrs
+                            </Text>
+                            <Text style={[styles.presetCardYear, isCurrent && styles.presetCardYearActive]}>
+                              Born {birthYear}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
+            {/* Bottom Modal Actions */}
+            <View style={styles.modernCalFooter}>
+              <TouchableOpacity
+                style={styles.calResetBtn}
+                onPress={() => {
+                  setDob('');
+                  setShowDatePickerModal(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <RotateCcw size={14} color="#64748B" strokeWidth={2.2} />
+                <Text style={styles.calResetBtnText}>Clear</Text>
+              </TouchableOpacity>
+
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  style={styles.calSecondaryBtn}
+                  onPress={() => setShowDatePickerModal(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.calSecondaryBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.calConfirmBtn}
+                  onPress={() => {
+                    const mm = String(calMonth + 1).padStart(2, '0');
+                    const dd = String(calDay).padStart(2, '0');
+                    const formattedDob = `${calYear}-${mm}-${dd}`;
+                    setDob(formattedDob);
+                    setShowDatePickerModal(false);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Check size={16} color="#FFFFFF" strokeWidth={2.4} />
+                  <Text style={styles.calConfirmBtnText}>Apply</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -748,15 +1386,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   editBtn: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 14,
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 14,
   },
   editBtnText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#1E293B',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   scrollArea: {
     flex: 1,
@@ -852,7 +1490,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   inputBox: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 11,
@@ -864,6 +1504,438 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  dobLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    height: 18,
+    marginBottom: 6,
+  },
+  inlineAgeBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  inlineAgeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  modernDobTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 46,
+    gap: 8,
+  },
+  modernDobValueText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+    flex: 1,
+  },
+  modernDobPlaceholderText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#94A3B8',
+    flex: 1,
+  },
+  calendarOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modernCalContainer: {
+    width: '100%',
+    maxWidth: 375,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.25,
+    shadowRadius: 28,
+    elevation: 12,
+  },
+  modernCalHeaderBanner: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 16,
+  },
+  modernCalHeaderSub: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 1.2,
+  },
+  calHeaderAgeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(37, 99, 235, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.4)',
+  },
+  calHeaderAgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#93C5FD',
+  },
+  modernCalHeaderDate: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  calSegmentedRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 3,
+    gap: 4,
+  },
+  calSegmentTab: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 9,
+  },
+  calSegmentTabActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  calSegmentText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  calSegmentTextActive: {
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  modernCalBody: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
+  modernMonthNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  modernNavArrow: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthYearCenterBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  jumpPillBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  jumpPillYearBtn: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#DBEAFE',
+  },
+  modernMonthTitleText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  modernYearBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  modernWeekdayRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 6,
+  },
+  modernWeekdayText: {
+    width: '14.28%',
+    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  modernDaysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  modernDayCellEmpty: {
+    width: '14.28%',
+    height: 36,
+  },
+  modernDayCell: {
+    width: '14.28%',
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    marginVertical: 1,
+  },
+  modernDayCellSelected: {
+    backgroundColor: '#0F172A',
+  },
+  modernDayCellToday: {
+    borderWidth: 1.5,
+    borderColor: '#2563EB',
+  },
+  modernDayCellText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  modernDayCellTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  modernDayCellTextToday: {
+    color: '#2563EB',
+    fontWeight: '700',
+  },
+  tabContentBlock: {
+    paddingVertical: 4,
+  },
+  tabInstruction: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+    marginBottom: 10,
+  },
+  monthsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  monthCard: {
+    width: '31%',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  monthCardSelected: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  monthCardText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  monthCardTextSelected: {
+    color: '#FFFFFF',
+  },
+  monthCardSub: {
+    fontSize: 9,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  monthCardSubSelected: {
+    color: '#94A3B8',
+  },
+  decadeScroll: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingBottom: 10,
+  },
+  decadeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  decadeChipActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  decadeChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  decadeChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  decadeYearsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  decadeYearBtn: {
+    width: '18%',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingVertical: 9,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  decadeYearBtnSelected: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  decadeYearText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  decadeYearTextSelected: {
+    color: '#FFFFFF',
+  },
+  presetsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  presetCard: {
+    width: '23%',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  presetCardActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  presetCardAge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  presetCardAgeActive: {
+    color: '#FFFFFF',
+  },
+  presetCardYear: {
+    fontSize: 9,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  presetCardYearActive: {
+    color: '#94A3B8',
+  },
+  modernCalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    backgroundColor: '#FAFAFA',
+  },
+  calResetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  calResetBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  calSecondaryBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#E2E8F0',
+  },
+  calSecondaryBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  calConfirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#0F172A',
+  },
+  calConfirmBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  genderChipsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    height: 46,
+  },
+  genderChip: {
+    flex: 1,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+  },
+  genderChipActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  genderChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  genderChipTextActive: {
+    color: '#FFFFFF',
+  },
   roleChipsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -873,12 +1945,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
     paddingVertical: 9,
     borderRadius: 14,
   },
   roleChipActive: {
     backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
   },
   roleChipText: {
     fontSize: 12,
@@ -887,6 +1962,27 @@ const styles = StyleSheet.create({
   },
   roleChipTextActive: {
     color: '#FFFFFF',
+  },
+  bottomSaveBtn: {
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  bottomSaveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
   contactItem: {
     flexDirection: 'row',

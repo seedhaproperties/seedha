@@ -41,6 +41,31 @@ export class CreatePropertyDto {
   @IsNotEmpty()
   city!: string;
 
+  @ApiPropertyOptional({ example: 'Telangana' })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiPropertyOptional({ example: '500081' })
+  @IsOptional()
+  @IsString()
+  pincode?: string;
+
+  @ApiPropertyOptional({ example: 17.4482 })
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @ApiPropertyOptional({ example: 78.3756 })
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  @ApiPropertyOptional({ example: 'Hitec City, Madhapur, Hyderabad, Telangana 500081' })
+  @IsOptional()
+  @IsString()
+  fullAddress?: string;
+
   @ApiProperty({ example: 1650 })
   @IsNumber()
   area!: number;
@@ -94,6 +119,42 @@ export class CreatePropertyDto {
   @IsString()
   @IsNotEmpty()
   ownerPhone!: string;
+
+  @ApiPropertyOptional({ example: 'rahul@example.com' })
+  @IsOptional()
+  @IsString()
+  ownerEmail?: string;
+
+  @ApiPropertyOptional({ example: 'East' })
+  @IsOptional()
+  @IsString()
+  facing?: string;
+
+  @ApiPropertyOptional({ example: '4th' })
+  @IsOptional()
+  @IsString()
+  floor?: string;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsNumber()
+  totalFloors?: number;
+
+  @ApiPropertyOptional({ example: {} })
+  @IsOptional()
+  details?: any;
+}
+
+export class UploadPropertyImageDto {
+  @ApiPropertyOptional({ example: 'data:image/jpeg;base64,...' })
+  @IsOptional()
+  @IsString()
+  imageBase64?: string;
+
+  @ApiPropertyOptional({ example: 'https://images.unsplash.com/...' })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 export class QueryPropertyDto {

@@ -13,6 +13,7 @@ export enum ListingTypeEnum {
 
 export enum PropertyStatusEnum {
   DRAFT = 'DRAFT',
+  PENDING = 'PENDING',
   SUBMITTED = 'SUBMITTED',
   UNDER_REVIEW = 'UNDER_REVIEW',
   VERIFICATION_IN_PROGRESS = 'VERIFICATION_IN_PROGRESS',
@@ -20,6 +21,7 @@ export enum PropertyStatusEnum {
   PUBLISHED = 'PUBLISHED',
   REJECTED = 'REJECTED',
   NEEDS_CORRECTION = 'NEEDS_CORRECTION',
+  CLOSED = 'CLOSED',
 }
 
 export const SERVICEABLE_LOCALITIES = [

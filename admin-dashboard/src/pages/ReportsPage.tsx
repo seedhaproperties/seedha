@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BarChart3,
   TrendingUp,
@@ -9,15 +9,30 @@ import {
   Building2,
 } from 'lucide-react';
 import { adminService } from '../services/api';
+import { PropertyRequest } from '../types';
 
 export const ReportsPage: React.FC = () => {
-  const requests = adminService.getRequestsSync();
+  const [requests, setRequests] = useState<PropertyRequest[]>([]);
+  const [reportData, setReportData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const total = requests.length;
-  const verified = requests.filter((r) => r.status === 'verified' || r.status === 'published').length;
-  const rejected = requests.filter((r) => r.status === 'rejected').length;
-  const inProgress = requests.filter((r) => r.status === 'in_review' || r.status === 'assigned' || r.status === 'field_visit').length;
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const [reqs, rep] = await Promise.all([
+        adminService.getRequests(),
+        adminService.getReports(),
+      ]);
+      setRequests(reqs);
+      setReportData(rep);
+      setLoading(false);
+    }
+    load();
+  }, []);
 
+  const total = reportData?.summary?.totalProperties || requests.length;
+  const verified = reportData?.summary?.verifiedProperties || requests.filter((r) => r.status === 'verified' || r.status === 'published').length;
+  const rejected = reportData?.summary?.rejectedProperties || requests.filter((r) => r.status === 'rejected').length;
   const passRate = total > 0 ? Math.round((verified / total) * 100) : 0;
 
   return (
@@ -87,62 +102,34 @@ export const ReportsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              <tr>
-                <td className="py-3.5 px-6 font-bold text-slate-900">Flat / Building</td>
-                <td className="py-3.5 px-6">12</td>
-                <td className="py-3.5 px-6 text-emerald-600">8</td>
-                <td className="py-3.5 px-6 text-rose-600">1</td>
-                <td className="py-3.5 px-6 font-mono">11.4h</td>
-                <td className="py-3.5 px-6 text-emerald-600 font-bold">96.8%</td>
-              </tr>
-              <tr>
-                <td className="py-3.5 px-6 font-bold text-slate-900">Rent</td>
-                <td className="py-3.5 px-6">18</td>
-                <td className="py-3.5 px-6 text-emerald-600">15</td>
-                <td className="py-3.5 px-6 text-rose-600">2</td>
-                <td className="py-3.5 px-6 font-mono">8.2h</td>
-                <td className="py-3.5 px-6 text-emerald-600 font-bold">99.1%</td>
-              </tr>
-              <tr>
-                <td className="py-3.5 px-6 font-bold text-slate-900">Commercial</td>
-                <td className="py-3.5 px-6">6</td>
-                <td className="py-3.5 px-6 text-emerald-600">4</td>
-                <td className="py-3.5 px-6 text-rose-600">1</td>
-                <td className="py-3.5 px-6 font-mono">18.6h</td>
-                <td className="py-3.5 px-6 text-emerald-600 font-bold">94.2%</td>
-              </tr>
-              <tr>
-                <td className="py-3.5 px-6 font-bold text-slate-900">Property Management</td>
-                <td className="py-3.5 px-6">9</td>
-                <td className="py-3.5 px-6 text-emerald-600">6</td>
-                <td className="py-3.5 px-6 text-rose-600">2</td>
-                <td className="py-3.5 px-6 font-mono">4.1h</td>
-                <td className="py-3.5 px-6 text-emerald-600 font-bold">98.5%</td>
-              </tr>
-              <tr>
-                <td className="py-3.5 px-6 font-bold text-slate-900">Home Loan</td>
-                <td className="py-3.5 px-6">14</td>
-                <td className="py-3.5 px-6 text-emerald-600">10</td>
-                <td className="py-3.5 px-6 text-rose-600">1</td>
-                <td className="py-3.5 px-6 font-mono">22.4h</td>
-                <td className="py-3.5 px-6 text-emerald-600 font-bold">92.0%</td>
-              </tr>
-              <tr>
-                <td className="py-3.5 px-6 font-bold text-slate-900">Rental Agreements</td>
-                <td className="py-3.5 px-6">25</td>
-                <td className="py-3.5 px-6 text-emerald-600">24</td>
-                <td className="py-3.5 px-6 text-rose-600">0</td>
-                <td className="py-3.5 px-6 font-mono">2.8h</td>
-                <td className="py-3.5 px-6 text-emerald-600 font-bold">99.8%</td>
-              </tr>
-              <tr>
-                <td className="py-3.5 px-6 font-bold text-slate-900">Owner BG Check</td>
-                <td className="py-3.5 px-6">11</td>
-                <td className="py-3.5 px-6 text-emerald-600">9</td>
-                <td className="py-3.5 px-6 text-rose-600">1</td>
-                <td className="py-3.5 px-6 font-mono">16.0h</td>
-                <td className="py-3.5 px-6 text-emerald-600 font-bold">95.4%</td>
-              </tr>
+              {[
+                { key: 'flat_building', label: 'Flat / Building', avgSla: '11.4h' },
+                { key: 'rent', label: 'Rent', avgSla: '8.2h' },
+                { key: 'commercial', label: 'Commercial', avgSla: '18.6h' },
+                { key: 'pg_hostel', label: 'PG & Hostel', avgSla: '12.0h' },
+                { key: 'property_management', label: 'Property Management', avgSla: '4.1h' },
+                { key: 'home_loan', label: 'Home Loan', avgSla: '22.4h' },
+                { key: 'rental_agreements', label: 'Rental Agreements', avgSla: '2.8h' },
+                { key: 'owner_background', label: 'Owner BG Check', avgSla: '16.0h' },
+              ].map((v) => {
+                const sub = requests.filter((r) => r.module === v.key).length;
+                const ver = requests.filter(
+                  (r) => r.module === v.key && (r.status === 'verified' || r.status === 'published')
+                ).length;
+                const rej = requests.filter((r) => r.module === v.key && r.status === 'rejected').length;
+                const compliance = sub > 0 ? Math.round(((sub - rej) / sub) * 100) : 100;
+
+                return (
+                  <tr key={v.key}>
+                    <td className="py-3.5 px-6 font-bold text-slate-900">{v.label}</td>
+                    <td className="py-3.5 px-6">{sub}</td>
+                    <td className="py-3.5 px-6 text-emerald-600">{ver}</td>
+                    <td className="py-3.5 px-6 text-rose-600">{rej}</td>
+                    <td className="py-3.5 px-6 font-mono">{v.avgSla}</td>
+                    <td className="py-3.5 px-6 text-emerald-600 font-bold">{compliance}%</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -4,9 +4,11 @@ import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
 import { Msg91Service } from './msg91.service.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module.js';
 
 @Module({
   imports: [
+    CloudinaryModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'seedha_properties_jwt_secret_2026_secure_key',
       signOptions: { expiresIn: '7d' },

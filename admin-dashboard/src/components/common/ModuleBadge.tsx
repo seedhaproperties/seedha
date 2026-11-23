@@ -8,6 +8,7 @@ import {
   BadgePercent,
   FileText,
   UserCheck,
+  Home,
 } from 'lucide-react';
 
 interface ModuleBadgeProps {
@@ -20,7 +21,13 @@ const MODULE_DATA: Record<
   { label: string; icon: React.FC<{ className?: string }>; color: string; bg: string }
 > = {
   flat_building: {
-    label: 'Flat / Building',
+    label: 'Buy / Sell Property',
+    icon: Building2,
+    color: 'text-sky-700',
+    bg: 'bg-sky-50 border-sky-200',
+  },
+  buy_sell: {
+    label: 'Buy / Sell Property',
     icon: Building2,
     color: 'text-sky-700',
     bg: 'bg-sky-50 border-sky-200',
@@ -36,6 +43,12 @@ const MODULE_DATA: Record<
     icon: Briefcase,
     color: 'text-violet-700',
     bg: 'bg-violet-50 border-violet-200',
+  },
+  pg_hostel: {
+    label: 'PG & Hostel',
+    icon: Home,
+    color: 'text-amber-700',
+    bg: 'bg-amber-50 border-amber-200',
   },
   property_management: {
     label: 'Property Mgmt',

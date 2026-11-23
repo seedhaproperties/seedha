@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Controller, Post, Body, Get, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Get, Patch, Put, Delete, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiProperty } from '@nestjs/swagger';
 import { IsString, IsOptional, IsNotEmpty, IsEmail } from 'class-validator';
 import { AuthService } from './auth.service.js';
@@ -220,6 +220,143 @@ __decorate([
     IsString(),
     __metadata("design:type", String)
 ], ForgotPasswordDto.prototype, "email", void 0);
+class UpdateProfileDto {
+    name;
+    phone;
+    email;
+    avatarUrl;
+    dob;
+    gender;
+    userRole;
+    streetAddress;
+    city;
+    state;
+    pincode;
+    alternatePhone;
+    alternateEmail;
+    summary;
+    settings;
+}
+__decorate([
+    ApiProperty({ example: 'Rahul Google User', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "name", void 0);
+__decorate([
+    ApiProperty({ example: '+91 98490 63269', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "phone", void 0);
+__decorate([
+    ApiProperty({ example: 'rahul.google.test@gmail.com', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "email", void 0);
+__decorate([
+    ApiProperty({ example: 'https://images.unsplash.com/...', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "avatarUrl", void 0);
+__decorate([
+    ApiProperty({ example: '1990-05-15', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "dob", void 0);
+__decorate([
+    ApiProperty({ example: 'Male', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "gender", void 0);
+__decorate([
+    ApiProperty({ example: 'Owner', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "userRole", void 0);
+__decorate([
+    ApiProperty({ example: 'Plot 42, Road No. 36, Jubilee Hills', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "streetAddress", void 0);
+__decorate([
+    ApiProperty({ example: 'Hyderabad', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "city", void 0);
+__decorate([
+    ApiProperty({ example: 'Telangana', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "state", void 0);
+__decorate([
+    ApiProperty({ example: '500033', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "pincode", void 0);
+__decorate([
+    ApiProperty({ example: '+91 95678 89900', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "alternatePhone", void 0);
+__decorate([
+    ApiProperty({ example: 'alternate@example.com', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UpdateProfileDto.prototype, "alternateEmail", void 0);
+__decorate([
+    ApiProperty({
+        example: { savedCount: 3, activityCount: 14, propertiesCount: 5, servicesCount: 4 },
+        required: false,
+        description: 'Quick access counts for Saved Properties, Activity, Properties, Services',
+    }),
+    IsOptional(),
+    __metadata("design:type", Object)
+], UpdateProfileDto.prototype, "summary", void 0);
+__decorate([
+    ApiProperty({
+        example: {
+            whatsappUpdates: true,
+            pushNotifications: true,
+            emailUpdates: true,
+            smsAlerts: false,
+            offersPromotions: true,
+            visitReminders: true,
+            useLocation: true,
+        },
+        required: false,
+        description: 'Account settings preferences and notifications',
+    }),
+    IsOptional(),
+    __metadata("design:type", Object)
+], UpdateProfileDto.prototype, "settings", void 0);
+class UploadAvatarDto {
+    avatarUrl;
+    imageBase64;
+}
+__decorate([
+    ApiProperty({ example: 'https://images.unsplash.com/...', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UploadAvatarDto.prototype, "avatarUrl", void 0);
+__decorate([
+    ApiProperty({ example: 'data:image/jpeg;base64,...', required: false }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UploadAvatarDto.prototype, "imageBase64", void 0);
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -259,7 +396,35 @@ let AuthController = class AuthController {
         return this.authService.forgotPassword(dto.email);
     }
     async getMe(req) {
-        return this.authService.getCurrentUser(req.user?.sub || 'usr_demo');
+        let sub = req.user?.sub;
+        if (!sub) {
+            const authHeader = req.headers?.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                const token = authHeader.split(' ')[1];
+                const payload = this.authService.verifyAccessToken(token);
+                sub = payload?.sub || payload?.id;
+            }
+        }
+        if (!sub) {
+            return { authenticated: false, user: null, message: 'No active authenticated session' };
+        }
+        return this.authService.getCurrentUser(sub);
+    }
+    async updateMe(req, dto) {
+        const userId = req.user?.sub || req.user?.id || 'usr_demo';
+        return this.authService.updateProfile(userId, dto);
+    }
+    async updateProfile(req, dto) {
+        const userId = req.user?.sub || req.user?.id || 'usr_demo';
+        return this.authService.updateProfile(userId, dto);
+    }
+    async uploadAvatar(req, body) {
+        const userId = req.user?.sub || req.user?.id || 'usr_demo';
+        return this.authService.uploadAvatar(userId, body.avatarUrl || body.imageBase64 || '');
+    }
+    async deleteAvatar(req) {
+        const userId = req.user?.sub || req.user?.id || 'usr_demo';
+        return this.authService.deleteAvatar(userId);
     }
 };
 __decorate([
@@ -371,14 +536,55 @@ __decorate([
 ], AuthController.prototype, "forgotPassword", null);
 __decorate([
     Get('me'),
-    UseGuards(JwtAuthGuard),
-    ApiBearerAuth(),
     ApiOperation({ summary: 'Get current authenticated user profile' }),
     __param(0, Request()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "getMe", null);
+__decorate([
+    Patch('me'),
+    UseGuards(JwtAuthGuard),
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Update profile details of current user' }),
+    __param(0, Request()),
+    __param(1, Body()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, UpdateProfileDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "updateMe", null);
+__decorate([
+    Put('profile'),
+    UseGuards(JwtAuthGuard),
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Update profile details (PUT alias)' }),
+    __param(0, Request()),
+    __param(1, Body()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, UpdateProfileDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "updateProfile", null);
+__decorate([
+    Post('upload-avatar'),
+    UseGuards(JwtAuthGuard),
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Upload or update profile photo avatar' }),
+    __param(0, Request()),
+    __param(1, Body()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, UploadAvatarDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "uploadAvatar", null);
+__decorate([
+    Delete('avatar'),
+    UseGuards(JwtAuthGuard),
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Delete current user profile photo' }),
+    __param(0, Request()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "deleteAvatar", null);
 AuthController = __decorate([
     ApiTags('Authentication'),
     Controller('api/v1/auth'),

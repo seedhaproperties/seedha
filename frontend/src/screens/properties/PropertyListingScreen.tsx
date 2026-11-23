@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { SlidersHorizontal, LayoutGrid, List, Map, ArrowUpDown, Search, Check } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { properties } from '../../data/properties';
+import { api } from '../../services/api';
 import PropertyCard from '../../components/PropertyCard';
 import TopBar from '../../components/TopBar';
 import EmptyState from '../../components/EmptyState';
@@ -29,8 +30,54 @@ export default function PropertyListingScreen() {
   const [sortBy, setSortBy] = useState<SortBy>('relevance');
   const [showSort, setShowSort] = useState(false);
   const [searchQuery, setSearchQuery] = useState(location || '');
+  const [liveProperties, setLiveProperties] = useState<Property[]>([]);
 
-  const safeProperties = Array.isArray(properties) ? properties.filter((p): p is Property => Boolean(p && p.id && p.title)) : [];
+  useEffect(() => {
+    let isMounted = true;
+    api.properties
+      .list(type ? { type } : undefined)
+      .then((res) => {
+        const list = res?.properties || (Array.isArray(res) ? res : []);
+        if (Array.isArray(list) && isMounted) {
+          const mapped: Property[] = list.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            location: p.location,
+            city: p.city || 'Hyderabad',
+            price: p.price,
+            priceLabel: p.priceLabel || `₹${Number(p.price).toLocaleString('en-IN')}`,
+            listingType: (p.listingType || 'buy').toLowerCase() as any,
+            propertyType: (p.propertyType || 'apartment').toLowerCase() as any,
+            bedrooms: p.bedrooms || 2,
+            bathrooms: p.bathrooms || 2,
+            area: p.area || 1200,
+            image: p.images?.[0] || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
+            images: p.images || [],
+            verified: !!p.verified,
+            amenities: p.amenities || ['Power Backup', 'Lift', 'Security'],
+            description: p.description || '',
+            ownerName: p.ownerName || 'Verified Owner',
+            ownerAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+            ownerType: 'owner',
+            furnishing: (p.furnishing || 'semi-furnished').toLowerCase() as any,
+            parking: !!p.parking,
+            yearBuilt: 2024,
+          }));
+          setLiveProperties(mapped);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [type]);
+
+  const safeProperties = [
+    ...liveProperties,
+    ...(Array.isArray(properties)
+      ? properties.filter((p): p is Property => Boolean(p && p.id && p.title && !liveProperties.some((lp) => lp.id === p.id)))
+      : []),
+  ];
 
   const filtered = safeProperties
     .filter(p => !type || p.listingType === type)

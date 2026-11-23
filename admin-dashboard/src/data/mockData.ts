@@ -17,8 +17,14 @@ export const MODULE_META: Record<
   }
 > = {
   flat_building: {
-    label: 'Flat / Building',
-    shortLabel: 'Flat/Bldg',
+    label: 'Buy / Sell Property',
+    shortLabel: 'Buy/Sell',
+    subtitle: 'Resale & new unit listings',
+    flowSummary: 'Check → Contact / Field Visit → Verify → Publish',
+  },
+  buy_sell: {
+    label: 'Buy / Sell Property',
+    shortLabel: 'Buy/Sell',
     subtitle: 'Resale & new unit listings',
     flowSummary: 'Check → Contact / Field Visit → Verify → Publish',
   },
@@ -33,6 +39,12 @@ export const MODULE_META: Record<
     shortLabel: 'Commercial',
     subtitle: 'Offices, retail & warehouses',
     flowSummary: 'Check → Contact / Field Visit → Verify → Publish',
+  },
+  pg_hostel: {
+    label: 'PG & Hostel',
+    shortLabel: 'PG/Hostel',
+    subtitle: 'Beds, room sharing & hostel facilities',
+    flowSummary: 'Check → Amenities & Room Verification → Publish',
   },
   property_management: {
     label: 'Property Management',
@@ -119,6 +131,56 @@ export const TEAM_MEMBERS: TeamMember[] = [
 ];
 
 export const INITIAL_REQUESTS: PropertyRequest[] = [
+  {
+    id: 'req-pg-101',
+    code: 'PG-5012',
+    module: 'pg_hostel',
+    title: 'Zolo Stays Premium Men & Women PG',
+    subtitle: 'Single & 2 Sharing · Food Included · WiFi & AC',
+    locality: 'Gachibowli',
+    city: 'Hyderabad',
+    address: 'Near DLF Cyber City, Gachibowli, Hyderabad 500032',
+    priceDisplay: '₹8,500 / mo',
+    priceNumeric: 8500,
+    areaSqFt: 350,
+    configLabel: '2 Sharing · Attached Bath',
+    furnishing: 'Fully-Furnished',
+    availability: 'Immediate',
+    status: 'in_review',
+    slaMinutesLeft: 55,
+    slaUrgent: true,
+    submittedAt: '18 Nov, 11:30 AM',
+    relativeTime: '1h ago',
+    assignedToId: 'tm-1',
+    ownerOrUser: {
+      name: 'Rajesh PG Warden',
+      role: 'Owner',
+      phone: '+91 98480 99887',
+      email: 'zolo.gachibowli@seedha.in',
+      whatsapp: '+919848099887',
+    },
+    visualVariant: 'apartment',
+    images: ['Room View', 'Dining Hall', 'Study Area'],
+    documents: [],
+    auditLog: [
+      {
+        id: 'aud-pg-1',
+        actor: 'Hostel Owner',
+        action: 'PG & Hostel accommodation submitted for verification',
+        timestamp: '2026-11-18T11:30:00Z',
+      },
+    ],
+    fieldVisit: {
+      gpsCheckedIn: false,
+      photos: [
+        { id: 'pg-p1', label: 'Hostel Entrance', captured: false, kind: 'exterior' },
+        { id: 'pg-p2', label: 'Room & Beds', captured: false, kind: 'living' },
+        { id: 'pg-p3', label: 'Dining Area', captured: false, kind: 'kitchen' },
+      ],
+      ownerConfirmed: false,
+      notes: '',
+    },
+  },
   {
     id: 'req-101',
     code: 'FB-2409',

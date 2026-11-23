@@ -102,11 +102,14 @@ export type ScreenName =
 
 export type AdminCategory =
   | 'flat_building'
+  | 'buy_sell'
   | 'rent'
   | 'commercial'
+  | 'pg_hostel'
   | 'property_management'
   | 'home_loan'
   | 'rental_agreement'
+  | 'rental_agreements'
   | 'owner_background';
 
 export interface AdminItem {

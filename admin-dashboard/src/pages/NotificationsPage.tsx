@@ -6,8 +6,9 @@ import { AppNotification } from '../types';
 export const NotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
-  const loadNotifications = () => {
-    setNotifications(adminService.getNotifications());
+  const loadNotifications = async () => {
+    const list = await adminService.getNotifications();
+    setNotifications(list);
   };
 
   useEffect(() => {

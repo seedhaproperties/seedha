@@ -13,6 +13,7 @@ import {
   BadgePercent,
   FileText,
   UserCheck,
+  Home,
   ArrowRight,
   TrendingUp,
   MapPin,
@@ -53,7 +54,7 @@ export const DashboardPage: React.FC = () => {
   }> = [
     {
       key: 'flat_building',
-      label: 'Flat / Building',
+      label: 'Buy / Sell Property',
       subtitle: 'Resale & new apartment listings',
       workflow: 'Check → Field Visit → Verify → Publish',
       icon: Building2,
@@ -74,6 +75,14 @@ export const DashboardPage: React.FC = () => {
       workflow: 'Check → Field Visit → Verify → Publish',
       icon: Briefcase,
       color: 'from-violet-500 to-purple-600',
+    },
+    {
+      key: 'pg_hostel',
+      label: 'PG & Hostel',
+      subtitle: 'Beds, shared rooms, food & hostel facilities',
+      workflow: 'Check → Room & Amenities Check → Verify → Publish',
+      icon: Home,
+      color: 'from-amber-500 to-orange-600',
     },
     {
       key: 'property_management',
@@ -116,7 +125,7 @@ export const DashboardPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Operations Overview</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Real-time pipeline across all 7 Seedha Properties business verticals.
+            Real-time pipeline across Seedha Properties business verticals.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -141,10 +150,12 @@ export const DashboardPage: React.FC = () => {
               <Inbox className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-slate-900 mt-2">{metrics.totalRequests || requests.length}</p>
+          <p className="text-2xl font-bold text-slate-900 mt-2">
+            {metrics.totalRequests !== undefined ? metrics.totalRequests : requests.length}
+          </p>
           <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium mt-1">
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>+12% this week</span>
+            <span>Database Synced</span>
           </div>
         </div>
 
@@ -158,7 +169,9 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
           <p className="text-2xl font-bold text-blue-700 mt-2">
-            {requests.filter((r) => r.status === 'new').length}
+            {metrics.newRequests !== undefined
+              ? metrics.newRequests
+              : requests.filter((r) => r.status === 'new').length}
           </p>
           <p className="text-xs text-slate-500 mt-1">Awaiting triage & assignment</p>
         </div>
@@ -173,14 +186,14 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
           <p className="text-2xl font-bold text-amber-700 mt-2">
-            {
-              requests.filter(
-                (r) =>
-                  r.status === 'in_review' ||
-                  r.status === 'assigned' ||
-                  r.status === 'field_visit'
-              ).length
-            }
+            {metrics.inReview !== undefined
+              ? metrics.inReview
+              : requests.filter(
+                  (r) =>
+                    r.status === 'in_review' ||
+                    r.status === 'assigned' ||
+                    r.status === 'field_visit'
+                ).length}
           </p>
           <p className="text-xs text-slate-500 mt-1">Active field visits & docs check</p>
         </div>
@@ -195,7 +208,9 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
           <p className="text-2xl font-bold text-emerald-700 mt-2">
-            {requests.filter((r) => r.status === 'published').length}
+            {metrics.published !== undefined
+              ? metrics.published
+              : requests.filter((r) => r.status === 'published').length}
           </p>
           <p className="text-xs text-slate-500 mt-1">Live in Seedha App</p>
         </div>
@@ -210,24 +225,24 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
           <p className="text-2xl font-bold text-rose-700 mt-2">
-            {
-              requests.filter(
-                (r) =>
-                  (r.slaMinutesLeft ?? 100) <= 60 &&
-                  r.status !== 'published' &&
-                  r.status !== 'rejected'
-              ).length
-            }
+            {metrics.slaAlerts !== undefined
+              ? metrics.slaAlerts
+              : requests.filter(
+                  (r) =>
+                    (r.slaMinutesLeft ?? 100) <= 60 &&
+                    r.status !== 'published' &&
+                    r.status !== 'rejected'
+                ).length}
           </p>
           <p className="text-xs text-slate-500 mt-1">Requires immediate action</p>
         </div>
       </div>
 
-      {/* 7 Modules Grid */}
+      {/* Modules Grid */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">7 Business Vertical Pipelines</h2>
+            <h2 className="text-lg font-bold text-slate-900">Business Vertical Pipelines</h2>
             <p className="text-xs text-slate-500">
               Select any vertical to inspect active submissions and workflow queues.
             </p>

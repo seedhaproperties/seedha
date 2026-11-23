@@ -39,7 +39,7 @@ let currentAuthToken: string | null = null;
 if (typeof window !== 'undefined' && window.localStorage) {
   try {
     currentAuthToken = window.localStorage.getItem('seedha_auth_token');
-  } catch {}
+  } catch { }
 }
 
 export function setAuthToken(token: string | null) {
@@ -51,7 +51,7 @@ export function setAuthToken(token: string | null) {
       } else {
         window.localStorage.removeItem('seedha_auth_token');
       }
-    } catch {}
+    } catch { }
   }
 }
 
@@ -198,7 +198,44 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email }),
       }),
-    me: () => request<any>('/auth/me'),
+    me: async () => {
+      const token = getAuthToken();
+      if (!token || token === 'null' || token === 'undefined') {
+        return null;
+      }
+      try {
+        const res = await request<any>('/auth/me');
+        if (!res || res.authenticated === false) {
+          setAuthToken(null);
+          return null;
+        }
+        return res;
+      } catch (err: any) {
+        if (
+          err?.message?.includes('401') ||
+          err?.message?.includes('Unauthorized') ||
+          err?.message?.includes('expired')
+        ) {
+          setAuthToken(null);
+          return null;
+        }
+        return null;
+      }
+    },
+    updateProfile: (payload: any) =>
+      request<any>('/auth/me', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }),
+    uploadAvatar: (payload: { avatarUrl?: string; imageBase64?: string }) =>
+      request<any>('/auth/upload-avatar', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    deleteAvatar: () =>
+      request<any>('/auth/avatar', {
+        method: 'DELETE',
+      }),
     logout: () => {
       setAuthToken(null);
     },
@@ -221,10 +258,72 @@ export const api = {
     },
     get: (id: string) => request<any>(`/properties/${id}`),
     getOwner: (id: string) => request<any>(`/properties/${id}/owner`),
+    getMyProperties: async (userId?: string) => {
+      const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+      try {
+        return await request<any>(`/properties/user/my-properties${q}`);
+      } catch (err: any) {
+        const msg = String(err?.message || '');
+        if (msg.includes('404') || msg.includes('Cannot GET')) {
+          try {
+            return await request<any>(`/properties/my-properties${q}`);
+          } catch {
+            return await request<any>(`/properties?ownerOnly=true${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`);
+          }
+        }
+        throw err;
+      }
+    },
+    remove: (id: string) =>
+      request<any>(`/properties/${id}`, {
+        method: 'DELETE',
+      }),
+    uploadImage: (payload: { imageBase64?: string; imageUrl?: string; folder?: string }) =>
+      request<any>('/properties/upload-image', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    deleteImage: (propertyId: string, publicId: string) =>
+      request<any>(`/properties/${propertyId}/images?publicId=${encodeURIComponent(publicId)}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ publicId }),
+      }),
     create: (data: any) =>
       request<any>('/properties', {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+  },
+
+  // ── Cloudinary Image Uploads ──
+  uploads: {
+    uploadImage: (payload: { imageBase64?: string; imageUrl?: string; folder?: string }) =>
+      request<{
+        success: boolean;
+        url: string;
+        publicId: string;
+        format?: string;
+        width?: number;
+        height?: number;
+      }>('/uploads/image', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    uploadImages: (images: string[], folder?: string) =>
+      request<{
+        success: boolean;
+        count: number;
+        images: Array<{ url: string; publicId: string }>;
+        urls: string[];
+        publicIds: string[];
+      }>('/uploads/images', {
+        method: 'POST',
+        body: JSON.stringify({ images, folder }),
+      }),
+    deleteImage: (publicId: string) =>
+      request<any>('/uploads/image', {
+        method: 'DELETE',
+        body: JSON.stringify({ publicId }),
       }),
   },
 
@@ -354,5 +453,21 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ summary, ownershipVerified, legalDisputeClear }),
       }),
+    // Aggregator & Real Admin Database Endpoints
+    getAllRequests: (params?: { module?: string; status?: string; search?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.module && params.module !== 'all') q.set('module', params.module);
+      if (params?.status && params.status !== 'all') q.set('status', params.status);
+      if (params?.search) q.set('search', params.search);
+      const queryStr = q.toString() ? `?${q.toString()}` : '';
+      return request<any[]>(`/admin/requests${queryStr}`);
+    },
+    getRequestById: (id: string) => request<any>(`/admin/requests/${id}`),
+    getTeam: () => request<any[]>('/admin/team'),
+    getListings: () => request<any[]>('/admin/listings'),
+    getUsers: () => request<any[]>('/admin/users'),
+    deleteProperty: (id: string) => request<any>(`/admin/properties/${id}`, { method: 'DELETE' }),
+    getReports: () => request<any>('/admin/reports'),
+    getNotifications: () => request<any[]>('/admin/notifications'),
   },
 };

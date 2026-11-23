@@ -14,6 +14,7 @@ export var ListingTypeEnum;
 export var PropertyStatusEnum;
 (function (PropertyStatusEnum) {
     PropertyStatusEnum["DRAFT"] = "DRAFT";
+    PropertyStatusEnum["PENDING"] = "PENDING";
     PropertyStatusEnum["SUBMITTED"] = "SUBMITTED";
     PropertyStatusEnum["UNDER_REVIEW"] = "UNDER_REVIEW";
     PropertyStatusEnum["VERIFICATION_IN_PROGRESS"] = "VERIFICATION_IN_PROGRESS";
@@ -21,6 +22,7 @@ export var PropertyStatusEnum;
     PropertyStatusEnum["PUBLISHED"] = "PUBLISHED";
     PropertyStatusEnum["REJECTED"] = "REJECTED";
     PropertyStatusEnum["NEEDS_CORRECTION"] = "NEEDS_CORRECTION";
+    PropertyStatusEnum["CLOSED"] = "CLOSED";
 })(PropertyStatusEnum || (PropertyStatusEnum = {}));
 export const SERVICEABLE_LOCALITIES = [
     { city: 'Hyderabad', locality: 'Madhapur', pincode: '500081' },

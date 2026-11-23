@@ -1,7 +1,9 @@
 export type ModuleType =
   | 'flat_building'
+  | 'buy_sell'
   | 'rent'
   | 'commercial'
+  | 'pg_hostel'
   | 'property_management'
   | 'home_loan'
   | 'rental_agreements'

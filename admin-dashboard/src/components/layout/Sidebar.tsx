@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -18,6 +18,7 @@ import {
   ChevronRight,
   ShieldCheck,
   LogOut,
+  Home,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { adminService } from '../../services/api';
@@ -33,9 +34,10 @@ const MAIN_NAV = [
 ];
 
 const MODULE_LINKS = [
-  { name: 'Flat / Building', module: 'flat_building', icon: Building2 },
+  { name: 'Buy / Sell Property', module: 'flat_building', icon: Building2 },
   { name: 'Rent', module: 'rent', icon: Key },
   { name: 'Commercial', module: 'commercial', icon: Briefcase },
+  { name: 'PG & Hostel', module: 'pg_hostel', icon: Home },
   { name: 'Property Mgmt', module: 'property_management', icon: Wrench },
   { name: 'Home Loan', module: 'home_loan', icon: BadgePercent },
   { name: 'Rental Agreements', module: 'rental_agreements', icon: FileText },
@@ -45,12 +47,24 @@ const MODULE_LINKS = [
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const requests = adminService.getRequestsSync();
-  const pendingCount = requests.filter(
-    (r) => r.status === 'new' || r.status === 'in_review' || r.status === 'assigned'
-  ).length;
-  const notifications = adminService.getNotifications();
-  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const [metrics, setMetrics] = useState<any>({});
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+    adminService.getMetrics().then((m) => {
+      if (mounted) setMetrics(m);
+    });
+    adminService.getNotifications().then((n) => {
+      if (mounted) setUnreadCount(n.filter((x) => !x.read).length);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [location.pathname]);
+
+  const pendingCount = (metrics.newRequests || 0) + (metrics.inReview || 0);
 
   return (
     <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 h-screen sticky top-0 border-r border-slate-800 select-none z-30">
@@ -131,7 +145,7 @@ export const Sidebar: React.FC = () => {
                 location.pathname === '/requests' &&
                 location.search.includes(`module=${mod.module}`);
 
-              const count = requests.filter((r) => r.module === mod.module && r.status !== 'rejected' && r.status !== 'published').length;
+              const count = metrics.moduleCounts?.[mod.module] ?? 0;
 
               return (
                 <NavLink

@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminService } from './admin.service.js';
 import { AssignFieldWorkDto, RejectItemDto, LocationCheckDecisionDto, ContactOwnerDto, PrepareAgreementDto, CollectAndSendDigitalDto, } from './admin.dto.js';
@@ -31,6 +31,9 @@ let AdminController = class AdminController {
     getTeam() {
         return this.adminService.getTeamMembers();
     }
+    addTeamMember(body) {
+        return this.adminService.addTeamMember(body);
+    }
     getListings() {
         return this.adminService.getLiveListings();
     }
@@ -43,14 +46,23 @@ let AdminController = class AdminController {
     getCommercialQueue() {
         return this.adminService.getCommercialListingsQueue();
     }
+    getPgQueue() {
+        return this.adminService.getPgListingsQueue();
+    }
     assignPropertyFieldWork(id, dto) {
         return this.adminService.assignPropertyFieldWork(id, dto);
     }
     verifyAndPublish(id) {
         return this.adminService.verifyAndPublishProperty(id);
     }
+    approveProperty(id) {
+        return this.adminService.approveProperty(id);
+    }
     rejectProperty(id, dto) {
         return this.adminService.rejectProperty(id, dto);
+    }
+    unpublishProperty(id, note) {
+        return this.adminService.unpublishProperty(id, note);
     }
     getPropertyManagementQueue() {
         return this.adminService.getPropertyManagementQueue();
@@ -81,6 +93,18 @@ let AdminController = class AdminController {
     }
     collectAndSendDigital(id, dto) {
         return this.adminService.collectAndSendDigitalOwnerDetails(id, dto);
+    }
+    getUsers() {
+        return this.adminService.getUsers();
+    }
+    deleteProperty(id) {
+        return this.adminService.deleteProperty(id);
+    }
+    getReports() {
+        return this.adminService.getReports();
+    }
+    getNotifications() {
+        return this.adminService.getNotifications();
     }
 };
 __decorate([
@@ -116,6 +140,14 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getTeam", null);
 __decorate([
+    Post('team'),
+    ApiOperation({ summary: 'Add a new operations team member' }),
+    __param(0, Body()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "addTeamMember", null);
+__decorate([
     Get('listings'),
     ApiOperation({ summary: 'Get published live listings on Seedha portal' }),
     __metadata("design:type", Function),
@@ -144,6 +176,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "getCommercialQueue", null);
 __decorate([
+    Get('pg-review'),
+    ApiOperation({ summary: 'Receive PG & Hostel details' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getPgQueue", null);
+__decorate([
     Post('properties/:id/assign-field-work'),
     ApiOperation({ summary: 'Team can contact owner or do field work' }),
     __param(0, Param('id')),
@@ -161,6 +200,14 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "verifyAndPublish", null);
 __decorate([
+    Post('properties/:id/approve'),
+    ApiOperation({ summary: 'Approve and publish property listing' }),
+    __param(0, Param('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "approveProperty", null);
+__decorate([
     Post('properties/:id/reject'),
     ApiOperation({ summary: 'Reject property listing with reasons' }),
     __param(0, Param('id')),
@@ -169,6 +216,15 @@ __decorate([
     __metadata("design:paramtypes", [String, RejectItemDto]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "rejectProperty", null);
+__decorate([
+    Post('properties/:id/unpublish'),
+    ApiOperation({ summary: 'Unpublish property listing back to pending review' }),
+    __param(0, Param('id')),
+    __param(1, Body('note')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "unpublishProperty", null);
 __decorate([
     Get('property-management-review'),
     ApiOperation({ summary: 'Queue 4: Receive Property Management details' }),
@@ -251,9 +307,38 @@ __decorate([
     __metadata("design:paramtypes", [String, CollectAndSendDigitalDto]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "collectAndSendDigital", null);
+__decorate([
+    Get('users'),
+    ApiOperation({ summary: 'Get all registered users in database' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getUsers", null);
+__decorate([
+    Delete('properties/:id'),
+    ApiOperation({ summary: 'Delete property permanently from database' }),
+    __param(0, Param('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteProperty", null);
+__decorate([
+    Get('reports'),
+    ApiOperation({ summary: 'Get real audit logs and platform summary reports' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getReports", null);
+__decorate([
+    Get('notifications'),
+    ApiOperation({ summary: 'Get real administrative notifications and alerts' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getNotifications", null);
 AdminController = __decorate([
     ApiTags('Admin Operations & Queues (Section 2)'),
-    Controller('api/v1/admin'),
+    Controller(['api/v1/admin', 'admin']),
     __metadata("design:paramtypes", [AdminService])
 ], AdminController);
 export { AdminController };

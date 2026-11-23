@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,9 @@ import {
   Square,
   House,
   KeyRound,
+  Building,
   Building2,
+  HardHat,
   HousePlus,
   Landmark,
   FileText,
@@ -32,6 +34,31 @@ import {
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { properties } from '../../data/properties';
+import { api } from '../../services/api';
+import type { Property } from '../../types';
+
+const FALLBACK_IMAGE_DATA_URI =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%231E293B"/><stop offset="100%" stop-color="%230F172A"/></linearGradient></defs><rect width="600" height="400" fill="url(%23g)"/><g fill="%2310B981" opacity="0.85"><path d="M300 140 L380 210 L350 210 L350 270 L250 270 L250 210 L220 210 Z"/></g><text x="50%" y="82%" fill="%23E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="600" text-anchor="middle">Seedha Properties</text></svg>';
+
+function SafeImage({ source, style, ...rest }: any) {
+  const targetUri = source?.uri || FALLBACK_IMAGE_DATA_URI;
+  const [imgUri, setImgUri] = useState<string>(targetUri);
+
+  useEffect(() => {
+    setImgUri(source?.uri || FALLBACK_IMAGE_DATA_URI);
+  }, [source?.uri]);
+
+  return (
+    <Image
+      {...rest}
+      source={{ uri: imgUri }}
+      style={style}
+      onError={() => {
+        setImgUri(FALLBACK_IMAGE_DATA_URI);
+      }}
+    />
+  );
+}
 
 // Popular localities in Hyderabad matching the Figma design & screenshot
 const POPULAR_LOCATIONS = [
@@ -65,6 +92,47 @@ export default function HomeScreen() {
   const { push, savedIds, toggleSaved, notifications, setTab, isAuthenticated, requireAuth, user } = useApp();
   const [activeCategory, setActiveCategory] = useState('buy');
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+  const [liveProps, setLiveProps] = useState<Property[]>([]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    api.properties
+      .list()
+      .then((res) => {
+        const list = res?.properties || (Array.isArray(res) ? res : []);
+        if (Array.isArray(list) && isMounted) {
+          const mapped: Property[] = list.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            location: p.location,
+            city: p.city || 'Hyderabad',
+            price: p.price,
+            priceLabel: p.priceLabel || `₹${Number(p.price).toLocaleString('en-IN')}`,
+            listingType: (p.listingType || 'buy').toLowerCase() as any,
+            propertyType: (p.propertyType || 'apartment').toLowerCase() as any,
+            bedrooms: p.bedrooms || 2,
+            bathrooms: p.bathrooms || 2,
+            area: p.area || 1200,
+            image: p.images?.[0] || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
+            images: p.images || [],
+            verified: true,
+            amenities: p.amenities || ['Power Backup', 'Lift', 'Security'],
+            description: p.description || '',
+            ownerName: p.ownerName || 'Verified Owner',
+            ownerAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+            ownerType: 'owner',
+            furnishing: (p.furnishing || 'semi-furnished').toLowerCase() as any,
+            parking: !!p.parking,
+            yearBuilt: 2024,
+          }));
+          setLiveProps(mapped);
+        }
+      })
+      .catch(() => { });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleProtectedNavigate = (screen: any, actionTitle = 'Continue') => {
     if (!isAuthenticated) {
@@ -75,16 +143,42 @@ export default function HomeScreen() {
   };
 
   // Find properties for spotlight, featured horizontal carousel, and recommended list
+  const allAvailableProps = React.useMemo(() => {
+    const combined = [...liveProps, ...properties];
+    const seen = new Set<string>();
+    return combined.filter((p) => {
+      if (!p.id || seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+  }, [liveProps]);
+
   const spotlightProperty =
-    properties.find((p) => p.id === 'spotlight-1') || properties[0];
+    allAvailableProps.find((p) => p.id === 'spotlight-1') || allAvailableProps[0];
 
-  const featuredProperties = properties
-    .filter((p) => p.id === 'feat-1' || p.id === 'feat-2' || p.featured)
-    .slice(0, 4);
+  const featuredProperties = React.useMemo(() => {
+    const liveFirst = liveProps.slice(0, 2);
+    const existing = properties.filter((p) => p.id === 'feat-1' || p.id === 'feat-2' || p.featured);
+    const combined = [...liveFirst, ...existing];
+    const seen = new Set<string>();
+    return combined.filter((p) => {
+      if (!p.id || seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    }).slice(0, 4);
+  }, [liveProps]);
 
-  const recommendedProperties = properties
-    .filter((p) => p.id === 'rec-1' || p.id === 'rec-2' || (!p.featured && p.id !== 'spotlight-1'))
-    .slice(0, 4);
+  const recommendedProperties = React.useMemo(() => {
+    const liveItems = liveProps.filter((lp) => !featuredProperties.some((fp) => fp.id === lp.id));
+    const fallback = properties.filter((p) => p.id === 'rec-1' || p.id === 'rec-2' || (!p.featured && p.id !== 'spotlight-1'));
+    const combined = [...liveItems, ...fallback];
+    const seen = new Set<string>();
+    return combined.filter((p) => {
+      if (!p.id || seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    }).slice(0, 6);
+  }, [liveProps, featuredProperties]);
 
   const handleCategoryPress = (key: string) => {
     setActiveCategory(key);
@@ -197,11 +291,19 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             {isAuthenticated && user ? (
-              <View style={styles.avatarInitialsBox}>
-                <Text style={styles.avatarInitialsText}>
-                  {(user.name || 'U').charAt(0).toUpperCase()}
-                </Text>
-              </View>
+              user.avatarUrl ? (
+                <SafeImage
+                  source={{ uri: user.avatarUrl }}
+                  style={styles.avatarImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.avatarInitialsBox}>
+                  <Text style={styles.avatarInitialsText}>
+                    {(user.name || 'U').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )
             ) : (
               <View style={styles.guestAvatarBox}>
                 <User size={18} color="#0F172A" strokeWidth={2.2} />
@@ -260,7 +362,7 @@ export default function HomeScreen() {
                 } as any)}
               >
                 <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
-                  <House size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                  <Building size={20} color="#1E201E" strokeWidth={2} />
                 </View>
                 <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>Buy</Text>
               </TouchableOpacity>
@@ -281,7 +383,7 @@ export default function HomeScreen() {
                 } as any)}
               >
                 <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
-                  <KeyRound size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                  <KeyRound size={20} color="#1E201E" strokeWidth={2} />
                 </View>
                 <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>Rent</Text>
               </TouchableOpacity>
@@ -295,7 +397,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[
                   styles.categoryCard,
-                  { minWidth: 78 },
+                  { minWidth: 84 },
                   isHovered && styles.categoryCardHovered,
                 ]}
                 onPress={() => handleCategoryPress('commercial')}
@@ -306,7 +408,7 @@ export default function HomeScreen() {
                 } as any)}
               >
                 <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
-                  <Building2 size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                  <Building2 size={20} color="#1E201E" strokeWidth={2} />
                 </View>
                 <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
                   Commercial
@@ -322,7 +424,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[
                   styles.categoryCard,
-                  { minWidth: 82 },
+                  { minWidth: 84 },
                   isHovered && styles.categoryCardHovered,
                 ]}
                 onPress={() => handleCategoryPress('pgHostels')}
@@ -333,7 +435,7 @@ export default function HomeScreen() {
                 } as any)}
               >
                 <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
-                  <BedDouble size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                  <BedDouble size={20} color="#1E201E" strokeWidth={2} />
                 </View>
                 <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
                   PG/Hostels
@@ -356,7 +458,7 @@ export default function HomeScreen() {
                 } as any)}
               >
                 <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
-                  <HousePlus size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                  <HardHat size={20} color="#1E201E" strokeWidth={2} />
                 </View>
                 <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
                   Manage
@@ -372,7 +474,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[
                   styles.categoryCard,
-                  { minWidth: 84 },
+                  { minWidth: 86 },
                   isHovered && styles.categoryCardHovered,
                 ]}
                 onPress={() => handleCategoryPress('loans')}
@@ -383,7 +485,7 @@ export default function HomeScreen() {
                 } as any)}
               >
                 <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
-                  <Landmark size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                  <Landmark size={20} color="#1E201E" strokeWidth={2} />
                 </View>
                 <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
                   Home Loans
@@ -399,7 +501,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[
                   styles.categoryCard,
-                  { minWidth: 84 },
+                  { minWidth: 86 },
                   isHovered && styles.categoryCardHovered,
                 ]}
                 onPress={() => handleCategoryPress('agreements')}
@@ -410,7 +512,7 @@ export default function HomeScreen() {
                 } as any)}
               >
                 <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
-                  <FileText size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                  <FileText size={20} color="#1E201E" strokeWidth={2} />
                 </View>
                 <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
                   Agreements
@@ -419,23 +521,29 @@ export default function HomeScreen() {
             );
           })()}
 
-          {/* 7. Verify Owner (Dark Card) */}
+          {/* 7. Verify Owner */}
           {(() => {
             const isHovered = hoveredCategory === 'verify';
             return (
               <TouchableOpacity
-                style={[styles.verifyOwnerCard, isHovered && styles.verifyOwnerCardHovered]}
+                style={[
+                  styles.categoryCard,
+                  { minWidth: 89 },
+                  isHovered && styles.categoryCardHovered,
+                ]}
                 onPress={() => handleCategoryPress('verify')}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
                 {...({
                   onMouseEnter: () => setHoveredCategory('verify'),
                   onMouseLeave: () => setHoveredCategory(null),
                 } as any)}
               >
-                <View style={[styles.verifyOwnerIconBox, isHovered && { backgroundColor: '#16221A' }]}>
-                  <UserCheck size={18} color="#FFFFFF" strokeWidth={2.2} />
+                <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
+                  <UserCheck size={20} color="#1E201E" strokeWidth={2} />
                 </View>
-                <Text style={styles.verifyOwnerText}>Verify Owner</Text>
+                <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
+                  Verify Owner
+                </Text>
               </TouchableOpacity>
             );
           })()}
@@ -458,7 +566,7 @@ export default function HomeScreen() {
                 } as any)}
               >
                 <View style={[styles.categoryIconBox, isHovered && styles.categoryIconBoxHovered]}>
-                  <Users size={18} color={isHovered ? '#FFFFFF' : '#434844'} strokeWidth={2.2} />
+                  <Users size={20} color="#1E201E" strokeWidth={2} />
                 </View>
                 <Text style={[styles.categoryText, isHovered && styles.categoryTextHovered]}>
                   Flatmates
@@ -481,7 +589,7 @@ export default function HomeScreen() {
           }
           activeOpacity={0.92}
         >
-          <Image
+          <SafeImage
             source={{ uri: spotlightProperty.image }}
             style={styles.spotlightImage}
           />
@@ -598,7 +706,7 @@ export default function HomeScreen() {
               }
               activeOpacity={0.88}
             >
-              <Image source={{ uri: loc.image }} style={styles.locationImage} />
+              <SafeImage source={{ uri: loc.image }} style={styles.locationImage} />
               <View style={styles.locationScrim} />
               <View style={styles.locationTextStack}>
                 <Text style={styles.locationName}>{loc.name}</Text>
@@ -636,7 +744,7 @@ export default function HomeScreen() {
               activeOpacity={0.9}
             >
               <View style={styles.featuredCardImageWrapper}>
-                <Image source={{ uri: prop.image }} style={styles.featuredCardImage} />
+                <SafeImage source={{ uri: prop.image }} style={styles.featuredCardImage} />
 
                 {/* For Sale / Rent Pill */}
                 <View style={styles.listingTypePill}>
@@ -744,7 +852,7 @@ export default function HomeScreen() {
               activeOpacity={0.92}
             >
               <View style={styles.recommendedImageWrapper}>
-                <Image source={{ uri: prop.image }} style={styles.recommendedImage} />
+                <SafeImage source={{ uri: prop.image }} style={styles.recommendedImage} />
 
                 <View style={styles.listingTypePill}>
                   <Text style={styles.listingTypeText}>
@@ -983,20 +1091,21 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   categoryCard: {
-    width: 74,
-    minWidth: 74,
-    height: 86,
-    borderRadius: 16,
+    minWidth: 80,
+    height: 88,
+    borderRadius: 20,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#1E2822',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 18,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
-    borderWidth: 0.6,
-    borderColor: '#F0EFEA',
+    borderWidth: 0.5,
+    borderColor: '#ECECEC',
     ...Platform.select({
       web: {
         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1005,23 +1114,23 @@ const styles = StyleSheet.create({
     }),
   },
   categoryCardActive: {
-    borderColor: '#E2E0D8',
+    borderColor: '#D0D5D0',
   },
   categoryCardHovered: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
+    backgroundColor: '#FAFAF8',
+    borderColor: '#D8DDD8',
     transform: [{ translateY: -2 }],
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 5,
+    elevation: 4,
   },
   categoryIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: '#F4F3F0',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#F3F4F3',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
@@ -1032,15 +1141,15 @@ const styles = StyleSheet.create({
     }),
   },
   categoryIconBoxHovered: {
-    backgroundColor: '#1E2822',
+    backgroundColor: '#E7EAE7',
   },
   categoryText: {
     fontFamily: 'Plus Jakarta Sans',
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#1A1C1A',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E201E',
     textAlign: 'center',
-    letterSpacing: 0.2,
+    letterSpacing: -0.1,
     ...Platform.select({
       web: {
         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1048,21 +1157,24 @@ const styles = StyleSheet.create({
     }),
   },
   categoryTextHovered: {
-    color: '#FFFFFF',
+    color: '#0D0E0D',
   },
   verifyOwnerCard: {
     minWidth: 89,
-    height: 86,
-    borderRadius: 16,
-    backgroundColor: '#09130E',
+    height: 88,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 8,
+    paddingVertical: 10,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 2,
+    borderWidth: 0.5,
+    borderColor: '#ECECEC',
     ...Platform.select({
       web: {
         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1071,30 +1183,31 @@ const styles = StyleSheet.create({
     }),
   },
   verifyOwnerCardHovered: {
-    backgroundColor: '#000000',
+    backgroundColor: '#FAFAF8',
+    borderColor: '#D8DDD8',
     transform: [{ translateY: -2 }],
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
-    elevation: 6,
+    elevation: 4,
   },
   verifyOwnerIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: '#1E2822',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#F3F4F3',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
   },
   verifyOwnerText: {
     fontFamily: 'Plus Jakarta Sans',
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E201E',
     textAlign: 'center',
-    letterSpacing: 0.2,
+    letterSpacing: -0.1,
   },
 
   // ── Spotlight Card ──

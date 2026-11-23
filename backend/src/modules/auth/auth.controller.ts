@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Get, Patch, Put, Delete, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiProperty } from '@nestjs/swagger';
 import { IsString, IsOptional, IsNotEmpty, IsEmail } from 'class-validator';
 import { AuthService } from './auth.service.js';
@@ -155,6 +155,122 @@ class ForgotPasswordDto {
   email!: string;
 }
 
+class UpdateProfileDto {
+  @ApiProperty({ example: 'Rahul Google User', required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({ example: '+91 98490 63269', required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({ example: 'rahul.google.test@gmail.com', required: false })
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiProperty({ example: 'https://images.unsplash.com/...', required: false })
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @ApiProperty({ example: '1990-05-15', required: false })
+  @IsOptional()
+  @IsString()
+  dob?: string;
+
+  @ApiProperty({ example: 'Male', required: false })
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiProperty({ example: 'Owner', required: false })
+  @IsOptional()
+  @IsString()
+  userRole?: string;
+
+  @ApiProperty({ example: 'Plot 42, Road No. 36, Jubilee Hills', required: false })
+  @IsOptional()
+  @IsString()
+  streetAddress?: string;
+
+  @ApiProperty({ example: 'Hyderabad', required: false })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiProperty({ example: 'Telangana', required: false })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiProperty({ example: '500033', required: false })
+  @IsOptional()
+  @IsString()
+  pincode?: string;
+
+  @ApiProperty({ example: '+91 95678 89900', required: false })
+  @IsOptional()
+  @IsString()
+  alternatePhone?: string;
+
+  @ApiProperty({ example: 'alternate@example.com', required: false })
+  @IsOptional()
+  @IsString()
+  alternateEmail?: string;
+
+  @ApiProperty({
+    example: { savedCount: 3, activityCount: 14, propertiesCount: 5, servicesCount: 4 },
+    required: false,
+    description: 'Quick access counts for Saved Properties, Activity, Properties, Services',
+  })
+  @IsOptional()
+  summary?: {
+    savedCount?: number;
+    activityCount?: number;
+    propertiesCount?: number;
+    servicesCount?: number;
+  };
+
+  @ApiProperty({
+    example: {
+      whatsappUpdates: true,
+      pushNotifications: true,
+      emailUpdates: true,
+      smsAlerts: false,
+      offersPromotions: true,
+      visitReminders: true,
+      useLocation: true,
+    },
+    required: false,
+    description: 'Account settings preferences and notifications',
+  })
+  @IsOptional()
+  settings?: {
+    whatsappUpdates?: boolean;
+    pushNotifications?: boolean;
+    emailUpdates?: boolean;
+    smsAlerts?: boolean;
+    offersPromotions?: boolean;
+    visitReminders?: boolean;
+    useLocation?: boolean;
+  };
+}
+
+class UploadAvatarDto {
+  @ApiProperty({ example: 'https://images.unsplash.com/...', required: false })
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
+  @ApiProperty({ example: 'data:image/jpeg;base64,...', required: false })
+  @IsOptional()
+  @IsString()
+  imageBase64?: string;
+}
+
 @ApiTags('Authentication')
 @Controller('api/v1/auth')
 export class AuthController {
@@ -251,10 +367,58 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current authenticated user profile' })
   async getMe(@Request() req: any) {
-    return this.authService.getCurrentUser(req.user?.sub || 'usr_demo');
+    let sub = req.user?.sub;
+    if (!sub) {
+      const authHeader = req.headers?.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        const payload = this.authService.verifyAccessToken(token);
+        sub = payload?.sub || payload?.id;
+      }
+    }
+
+    if (!sub) {
+      return { authenticated: false, user: null, message: 'No active authenticated session' };
+    }
+
+    return this.authService.getCurrentUser(sub);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update profile details of current user' })
+  async updateMe(@Request() req: any, @Body() dto: UpdateProfileDto) {
+    const userId = req.user?.sub || req.user?.id || 'usr_demo';
+    return this.authService.updateProfile(userId, dto);
+  }
+
+  @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update profile details (PUT alias)' })
+  async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
+    const userId = req.user?.sub || req.user?.id || 'usr_demo';
+    return this.authService.updateProfile(userId, dto);
+  }
+
+  @Post('upload-avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload or update profile photo avatar' })
+  async uploadAvatar(@Request() req: any, @Body() body: UploadAvatarDto) {
+    const userId = req.user?.sub || req.user?.id || 'usr_demo';
+    return this.authService.uploadAvatar(userId, body.avatarUrl || body.imageBase64 || '');
+  }
+
+  @Delete('avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete current user profile photo' })
+  async deleteAvatar(@Request() req: any) {
+    const userId = req.user?.sub || req.user?.id || 'usr_demo';
+    return this.authService.deleteAvatar(userId);
   }
 }

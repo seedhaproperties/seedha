@@ -12,22 +12,98 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { mockDb } from '../../common/mock-db.js';
 import { ListingTypeEnum, PropertyStatusEnum } from '../../common/constants.js';
 import { PrismaService } from '../../database/prisma.service.js';
+import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
+import { EventsGateway } from '../events/events.gateway.js';
 let AdminService = AdminService_1 = class AdminService {
     prisma;
+    cloudinaryService;
+    eventsGateway;
     logger = new Logger(AdminService_1.name);
-    constructor(prisma) {
+    constructor(prisma, cloudinaryService, eventsGateway) {
         this.prisma = prisma;
+        this.cloudinaryService = cloudinaryService;
+        this.eventsGateway = eventsGateway;
     }
-    getOverview() {
+    async getOverview() {
+        const totalUsers = mockDb.users.length;
+        const totalProps = mockDb.properties.length;
+        const publishedProps = mockDb.properties.filter((p) => p.status === PropertyStatusEnum.PUBLISHED || p.status === PropertyStatusEnum.APPROVED).length;
+        const verifiedProps = mockDb.properties.filter((p) => p.verified).length;
+        const allRequests = await this.getAllUnifiedRequests();
+        const totalRequests = allRequests.length;
+        const newRequests = allRequests.filter((r) => r.status === 'new').length;
+        const inReview = allRequests.filter((r) => r.status === 'in_review' || r.status === 'assigned' || r.status === 'field_visit').length;
+        const verified = allRequests.filter((r) => r.status === 'verified').length;
+        const published = allRequests.filter((r) => r.status === 'published').length;
+        const rejected = allRequests.filter((r) => r.status === 'rejected').length;
+        const slaAlerts = allRequests.filter((r) => (r.slaDeadlineMinutes ?? r.slaMinutesLeft ?? 100) <= 60 &&
+            r.status !== 'published' &&
+            r.status !== 'rejected').length;
+        const isPgListing = (p) => p.propertyType?.toLowerCase().includes('pg') ||
+            p.propertyType?.toLowerCase().includes('hostel') ||
+            p.details?.pgAccommodationType ||
+            p.title?.toLowerCase().includes('pg') ||
+            p.title?.toLowerCase().includes('hostel');
+        const pendingPg = mockDb.properties.filter((p) => isPgListing(p) &&
+            p.status !== PropertyStatusEnum.PUBLISHED &&
+            p.status !== PropertyStatusEnum.APPROVED).length;
+        const pendingFlats = mockDb.properties.filter((p) => !isPgListing(p) &&
+            p.listingType === ListingTypeEnum.BUY &&
+            p.status !== PropertyStatusEnum.PUBLISHED &&
+            p.status !== PropertyStatusEnum.APPROVED).length;
+        const pendingRents = mockDb.properties.filter((p) => !isPgListing(p) &&
+            p.listingType === ListingTypeEnum.RENT &&
+            p.status !== PropertyStatusEnum.PUBLISHED &&
+            p.status !== PropertyStatusEnum.APPROVED).length;
+        const pendingCommercials = mockDb.properties.filter((p) => !isPgListing(p) &&
+            p.listingType === ListingTypeEnum.COMMERCIAL &&
+            p.status !== PropertyStatusEnum.PUBLISHED &&
+            p.status !== PropertyStatusEnum.APPROVED).length;
+        const pendingPm = mockDb.propertyManagementRequests.filter((p) => p.status === 'SUBMITTED' || p.status === 'ADMIN_REVIEW').length;
+        const pendingLoans = mockDb.homeLoanRequests.filter((h) => h.status === 'REQUESTED' || h.status === 'UNDER_REVIEW').length;
+        const pendingAgreements = mockDb.rentalAgreementOrders.filter((r) => r.status === 'PAID' || r.status === 'SUBMITTED').length;
+        const pendingBg = mockDb.ownerBackgroundChecks.filter((o) => o.status === 'PAID' || o.status === 'ADMIN_CHECKING').length;
+        const moduleCounts = {
+            flat_building: allRequests.filter((r) => r.module === 'flat_building' && r.status !== 'rejected' && r.status !== 'published').length,
+            rent: allRequests.filter((r) => r.module === 'rent' && r.status !== 'rejected' && r.status !== 'published').length,
+            commercial: allRequests.filter((r) => r.module === 'commercial' && r.status !== 'rejected' && r.status !== 'published').length,
+            pg_hostel: allRequests.filter((r) => r.module === 'pg_hostel' && r.status !== 'rejected' && r.status !== 'published').length,
+            property_management: allRequests.filter((r) => r.module === 'property_management' && r.status !== 'rejected' && r.status !== 'published').length,
+            home_loan: allRequests.filter((r) => r.module === 'home_loan' && r.status !== 'rejected' && r.status !== 'published').length,
+            rental_agreements: allRequests.filter((r) => r.module === 'rental_agreements' && r.status !== 'rejected' && r.status !== 'published').length,
+            owner_background: allRequests.filter((r) => r.module === 'owner_background' && r.status !== 'rejected' && r.status !== 'published').length,
+        };
+        const totalIncoming = pendingFlats +
+            pendingRents +
+            pendingCommercials +
+            pendingPg +
+            pendingPm +
+            pendingLoans +
+            pendingAgreements +
+            pendingBg;
         return {
-            pendingFlatListings: mockDb.properties.filter((p) => p.listingType === ListingTypeEnum.BUY && p.status !== PropertyStatusEnum.PUBLISHED).length,
-            pendingRentListings: mockDb.properties.filter((p) => p.listingType === ListingTypeEnum.RENT && p.status !== PropertyStatusEnum.PUBLISHED).length,
-            pendingCommercialListings: mockDb.properties.filter((p) => p.listingType === ListingTypeEnum.COMMERCIAL && p.status !== PropertyStatusEnum.PUBLISHED).length,
-            pendingPropertyManagement: mockDb.propertyManagementRequests.filter((p) => p.status === 'SUBMITTED' || p.status === 'ADMIN_REVIEW').length,
-            pendingHomeLoans: mockDb.homeLoanRequests.filter((h) => h.status === 'REQUESTED' || h.status === 'UNDER_REVIEW').length,
-            pendingRentalAgreements: mockDb.rentalAgreementOrders.filter((r) => r.status === 'PAID' || r.status === 'SUBMITTED').length,
-            pendingOwnerBackground: mockDb.ownerBackgroundChecks.filter((o) => o.status === 'PAID' || o.status === 'ADMIN_CHECKING').length,
-            totalPublishedProperties: mockDb.properties.filter((p) => p.status === PropertyStatusEnum.PUBLISHED).length,
+            totalUsers,
+            totalProperties: totalProps,
+            totalPublishedProperties: publishedProps,
+            totalVerifiedProperties: verifiedProps,
+            totalIncoming,
+            totalRequests,
+            newRequests,
+            inReview,
+            verified,
+            published,
+            rejected,
+            slaAlerts,
+            moduleCounts,
+            pendingFlatListings: pendingFlats,
+            pendingRentListings: pendingRents,
+            pendingCommercialListings: pendingCommercials,
+            pendingPgListings: pendingPg,
+            pendingPropertyManagement: pendingPm,
+            pendingHomeLoans: pendingLoans,
+            pendingRentalAgreements: pendingAgreements,
+            pendingOwnerBackground: pendingBg,
+            activeAgents: mockDb.teamMembers?.length || 4,
         };
     }
     getFlatListingsQueue() {
@@ -39,6 +115,13 @@ let AdminService = AdminService_1 = class AdminService {
     getCommercialListingsQueue() {
         return mockDb.properties.filter((p) => p.listingType === ListingTypeEnum.COMMERCIAL);
     }
+    getPgListingsQueue() {
+        return mockDb.properties.filter((p) => p.propertyType?.toLowerCase().includes('pg') ||
+            p.propertyType?.toLowerCase().includes('hostel') ||
+            p.details?.pgAccommodationType ||
+            p.title?.toLowerCase().includes('pg') ||
+            p.title?.toLowerCase().includes('hostel'));
+    }
     assignPropertyFieldWork(id, dto) {
         const prop = mockDb.properties.find((p) => p.id === id);
         if (!prop)
@@ -47,6 +130,7 @@ let AdminService = AdminService_1 = class AdminService {
         prop.fieldAgentName = dto.fieldAgentName;
         prop.fieldNotes = dto.fieldNotes;
         prop.updatedAt = new Date().toISOString();
+        mockDb.saveToDisk();
         return {
             message: `Field work assigned to ${dto.fieldAgentName}. Verification in progress.`,
             property: prop,
@@ -61,18 +145,53 @@ let AdminService = AdminService_1 = class AdminService {
         prop.verifiedAt = new Date().toISOString();
         prop.publishedAt = new Date().toISOString();
         prop.updatedAt = new Date().toISOString();
+        mockDb.saveToDisk();
+        if (this.eventsGateway) {
+            try {
+                this.eventsGateway.emitPropertyStatusUpdated({
+                    propertyId: prop.id,
+                    ownerId: prop.ownerId,
+                    status: 'PUBLISHED',
+                    verified: true,
+                    title: prop.title,
+                    message: `Your property "${prop.title}" has been approved and published!`,
+                });
+            }
+            catch (err) {
+            }
+        }
         return {
             message: `Property verified and successfully published to live listings!`,
             property: prop,
         };
+    }
+    approveProperty(id) {
+        return this.verifyAndPublishProperty(id);
     }
     rejectProperty(id, dto) {
         const prop = mockDb.properties.find((p) => p.id === id);
         if (!prop)
             throw new NotFoundException(`Property ${id} not found`);
         prop.status = PropertyStatusEnum.REJECTED;
+        prop.verified = false;
         prop.rejectionReason = dto.reason;
         prop.updatedAt = new Date().toISOString();
+        mockDb.saveToDisk();
+        if (this.eventsGateway) {
+            try {
+                this.eventsGateway.emitPropertyStatusUpdated({
+                    propertyId: prop.id,
+                    ownerId: prop.ownerId,
+                    status: 'REJECTED',
+                    verified: false,
+                    rejectionReason: dto.reason,
+                    title: prop.title,
+                    message: `Your property "${prop.title}" listing review was rejected: ${dto.reason}`,
+                });
+            }
+            catch (err) {
+            }
+        }
         return {
             message: `Property listing rejected with notification sent to owner.`,
             property: prop,
@@ -89,6 +208,7 @@ let AdminService = AdminService_1 = class AdminService {
             req.status = 'LOCATION_CHECK_PASSED';
             req.locationMatched = true;
             req.updatedAt = new Date().toISOString();
+            mockDb.saveToDisk();
             return {
                 message: 'Location matches serviceability rules! Ready for team contact to owner.',
                 request: req,
@@ -100,6 +220,7 @@ let AdminService = AdminService_1 = class AdminService {
             req.rejectionMessage =
                 dto.rejectMessage || 'Sorry, this location is currently outside our service coverage.';
             req.updatedAt = new Date().toISOString();
+            mockDb.saveToDisk();
             return {
                 message: 'Location does not match service zone. Rejection message sent to owner.',
                 request: req,
@@ -117,6 +238,7 @@ let AdminService = AdminService_1 = class AdminService {
         req.assignedTeamMember = dto.assignedStaff || 'Kavitha (Property Ops Lead)';
         req.contactNotes = dto.notes;
         req.updatedAt = new Date().toISOString();
+        mockDb.saveToDisk();
         return {
             message: 'Owner successfully contacted by operations team. Property management process onboarded.',
             request: req,
@@ -133,6 +255,7 @@ let AdminService = AdminService_1 = class AdminService {
         loan.assignedStaff = dto.assignedStaff || 'Siddharth (Loan Advisor)';
         loan.contactNotes = dto.notes;
         loan.updatedAt = new Date().toISOString();
+        mockDb.saveToDisk();
         return {
             message: 'Team directly contacted customer regarding home loan processing and document pickup.',
             request: loan,
@@ -149,6 +272,7 @@ let AdminService = AdminService_1 = class AdminService {
         agr.preparedByStaff = 'Seedha Legal Verification Desk';
         agr.documentUrl = dto.documentUrl || `/api/v1/rental-agreements/documents/${agr.id}.pdf`;
         agr.updatedAt = new Date().toISOString();
+        mockDb.saveToDisk();
         return {
             message: 'Legal rental agreement prepared and dispatched to user digitally.',
             agreement: agr,
@@ -164,6 +288,7 @@ let AdminService = AdminService_1 = class AdminService {
         check.status = 'FIELD_WORK_ASSIGNED';
         check.fieldAgentNotes = `${dto.fieldAgentName}: ${dto.fieldNotes || 'Field verification initiated'}`;
         check.updatedAt = new Date().toISOString();
+        mockDb.saveToDisk();
         return {
             message: `Field verification assigned to ${dto.fieldAgentName} to contact owner and inspect records.`,
             check,
@@ -182,6 +307,7 @@ let AdminService = AdminService_1 = class AdminService {
         check.digitalSentAt = new Date().toISOString();
         check.reportPdfUrl = `/api/v1/owner-background/${check.id}/report-pdf`;
         check.updatedAt = new Date().toISOString();
+        mockDb.saveToDisk();
         return {
             message: 'Details collected and background verification report sent to user through digital delivery.',
             check,
@@ -193,31 +319,73 @@ let AdminService = AdminService_1 = class AdminService {
         let loanRequests = mockDb.homeLoanRequests;
         let agreementOrders = mockDb.rentalAgreementOrders;
         let bgChecks = mockDb.ownerBackgroundChecks;
-        if (this.prisma.isConnected) {
+        if (this.prisma?.isConnected) {
             try {
-                const dbProps = await this.prisma.property.findMany();
-                if (dbProps && dbProps.length > 0)
-                    properties = dbProps;
-                const dbPm = await this.prisma.propertyManagementRequest.findMany();
-                if (dbPm && dbPm.length > 0)
-                    pmRequests = dbPm;
-                const dbLoans = await this.prisma.homeLoanRequest.findMany();
-                if (dbLoans && dbLoans.length > 0)
-                    loanRequests = dbLoans;
-                const dbAgr = await this.prisma.rentalAgreementOrder.findMany();
-                if (dbAgr && dbAgr.length > 0)
-                    agreementOrders = dbAgr;
-                const dbBg = await this.prisma.ownerBackgroundCheck.findMany();
-                if (dbBg && dbBg.length > 0)
-                    bgChecks = dbBg;
+                const fetchDbData = async () => {
+                    const [dbProps, dbPm, dbLoans, dbAgr, dbBg] = await Promise.all([
+                        this.prisma.property.findMany(),
+                        this.prisma.propertyManagementRequest.findMany(),
+                        this.prisma.homeLoanRequest.findMany(),
+                        this.prisma.rentalAgreementOrder.findMany(),
+                        this.prisma.ownerBackgroundCheck.findMany(),
+                    ]);
+                    return { dbProps, dbPm, dbLoans, dbAgr, dbBg };
+                };
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Prisma query timeout (1000ms)')), 1000));
+                const { dbProps, dbPm, dbLoans, dbAgr, dbBg } = await Promise.race([
+                    fetchDbData(),
+                    timeoutPromise,
+                ]);
+                if (dbProps && dbProps.length > 0) {
+                    const propMap = new Map();
+                    for (const p of dbProps)
+                        propMap.set(p.id, p);
+                    for (const p of mockDb.properties)
+                        propMap.set(p.id, p);
+                    properties = Array.from(propMap.values());
+                }
+                if (dbPm && dbPm.length > 0) {
+                    const pmMap = new Map();
+                    for (const p of dbPm)
+                        pmMap.set(p.id, p);
+                    for (const p of mockDb.propertyManagementRequests)
+                        pmMap.set(p.id, p);
+                    pmRequests = Array.from(pmMap.values());
+                }
+                if (dbLoans && dbLoans.length > 0) {
+                    const lMap = new Map();
+                    for (const l of dbLoans)
+                        lMap.set(l.id, l);
+                    for (const l of mockDb.homeLoanRequests)
+                        lMap.set(l.id, l);
+                    loanRequests = Array.from(lMap.values());
+                }
+                if (dbAgr && dbAgr.length > 0) {
+                    const aMap = new Map();
+                    for (const a of dbAgr)
+                        aMap.set(a.id, a);
+                    for (const a of mockDb.rentalAgreementOrders)
+                        aMap.set(a.id, a);
+                    agreementOrders = Array.from(aMap.values());
+                }
+                if (dbBg && dbBg.length > 0) {
+                    const bMap = new Map();
+                    for (const b of dbBg)
+                        bMap.set(b.id, b);
+                    for (const b of mockDb.ownerBackgroundChecks)
+                        bMap.set(b.id, b);
+                    bgChecks = Array.from(bMap.values());
+                }
             }
             catch (err) {
+                this.prisma.isConnected = false;
                 this.logger.warn(`Prisma query fallback: ${err.message}`);
             }
         }
         const unified = [];
         const mapPropertyStatus = (st) => {
             switch (st) {
+                case 'PENDING':
                 case 'SUBMITTED':
                     return 'new';
                 case 'UNDER_REVIEW':
@@ -226,7 +394,6 @@ let AdminService = AdminService_1 = class AdminService {
                     return 'field_visit';
                 case 'APPROVED':
                 case 'VERIFIED':
-                    return 'verified';
                 case 'PUBLISHED':
                     return 'published';
                 case 'REJECTED':
@@ -239,19 +406,50 @@ let AdminService = AdminService_1 = class AdminService {
         };
         for (const p of properties) {
             let mod = 'flat_building';
-            if (p.listingType === ListingTypeEnum.RENT || p.listingType === 'RENT')
+            const isPg = p.propertyType?.toLowerCase().includes('pg') ||
+                p.propertyType?.toLowerCase().includes('hostel') ||
+                p.details?.pgAccommodationType ||
+                p.title?.toLowerCase().includes('pg') ||
+                p.title?.toLowerCase().includes('hostel');
+            if (isPg) {
+                mod = 'pg_hostel';
+            }
+            else if (p.listingType === ListingTypeEnum.RENT || p.listingType === 'RENT') {
                 mod = 'rent';
-            if (p.listingType === ListingTypeEnum.COMMERCIAL || p.listingType === 'COMMERCIAL')
+            }
+            else if (p.listingType === ListingTypeEnum.COMMERCIAL || p.listingType === 'COMMERCIAL') {
                 mod = 'commercial';
+            }
+            else {
+                mod = 'flat_building';
+            }
+            const createdDate = p.createdAt ? new Date(p.createdAt) : new Date();
+            const ageHours = Math.max(0, (Date.now() - createdDate.getTime()) / (1000 * 60 * 60));
+            const slaLeft = Math.max(0, Math.round(24 * 60 - ageHours * 60));
+            const relativeTime = ageHours < 1
+                ? `${Math.max(1, Math.round(ageHours * 60))}m ago`
+                : ageHours < 24
+                    ? `${Math.round(ageHours)}h ago`
+                    : `${Math.round(ageHours / 24)}d ago`;
+            const isLive = p.status === PropertyStatusEnum.PUBLISHED ||
+                p.status === PropertyStatusEnum.APPROVED ||
+                p.verified === true;
+            const isRejected = p.status === PropertyStatusEnum.REJECTED;
             unified.push({
                 id: p.id,
                 code: p.id.slice(0, 8).toUpperCase(),
                 module: mod,
                 title: p.title,
+                description: p.description || '',
                 subtitle: `${p.bedrooms ? `${p.bedrooms} BHK · ` : ''}${p.propertyType || 'Apartment'} · ${p.city}`,
                 locality: p.location,
                 city: p.city,
-                address: `${p.location}, ${p.city}`,
+                state: p.state || 'Telangana',
+                pincode: p.pincode || '',
+                latitude: p.latitude,
+                longitude: p.longitude,
+                fullAddress: p.fullAddress || `${p.location}, ${p.city}`,
+                address: p.fullAddress || `${p.location}, ${p.city}`,
                 priceDisplay: p.priceLabel || `₹${(p.price || 0).toLocaleString('en-IN')}`,
                 priceNumeric: p.price || 0,
                 areaSqFt: p.area || 1200,
@@ -259,17 +457,21 @@ let AdminService = AdminService_1 = class AdminService {
                 furnishing: p.furnishing || 'Semi-Furnished',
                 availability: 'Immediate',
                 status: mapPropertyStatus(p.status),
-                postPublishState: p.status === 'PUBLISHED' ? 'live' : 'unpublished',
-                slaMinutesLeft: 45,
+                postPublishState: isLive ? 'live' : 'unpublished',
+                slaMinutesLeft: isLive || isRejected ? 0 : slaLeft,
+                slaUrgent: !isLive && !isRejected && slaLeft < 120,
                 submittedAt: p.createdAt || new Date().toISOString(),
-                relativeTime: '2h ago',
+                relativeTime,
                 assignedToId: p.fieldAgentName ? 'tm-1' : undefined,
                 assignedToName: p.fieldAgentName,
+                rejectionReason: p.rejectionReason,
+                amenities: p.amenities || [],
+                details: p.details || {},
                 ownerOrUser: {
                     name: p.ownerName,
                     role: 'Owner',
                     phone: p.ownerPhone,
-                    email: '',
+                    email: p.ownerEmail || '',
                     whatsapp: p.ownerPhone,
                 },
                 visualVariant: mod === 'commercial' ? 'commercial' : 'apartment',
@@ -561,60 +763,152 @@ let AdminService = AdminService_1 = class AdminService {
         return list.find((r) => r.id === id) || null;
     }
     getTeamMembers() {
-        return [
-            {
-                id: 'tm-1',
-                name: 'Kavitha Reddy',
-                role: 'Field Agent',
-                phone: '+91 98490 12345',
-                zone: 'HITEC City & Madhapur',
-                activeTasks: 4,
-                completedThisWeek: 12,
-                avgTurnaroundHrs: 2.8,
-                initials: 'KR',
-            },
-            {
-                id: 'tm-2',
-                name: 'Rajesh Varma',
-                role: 'Verification Exec',
-                phone: '+91 98480 23456',
-                zone: 'Gachibowli & Financial District',
-                activeTasks: 3,
-                completedThisWeek: 9,
-                avgTurnaroundHrs: 3.4,
-                initials: 'RV',
-            },
-            {
-                id: 'tm-3',
-                name: 'Siddharth Rao',
-                role: 'Loan Advisor',
-                phone: '+91 98480 34567',
-                zone: 'Central Hyderabad',
-                activeTasks: 5,
-                completedThisWeek: 15,
-                avgTurnaroundHrs: 4.1,
-                initials: 'SR',
-            },
-            {
-                id: 'tm-4',
-                name: 'Pooja Sharma',
-                role: 'Legal Ops',
-                phone: '+91 98480 45678',
-                zone: 'Secunderabad & Jubilee Hills',
-                activeTasks: 2,
-                completedThisWeek: 18,
-                avgTurnaroundHrs: 1.9,
-                initials: 'PS',
-            },
-        ];
+        return mockDb.teamMembers || [];
+    }
+    addTeamMember(dto) {
+        const initials = dto.name
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
+        const member = {
+            id: `tm-${Date.now().toString(36)}`,
+            name: dto.name,
+            role: dto.role || 'Field Agent',
+            phone: dto.phone,
+            zone: dto.zone || 'Hyderabad West',
+            activeTasks: 0,
+            completedThisWeek: 0,
+            avgTurnaroundHrs: 3.5,
+            initials,
+        };
+        if (!mockDb.teamMembers)
+            mockDb.teamMembers = [];
+        mockDb.teamMembers.push(member);
+        mockDb.saveToDisk();
+        return member;
+    }
+    unpublishProperty(id, note) {
+        const prop = mockDb.properties.find((p) => p.id === id);
+        if (!prop)
+            throw new NotFoundException(`Property ${id} not found`);
+        prop.status = PropertyStatusEnum.PENDING;
+        prop.verified = false;
+        prop.updatedAt = new Date().toISOString();
+        mockDb.saveToDisk();
+        if (this.eventsGateway) {
+            try {
+                this.eventsGateway.emitPropertyStatusUpdated({
+                    propertyId: prop.id,
+                    ownerId: prop.ownerId,
+                    status: 'PENDING',
+                    verified: false,
+                    title: prop.title,
+                    message: `Property "${prop.title}" unpublished and moved back to pending review.`,
+                });
+            }
+            catch (err) {
+            }
+        }
+        return {
+            message: `Property "${prop.title}" unpublished and moved back to pending review.`,
+            property: prop,
+        };
     }
     getLiveListings() {
-        return mockDb.properties.filter((p) => p.status === PropertyStatusEnum.PUBLISHED);
+        return mockDb.properties.filter((p) => p.status === PropertyStatusEnum.PUBLISHED || p.status === PropertyStatusEnum.APPROVED);
+    }
+    getUsers() {
+        return mockDb.users.map((u) => ({
+            id: u.id,
+            name: u.name,
+            phone: u.phone,
+            email: u.email,
+            role: u.role || 'USER',
+            city: u.city || 'Hyderabad',
+            createdAt: u.createdAt || new Date().toISOString(),
+        }));
+    }
+    async deleteProperty(id) {
+        const idx = mockDb.properties.findIndex((p) => p.id === id);
+        if (idx === -1)
+            throw new NotFoundException(`Property ${id} not found`);
+        const removed = mockDb.properties.splice(idx, 1)[0];
+        if (removed.imagePublicIds && removed.imagePublicIds.length > 0) {
+            try {
+                await this.cloudinaryService.deleteMultipleImages(removed.imagePublicIds);
+            }
+            catch (err) {
+                this.logger.warn(`Could not clean up Cloudinary images for deleted property ${id}: ${err?.message}`);
+            }
+        }
+        mockDb.saveToDisk();
+        return {
+            message: `Property "${removed.title}" successfully deleted from database and Cloudinary.`,
+            id: removed.id,
+        };
+    }
+    getReports() {
+        return {
+            generatedAt: new Date().toISOString(),
+            summary: {
+                totalProperties: mockDb.properties.length,
+                publishedProperties: mockDb.properties.filter((p) => p.status === PropertyStatusEnum.PUBLISHED).length,
+                verifiedProperties: mockDb.properties.filter((p) => p.verified).length,
+                rejectedProperties: mockDb.properties.filter((p) => p.status === PropertyStatusEnum.REJECTED).length,
+                activeRequests: mockDb.propertyManagementRequests.length +
+                    mockDb.homeLoanRequests.length +
+                    mockDb.rentalAgreementOrders.length +
+                    mockDb.ownerBackgroundChecks.length,
+                totalRegisteredUsers: mockDb.users.length,
+            },
+            auditLogs: mockDb.properties.slice(0, 15).map((p) => ({
+                id: `audit-${p.id}`,
+                propertyTitle: p.title,
+                status: p.status,
+                timestamp: p.updatedAt || p.createdAt,
+                owner: p.ownerName,
+                action: p.verified
+                    ? 'Verified & Published'
+                    : p.status === PropertyStatusEnum.REJECTED
+                        ? 'Rejected with Feedback'
+                        : 'Under Admin Review',
+            })),
+        };
+    }
+    getNotifications() {
+        const list = [];
+        for (const p of mockDb.properties.slice(0, 8)) {
+            list.push({
+                id: `notif-${p.id}`,
+                title: `Property: ${p.title}`,
+                message: `Status: ${p.status} · Owner: ${p.ownerName} (${p.ownerPhone})`,
+                time: p.updatedAt || p.createdAt || 'Recent',
+                type: p.status === PropertyStatusEnum.PUBLISHED
+                    ? 'success'
+                    : p.status === PropertyStatusEnum.REJECTED
+                        ? 'danger'
+                        : 'info',
+            });
+        }
+        for (const req of mockDb.homeLoanRequests.slice(0, 5)) {
+            list.push({
+                id: `notif-loan-${req.id}`,
+                title: `Home Loan: ${req.userName}`,
+                message: `Applied for ₹${req.loanAmount} with ${req.selectedBank}. Status: ${req.status}`,
+                time: req.createdAt || 'Recent',
+                type: 'warning',
+            });
+        }
+        return list;
     }
 };
 AdminService = AdminService_1 = __decorate([
     Injectable(),
-    __metadata("design:paramtypes", [PrismaService])
+    __metadata("design:paramtypes", [PrismaService,
+        CloudinaryService,
+        EventsGateway])
 ], AdminService);
 export { AdminService };
 //# sourceMappingURL=admin.service.js.map

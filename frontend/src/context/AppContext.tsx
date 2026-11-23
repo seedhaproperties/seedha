@@ -12,6 +12,30 @@ export type UserProfile = {
   email?: string;
   city?: string;
   role?: UserRole;
+  avatarUrl?: string | null;
+  dob?: string | null;
+  gender?: string | null;
+  userRole?: string | null;
+  streetAddress?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  alternatePhone?: string | null;
+  alternateEmail?: string | null;
+  summary?: {
+    savedCount?: number;
+    activityCount?: number;
+    propertiesCount?: number;
+    servicesCount?: number;
+  };
+  settings?: {
+    whatsappUpdates?: boolean;
+    pushNotifications?: boolean;
+    emailUpdates?: boolean;
+    smsAlerts?: boolean;
+    offersPromotions?: boolean;
+    visitReminders?: boolean;
+    useLocation?: boolean;
+  };
 };
 
 export interface FlatmatesFilterOptions {
@@ -34,151 +58,7 @@ export interface FilterOptions {
   locations?: string[];
 }
 
-const defaultAdminRequests: AdminItem[] = [
-  {
-    id: 'REQ-101',
-    category: 'flat_building',
-    title: '3 BHK High-Rise Apartment (For Sale)',
-    subtitle: 'Tower 4, Aparna Serene Park',
-    submittedBy: 'Kiran Varma (Owner)',
-    phone: '+91 98480 11223',
-    date: 'Today, 2:30 PM',
-    location: 'Kondapur, Hyderabad',
-    city: 'Hyderabad',
-    status: 'pending_review',
-    stage: 0,
-    details: {
-      bhk: '3 BHK',
-      area: '1850 sq.ft',
-      price: '₹1.55 Cr',
-      furnishing: 'Semi-Furnished',
-      facing: 'East',
-      possession: 'Immediate',
-      ownershipDoc: 'Sale Deed Verified',
-    },
-  },
-  {
-    id: 'REQ-102',
-    category: 'rent',
-    title: '2 BHK Gated Community Flat (For Rent)',
-    subtitle: 'Flat 602, Rainbow Vistas Rockgarden',
-    submittedBy: 'Suresh Babu (Owner)',
-    phone: '+91 97000 44556',
-    date: 'Today, 1:15 PM',
-    location: 'Moosapet / HITEC City, Hyderabad',
-    city: 'Hyderabad',
-    status: 'pending_review',
-    stage: 0,
-    details: {
-      bhk: '2 BHK',
-      area: '1250 sq.ft',
-      rent: '₹34,000/mo',
-      deposit: '₹68,000',
-      furnishing: 'Semi-Furnished',
-      preferredTenant: 'Family / Working Professionals',
-    },
-  },
-  {
-    id: 'REQ-103',
-    category: 'commercial',
-    title: 'Warm Shell IT Office Space (Commercial)',
-    subtitle: 'Floor 5, Cyber Gateway IT Tower',
-    submittedBy: 'Lakshmi Narayan (Commercial Builder)',
-    phone: '+91 99887 76655',
-    date: 'Today, 11:40 AM',
-    location: 'HITEC City, Hyderabad',
-    city: 'Hyderabad',
-    status: 'pending_review',
-    stage: 0,
-    details: {
-      type: 'IT Office',
-      area: '3,200 sq.ft',
-      rent: '₹1,80,000/mo',
-      seats: '45 Workstations',
-      parking: '4 Reserved Car Parks',
-      powerBackup: '100% 24x7',
-    },
-  },
-  {
-    id: 'REQ-104',
-    category: 'property_management',
-    title: 'Flat Management Request (Owner)',
-    subtitle: 'Unit B-1204, My Home Bhooja',
-    submittedBy: 'Naveen Goud (Owner)',
-    phone: '+91 98661 54321',
-    date: 'Today, 10:20 AM',
-    location: 'HITEC City, Hyderabad',
-    city: 'Hyderabad',
-    status: 'pending_review',
-    stage: 0,
-    details: {
-      flatNo: 'B-1204',
-      society: 'My Home Bhooja',
-      bhk: '3 BHK',
-      expectedRent: '₹75,000/mo',
-      serviceRequested: 'Tenant Placement, Rent Collection & Maintenance',
-    },
-  },
-  {
-    id: 'REQ-105',
-    category: 'home_loan',
-    title: 'Home Purchase Loan Application',
-    subtitle: 'SBI Home Loans (8.40% interest)',
-    submittedBy: 'Deepak Chawla',
-    phone: '+91 91234 56789',
-    date: 'Today, 9:50 AM',
-    location: 'Gachibowli, Hyderabad',
-    city: 'Hyderabad',
-    status: 'pending_review',
-    stage: 0,
-    details: {
-      loanAmount: '₹60,00,000',
-      tenure: '20 Years',
-      monthlySalary: '₹1,15,000',
-      bankSelected: 'State Bank of India',
-      documentsSubmitted: 'PAN, Aadhaar, 3 Months Salary Slips',
-    },
-  },
-  {
-    id: 'REQ-106',
-    category: 'rental_agreement',
-    title: 'e-Stamp Rental Agreement Drafting',
-    subtitle: 'Order #RA-2026-90412 (₹499 Paid)',
-    submittedBy: 'Rahul Sharma & Rajeshwar Rao',
-    phone: '+91 98765 43210',
-    date: 'Today, 9:15 AM',
-    location: 'Madhapur, Hyderabad',
-    city: 'Hyderabad',
-    status: 'pending_review',
-    stage: 0,
-    details: {
-      propertyAddress: 'Flat 402, Rainbow Vistas, HITEC City',
-      monthlyRent: '₹32,000',
-      securityDeposit: '₹64,000',
-      duration: '11 Months',
-      eStampRequired: 'Government of Telangana (₹100 Non-Judicial)',
-    },
-  },
-  {
-    id: 'REQ-107',
-    category: 'owner_background',
-    title: 'Landlord Background Verification',
-    subtitle: 'Order #SEEDHA-OBV-82914 (₹399 Paid)',
-    submittedBy: 'Prospective Tenant: Vikram Joshi',
-    phone: '+91 98490 12345',
-    date: 'Today, 8:45 AM',
-    location: 'Financial District, Hyderabad',
-    city: 'Hyderabad',
-    status: 'pending_review',
-    stage: 0,
-    details: {
-      ownerName: 'Rajeshwar Rao',
-      ownerPhone: '+91 98490 12345',
-      flatToVerify: 'Flat 304, Tower B, Prestige High Fields',
-      checksRequested: 'Title Ownership, Police CCTNS, Court Litigations',
-    },
-  },
-];
+const defaultAdminRequests: AdminItem[] = [];
 
 export type PendingAction = {
   action?: () => void;
@@ -220,6 +100,9 @@ interface AppContextType {
   logoutAdmin: () => void;
   addAdminRequest: (req: Omit<AdminItem, 'id' | 'date' | 'status' | 'stage'>) => void;
   updateAdminRequest: (id: string, updates: Partial<AdminItem>) => void;
+  loadAdminRequests: () => Promise<void>;
+  updateUserProfile: (updates: Partial<UserProfile>) => void;
+  refreshUserProfile: () => Promise<UserProfile | null>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -254,12 +137,27 @@ export const BYPASS_AUTH_FOR_DEV = false;
 const HELD_AUTH_SCREENS = new Set(['mobileLogin', 'login', 'signup', 'otp', 'onboarding']);
 
 const DEV_MOCK_USER: UserProfile = {
-  id: 'usr_dev_praghnesh',
-  name: 'Praghnesh',
-  phone: '+91 98765 43210',
-  email: 'praghnesh@seedhaproperties.com',
+  id: 'usr_1794812268930',
+  name: 'Rahul Google User',
+  phone: '+91 98490 63269',
+  email: 'rahul.google.test@gmail.com',
   city: 'Hyderabad',
   role: 'USER',
+  avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces&auto=format',
+  dob: '1990-05-15',
+  gender: 'Male',
+  userRole: 'Owner',
+  streetAddress: 'Plot 42, Road No. 36, Jubilee Hills',
+  state: 'Telangana',
+  pincode: '500033',
+  alternatePhone: null,
+  alternateEmail: null,
+  summary: {
+    savedCount: 3,
+    activityCount: 14,
+    propertiesCount: 5,
+    servicesCount: 4,
+  },
 };
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -328,9 +226,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         try {
           const storedToken = window.localStorage.getItem('seedha_auth_token');
           const storedUser = window.localStorage.getItem('seedha_user');
-          if (storedToken) {
+          if (storedToken && storedToken !== 'null' && storedToken !== 'undefined') {
             if (isJwtExpired(storedToken)) {
-              // Expired token: clear immediately without unnecessary network 401
+              // Expired token: clear immediately without unnecessary network call
               try {
                 window.localStorage.removeItem('seedha_auth_token');
                 window.localStorage.removeItem('seedha_user');
@@ -343,11 +241,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 if (res && (res.id || res.sub) && isMounted) {
                   const verifiedUser: UserProfile = {
                     id: res.id || res.sub,
-                    name: res.name || (storedUser ? JSON.parse(storedUser).name : 'Verified User'),
-                    email: res.email,
-                    phone: res.phone || (storedUser ? JSON.parse(storedUser).phone : '+91 98765 43210'),
-                    city: res.city || 'Hyderabad',
+                    name: res.name || (storedUser ? JSON.parse(storedUser).name : ''),
+                    email: res.email || '',
+                    phone: res.phone || (storedUser ? JSON.parse(storedUser).phone : ''),
+                    city: res.city || '',
                     role: res.role || 'USER',
+                    avatarUrl: res.avatarUrl || (storedUser ? JSON.parse(storedUser).avatarUrl : undefined),
+                    dob: res.dob || (storedUser ? JSON.parse(storedUser).dob : undefined),
+                    gender: res.gender || (storedUser ? JSON.parse(storedUser).gender : undefined),
+                    userRole: res.userRole || (storedUser ? JSON.parse(storedUser).userRole : undefined),
+                    streetAddress: res.streetAddress || (storedUser ? JSON.parse(storedUser).streetAddress : undefined),
+                    state: res.state || (storedUser ? JSON.parse(storedUser).state : undefined),
+                    pincode: res.pincode || (storedUser ? JSON.parse(storedUser).pincode : undefined),
+                    alternatePhone: res.alternatePhone || null,
+                    alternateEmail: res.alternateEmail || null,
+                    summary: {
+                      savedCount: res.summary?.savedCount || 3,
+                      activityCount: res.summary?.activityCount || 14,
+                      propertiesCount: res.summary?.propertiesCount || 5,
+                      servicesCount: res.summary?.servicesCount || 4,
+                    },
+                    settings: res.settings || (storedUser ? JSON.parse(storedUser).settings : undefined),
                   };
                   setUser(verifiedUser);
                   setIsAuthenticated(true);
@@ -511,6 +425,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSavedIds(s => {
         const next = new Set(s);
         next.has(id) ? next.delete(id) : next.add(id);
+        const newCount = next.size;
+        setUser(prev => {
+          if (!prev) return prev;
+          const updated = {
+            ...prev,
+            summary: {
+              ...(prev.summary || {}),
+              savedCount: newCount,
+            },
+          };
+          if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+              window.localStorage.setItem('seedha_user', JSON.stringify(updated));
+            } catch {}
+          }
+          return updated;
+        });
         return next;
       });
     },
@@ -521,10 +452,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (userData: Partial<UserProfile> | Partial<AuthUser>, authToken?: string) => {
       const normalizedUser: UserProfile = {
         id: userData.id || `usr_${Date.now()}`,
-        name: userData.name || 'Verified User',
-        phone: userData.phone || '+91 98765 43210',
-        email: userData.email || 'user@seedhaproperties.com',
-        city: userData.city || 'Hyderabad',
+        name: userData.name || '',
+        phone: userData.phone || '',
+        email: userData.email || '',
+        city: userData.city || '',
         role: (userData.role as UserRole) || 'USER',
       };
       completeAuth(normalizedUser, authToken);
@@ -611,6 +542,104 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setAdminRequests(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)));
   }, []);
 
+  const loadAdminRequests = useCallback(async () => {
+    try {
+      const data = await api.admin.getAllRequests();
+      if (Array.isArray(data)) {
+        const mapped: AdminItem[] = data.map((r: any) => ({
+          id: r.id,
+          category: (r.module === 'rental_agreements' ? 'rental_agreement' : r.module) as AdminCategory,
+          title: r.title,
+          subtitle: r.subtitle,
+          submittedBy: r.ownerOrUser?.name || 'Applicant',
+          phone: r.ownerOrUser?.phone || '+91 98765 43210',
+          date: r.relativeTime || 'Recent',
+          location: r.locality || r.city || 'Hyderabad',
+          city: r.city || 'Hyderabad',
+          status: r.status,
+          stage:
+            r.status === 'published' || r.status === 'sent_to_user' || r.status === 'sent_digitally'
+              ? 3
+              : r.status === 'verified'
+              ? 2
+              : r.status === 'field_visit' || r.status === 'in_review'
+              ? 1
+              : 0,
+          notes: r.fieldVisit?.notes || '',
+          details: {
+            price: r.priceDisplay,
+            config: r.configLabel,
+            area: r.areaSqFt ? `${r.areaSqFt} sq.ft` : undefined,
+            ...(r.homeLoan || {}),
+            ...(r.rentalAgreement || {}),
+            ...(r.ownerBackground || {}),
+          },
+        }));
+        setAdminRequests(mapped);
+      }
+    } catch (err: any) {
+      console.warn('[AppContext] Failed to load admin requests from backend:', err?.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAdminRequests();
+  }, [loadAdminRequests]);
+
+  const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
+    setUser(prev => {
+      const updated = { ...(prev || {}), ...updates } as UserProfile;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem('seedha_user', JSON.stringify(updated));
+        } catch { }
+      }
+      return updated;
+    });
+  }, []);
+
+  const refreshUserProfile = useCallback(async () => {
+    try {
+      const res = await api.auth.me();
+      if (res && (res.id || res.sub)) {
+        const verifiedUser: UserProfile = {
+          id: res.id || res.sub,
+          name: res.name,
+          email: res.email,
+          phone: res.phone,
+          city: res.city || 'Hyderabad',
+          role: res.role || 'USER',
+          avatarUrl: res.avatarUrl,
+          dob: res.dob,
+          gender: res.gender,
+          userRole: res.userRole,
+          streetAddress: res.streetAddress,
+          state: res.state,
+          pincode: res.pincode,
+          alternatePhone: res.alternatePhone,
+          alternateEmail: res.alternateEmail,
+          summary: {
+            savedCount: res.summary?.savedCount || 3,
+            activityCount: res.summary?.activityCount || 14,
+            propertiesCount: res.summary?.propertiesCount || 5,
+            servicesCount: res.summary?.servicesCount || 4,
+          },
+          settings: res.settings,
+        };
+        setUser(verifiedUser);
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            window.localStorage.setItem('seedha_user', JSON.stringify(verifiedUser));
+          } catch { }
+        }
+        return verifiedUser;
+      }
+    } catch (e) {
+      console.warn('[AppContext] Failed refreshing user profile:', e);
+    }
+    return null;
+  }, []);
+
   const currentScreen = stack[stack.length - 1];
   const isAdmin = effectiveUser?.role === 'ADMIN';
 
@@ -624,6 +653,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       activeFilters, setFilters,
       flatmatesFilters, setFlatmatesFilters,
       adminRequests, loginAdmin, logoutAdmin, addAdminRequest, updateAdminRequest,
+      loadAdminRequests,
+      updateUserProfile, refreshUserProfile,
     }}>
       {children}
     </AppContext.Provider>

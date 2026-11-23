@@ -19,6 +19,11 @@ export class CreatePropertyDto {
     priceLabel;
     location;
     city;
+    state;
+    pincode;
+    latitude;
+    longitude;
+    fullAddress;
     area;
     bedrooms;
     bathrooms;
@@ -30,6 +35,11 @@ export class CreatePropertyDto {
     amenities;
     ownerName;
     ownerPhone;
+    ownerEmail;
+    facing;
+    floor;
+    totalFloors;
+    details;
 }
 __decorate([
     ApiProperty({ example: 'My 3 BHK Flat in Kondapur' }),
@@ -77,6 +87,36 @@ __decorate([
     IsNotEmpty(),
     __metadata("design:type", String)
 ], CreatePropertyDto.prototype, "city", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 'Telangana' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], CreatePropertyDto.prototype, "state", void 0);
+__decorate([
+    ApiPropertyOptional({ example: '500081' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], CreatePropertyDto.prototype, "pincode", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 17.4482 }),
+    IsOptional(),
+    IsNumber(),
+    __metadata("design:type", Number)
+], CreatePropertyDto.prototype, "latitude", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 78.3756 }),
+    IsOptional(),
+    IsNumber(),
+    __metadata("design:type", Number)
+], CreatePropertyDto.prototype, "longitude", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 'Hitec City, Madhapur, Hyderabad, Telangana 500081' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], CreatePropertyDto.prototype, "fullAddress", void 0);
 __decorate([
     ApiProperty({ example: 1650 }),
     IsNumber(),
@@ -142,6 +182,51 @@ __decorate([
     IsNotEmpty(),
     __metadata("design:type", String)
 ], CreatePropertyDto.prototype, "ownerPhone", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 'rahul@example.com' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], CreatePropertyDto.prototype, "ownerEmail", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 'East' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], CreatePropertyDto.prototype, "facing", void 0);
+__decorate([
+    ApiPropertyOptional({ example: '4th' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], CreatePropertyDto.prototype, "floor", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 10 }),
+    IsOptional(),
+    IsNumber(),
+    __metadata("design:type", Number)
+], CreatePropertyDto.prototype, "totalFloors", void 0);
+__decorate([
+    ApiPropertyOptional({ example: {} }),
+    IsOptional(),
+    __metadata("design:type", Object)
+], CreatePropertyDto.prototype, "details", void 0);
+export class UploadPropertyImageDto {
+    imageBase64;
+    imageUrl;
+}
+__decorate([
+    ApiPropertyOptional({ example: 'data:image/jpeg;base64,...' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UploadPropertyImageDto.prototype, "imageBase64", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 'https://images.unsplash.com/...' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], UploadPropertyImageDto.prototype, "imageUrl", void 0);
 export class QueryPropertyDto {
     type;
     city;

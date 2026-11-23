@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { properties } from '../../data/properties';
+import { api } from '../../services/api';
 import type { Property } from '../../types';
 
 type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest';
@@ -68,21 +69,61 @@ export default function BuyPropertiesScreen() {
     null
   );
   const [showGpsModal, setShowGpsModal] = useState(false);
+  const [liveProperties, setLiveProperties] = useState<Property[]>([]);
 
-  // Default Buy Properties prioritised to match the 4 cards in the reference image
-  const buyProperties = useMemo(() => {
-    const targetProps: Property[] = [];
-    TARGET_BUY_IDS.forEach((id) => {
-      const found = properties.find((p) => p.id === id);
-      if (found) targetProps.push(found);
-    });
-
-    const otherBuy = properties.filter(
-      (p) => p.listingType === 'buy' && !TARGET_BUY_IDS.includes(p.id)
-    );
-
-    return [...targetProps, ...otherBuy];
+  useEffect(() => {
+    let isMounted = true;
+    api.properties
+      .list({ type: 'buy' })
+      .then((res) => {
+        const list = res?.properties || (Array.isArray(res) ? res : []);
+        if (Array.isArray(list) && isMounted) {
+          const mapped: Property[] = list.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            location: p.location,
+            city: p.city || 'Hyderabad',
+            price: p.price,
+            priceLabel: p.priceLabel || `₹${Number(p.price).toLocaleString('en-IN')}`,
+            listingType: 'buy',
+            propertyType: (p.propertyType || 'apartment').toLowerCase() as any,
+            bedrooms: p.bedrooms || 2,
+            bathrooms: p.bathrooms || 2,
+            area: p.area || 1200,
+            image: p.images?.[0] || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
+            images: p.images || [],
+            verified: !!p.verified,
+            amenities: p.amenities || ['Power Backup', 'Lift', 'Security'],
+            description: p.description || '',
+            ownerName: p.ownerName || 'Verified Owner',
+            ownerAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+            ownerType: 'owner',
+            furnishing: (p.furnishing || 'semi-furnished').toLowerCase() as any,
+            parking: !!p.parking,
+            yearBuilt: 2024,
+          }));
+          setLiveProperties(mapped);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  // Default Buy Properties prioritised with live backend properties first, fully deduplicated
+  const buyProperties = useMemo(() => {
+    const combined = [
+      ...liveProperties,
+      ...properties.filter((p) => p.listingType === 'buy'),
+    ];
+    const seen = new Set<string>();
+    return combined.filter((p) => {
+      if (!p.id || seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+  }, [liveProperties]);
 
   // Distinct locations for location selection interface
   const locations = useMemo(() => {

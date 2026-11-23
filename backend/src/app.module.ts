@@ -11,6 +11,8 @@ import { RentalAgreementsModule } from './modules/rental-agreements/rental-agree
 import { OwnerBackgroundModule } from './modules/owner-background/owner-background.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 import { FirebaseNotificationModule } from './modules/firebase-notification/firebase-notification.module.js';
+import { CloudinaryModule } from './modules/cloudinary/cloudinary.module.js';
+import { EventsModule } from './modules/events/events.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -28,6 +30,8 @@ import { AppService } from './app.service.js';
     OwnerBackgroundModule,
     AdminModule,
     FirebaseNotificationModule,
+    CloudinaryModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

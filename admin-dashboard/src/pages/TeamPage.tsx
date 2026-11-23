@@ -11,8 +11,9 @@ export const TeamPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [zone, setZone] = useState('Hyderabad West (Madhapur / Gachibowli)');
 
-  const loadTeam = () => {
-    setTeam(adminService.getTeamMembers());
+  const loadTeam = async () => {
+    const list = await adminService.getTeamMembers();
+    setTeam(list);
   };
 
   useEffect(() => {
@@ -28,8 +29,6 @@ export const TeamPage: React.FC = () => {
       role,
       phone: phone.trim(),
       zone: zone.trim(),
-      activeTasks: 0,
-      avatar: '',
     });
 
     setName('');

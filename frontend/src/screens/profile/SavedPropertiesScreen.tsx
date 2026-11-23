@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 
 interface SavedItem {
   id: string;
@@ -93,12 +94,13 @@ const initialSavedProperties: SavedItem[] = [
 ];
 
 export default function SavedPropertiesScreen() {
-  const { pop, push, setTab } = useApp();
+  const { pop, push, setTab, toggleSaved, user, updateUserProfile } = useApp();
   const insets = useSafeAreaInsets();
 
   const [properties, setProperties] = useState<SavedItem[]>(initialSavedProperties);
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'buy' | 'rent' | 'commercial'>('all');
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Filter States
   const [sortBy, setSortBy] = useState<'recent' | 'price_low' | 'price_high'>('recent');
@@ -110,8 +112,40 @@ export default function SavedPropertiesScreen() {
   const [tempCity, setTempCity] = useState<string | null>(null);
   const [tempVerifiedOnly, setTempVerifiedOnly] = useState(false);
 
-  const toggleHeart = (id: string) => {
-    setProperties((prev) => prev.filter((item) => item.id !== id));
+  const toggleHeart = async (id: string) => {
+    const propertyToUnsave = properties.find((p) => p.id === id);
+    const updated = properties.filter((item) => item.id !== id);
+    setProperties(updated);
+
+    if (propertyToUnsave) {
+      setToastMessage(`Removed "${propertyToUnsave.title}" from saved`);
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+
+    if (toggleSaved) {
+      toggleSaved(id);
+    }
+
+    const newSavedCount = updated.length;
+    if (updateUserProfile) {
+      updateUserProfile({
+        summary: {
+          ...(user?.summary || {}),
+          savedCount: newSavedCount,
+        },
+      });
+    }
+
+    try {
+      await api.auth.updateProfile({
+        summary: {
+          ...(user?.summary || {}),
+          savedCount: newSavedCount,
+        },
+      });
+    } catch (e) {
+      console.warn('Failed syncing updated saved count with backend:', e);
+    }
   };
 
   const openFilterModal = () => {
@@ -203,6 +237,13 @@ export default function SavedPropertiesScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <View style={styles.toastBanner}>
+          <Text style={styles.toastText}>✓ {toastMessage}</Text>
+        </View>
+      )}
+
       {/* Category Filter Pills */}
       <View style={styles.tabsContainer}>
         <ScrollView
@@ -284,8 +325,26 @@ export default function SavedPropertiesScreen() {
       >
         {filteredProperties.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No saved properties match</Text>
-            <Text style={styles.emptySubtitle}>Try changing your filter settings or category</Text>
+            <Text style={styles.emptyTitle}>
+              {properties.length === 0 ? 'No Saved Properties' : 'No properties match'}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {properties.length === 0
+                ? "You haven't saved any properties yet. Explore properties and tap the heart icon to save."
+                : 'Try changing your filter settings or selected category.'}
+            </Text>
+            {properties.length === 0 && (
+              <TouchableOpacity
+                style={styles.exploreBtn}
+                onPress={() => {
+                  if (pop) pop();
+                  else setTab('home');
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.exploreBtnText}>Explore Properties</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           filteredProperties.map((item) => (
@@ -842,5 +901,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  toastBanner: {
+    backgroundColor: '#0F172A',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginHorizontal: 18,
+    marginTop: 8,
+    marginBottom: 6,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  toastText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  exploreBtn: {
+    marginTop: 14,
+    backgroundColor: '#0F172A',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+  },
+  exploreBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

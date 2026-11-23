@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AdminService } from './admin.service.js';
 import {
@@ -11,7 +11,7 @@ import {
 } from './admin.dto.js';
 
 @ApiTags('Admin Operations & Queues (Section 2)')
-@Controller('api/v1/admin')
+@Controller(['api/v1/admin', 'admin'])
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
@@ -44,6 +44,12 @@ export class AdminController {
     return this.adminService.getTeamMembers();
   }
 
+  @Post('team')
+  @ApiOperation({ summary: 'Add a new operations team member' })
+  addTeamMember(@Body() body: { name: string; role?: string; phone: string; zone?: string }) {
+    return this.adminService.addTeamMember(body);
+  }
+
   @Get('listings')
   @ApiOperation({ summary: 'Get published live listings on Seedha portal' })
   getListings() {
@@ -71,6 +77,13 @@ export class AdminController {
     return this.adminService.getCommercialListingsQueue();
   }
 
+  // PG & Hostel Listings Review
+  @Get('pg-review')
+  @ApiOperation({ summary: 'Receive PG & Hostel details' })
+  getPgQueue() {
+    return this.adminService.getPgListingsQueue();
+  }
+
   @Post('properties/:id/assign-field-work')
   @ApiOperation({ summary: 'Team can contact owner or do field work' })
   assignPropertyFieldWork(@Param('id') id: string, @Body() dto: AssignFieldWorkDto) {
@@ -83,10 +96,22 @@ export class AdminController {
     return this.adminService.verifyAndPublishProperty(id);
   }
 
+  @Post('properties/:id/approve')
+  @ApiOperation({ summary: 'Approve and publish property listing' })
+  approveProperty(@Param('id') id: string) {
+    return this.adminService.approveProperty(id);
+  }
+
   @Post('properties/:id/reject')
   @ApiOperation({ summary: 'Reject property listing with reasons' })
   rejectProperty(@Param('id') id: string, @Body() dto: RejectItemDto) {
     return this.adminService.rejectProperty(id, dto);
+  }
+
+  @Post('properties/:id/unpublish')
+  @ApiOperation({ summary: 'Unpublish property listing back to pending review' })
+  unpublishProperty(@Param('id') id: string, @Body('note') note?: string) {
+    return this.adminService.unpublishProperty(id, note);
   }
 
   // Queue 4: Property Management Requests
@@ -151,5 +176,30 @@ export class AdminController {
   @ApiOperation({ summary: 'Collect details -> Admin send details to user through digital' })
   collectAndSendDigital(@Param('id') id: string, @Body() dto: CollectAndSendDigitalDto) {
     return this.adminService.collectAndSendDigitalOwnerDetails(id, dto);
+  }
+
+  // Admin Database Extensions: Users, Reports, Notifications & Property Management
+  @Get('users')
+  @ApiOperation({ summary: 'Get all registered users in database' })
+  getUsers() {
+    return this.adminService.getUsers();
+  }
+
+  @Delete('properties/:id')
+  @ApiOperation({ summary: 'Delete property permanently from database' })
+  deleteProperty(@Param('id') id: string) {
+    return this.adminService.deleteProperty(id);
+  }
+
+  @Get('reports')
+  @ApiOperation({ summary: 'Get real audit logs and platform summary reports' })
+  getReports() {
+    return this.adminService.getReports();
+  }
+
+  @Get('notifications')
+  @ApiOperation({ summary: 'Get real administrative notifications and alerts' })
+  getNotifications() {
+    return this.adminService.getNotifications();
   }
 }

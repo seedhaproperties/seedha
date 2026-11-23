@@ -10,6 +10,11 @@ export interface PropertyRecord {
     priceLabel: string;
     location: string;
     city: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+    fullAddress?: string;
     area: number;
     bedrooms: number;
     bathrooms: number;
@@ -21,12 +26,17 @@ export interface PropertyRecord {
     floor?: string;
     totalFloors?: number;
     images: string[];
+    imagePublicIds?: string[];
     amenities: string[];
     verified: boolean;
     featured?: boolean;
     ownerId?: string;
     ownerName: string;
     ownerPhone: string;
+    ownerEmail?: string;
+    details?: any;
+    views?: number;
+    leads?: number;
     rejectionReason?: string;
     fieldAgentName?: string;
     fieldNotes?: string;
@@ -60,6 +70,11 @@ export interface PropertyManagementRecord {
     flatDetails: string;
     address: string;
     city: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+    fullAddress?: string;
     locality: string;
     serviceRequested: string;
     status: 'SUBMITTED' | 'ADMIN_REVIEW' | 'LOCATION_CHECK_PASSED' | 'LOCATION_CHECK_REJECTED' | 'ASSIGNED_TEAM' | 'OWNER_CONTACTED' | 'COMPLETED';
@@ -121,8 +136,17 @@ export interface OwnerBackgroundRecord {
     buildingName: string;
     propertyAddress: string;
     city: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+    fullAddress?: string;
     ownerName: string;
     ownerPhone: string;
+    ownerEmail?: string;
+    details?: any;
+    views?: number;
+    leads?: number;
     status: 'SUBMITTED' | 'PAYMENT_PENDING' | 'PAID' | 'ADMIN_CHECKING' | 'FIELD_WORK_ASSIGNED' | 'DETAILS_COLLECTED' | 'REPORT_GENERATED' | 'SENT_DIGITALLY' | 'REJECTED';
     paymentAmount: number;
     paymentTxnId?: string;
@@ -144,10 +168,45 @@ export interface UserRecord {
     phone: string;
     passwordHash: string;
     role: UserRole;
+    avatarUrl?: string;
+    avatarPublicId?: string;
+    dob?: string;
+    gender?: string;
+    userRole?: string;
+    streetAddress?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    alternatePhone?: string | null;
+    alternateEmail?: string | null;
+    summary?: {
+        savedCount?: number;
+        activityCount?: number;
+        propertiesCount?: number;
+        servicesCount?: number;
+    };
+    settings?: any;
     createdAt: string;
+    updatedAt?: string;
+}
+export interface TeamMemberRecord {
+    id: string;
+    name: string;
+    role: string;
+    phone: string;
+    zone: string;
+    activeTasks: number;
+    completedThisWeek: number;
+    avgTurnaroundHrs: number;
+    initials: string;
 }
 declare class InMemoryStore {
+    private getPersistPaths;
+    loadFromDisk(): void;
+    saveToDisk(): void;
+    teamMembers: TeamMemberRecord[];
     users: UserRecord[];
+    constructor();
     properties: PropertyRecord[];
     siteVisits: SiteVisitRecord[];
     propertyManagementRequests: PropertyManagementRecord[];

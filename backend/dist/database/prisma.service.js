@@ -12,8 +12,8 @@ let PrismaService = PrismaService_1 = class PrismaService extends PrismaClient {
     isConnected = false;
     async onModuleInit() {
         try {
-            const connectPromise = this.$connect();
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('PostgreSQL connection timeout (8000ms)')), 8000));
+            const connectPromise = this.$connect().then(() => this.$queryRaw `SELECT 1`);
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('PostgreSQL ping timeout (1500ms)')), 1500));
             await Promise.race([connectPromise, timeoutPromise]);
             this.isConnected = true;
             this.logger.log('Successfully connected to PostgreSQL via Prisma');

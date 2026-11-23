@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { ChevronLeft, Search, Clock, MapPin, TrendingUp, X } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { colors } from '../../theme/colors';
 import { properties } from '../../data/properties';
+import { api } from '../../services/api';
 import PropertyCard from '../../components/PropertyCard';
-
-import type { ListingType } from '../../types';
+import type { ListingType, Property } from '../../types';
 
 const popularLocations = [
   { name: 'Madhapur, Hyderabad', count: '234 properties' },
@@ -28,9 +28,60 @@ export default function SearchScreen() {
   const { pop, push, currentScreen } = useApp();
   const searchType = ((currentScreen.params?.type as ListingType) || 'buy');
   const [query, setQuery] = useState('');
+  const [liveProperties, setLiveProperties] = useState<Property[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.properties
+      .list()
+      .then((res) => {
+        const list = res?.properties || (Array.isArray(res) ? res : []);
+        if (Array.isArray(list) && isMounted) {
+          const mapped: Property[] = list.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            location: p.location,
+            city: p.city || 'Hyderabad',
+            price: p.price,
+            priceLabel: p.priceLabel || `₹${Number(p.price).toLocaleString('en-IN')}`,
+            listingType: (p.listingType || 'buy').toLowerCase() as any,
+            propertyType: (p.propertyType || 'apartment').toLowerCase() as any,
+            bedrooms: p.bedrooms || 2,
+            bathrooms: p.bathrooms || 2,
+            area: p.area || 1200,
+            image: p.images?.[0] || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
+            images: p.images || [],
+            verified: !!p.verified,
+            amenities: p.amenities || ['Power Backup', 'Lift', 'Security'],
+            description: p.description || '',
+            ownerName: p.ownerName || 'Verified Owner',
+            ownerAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+            ownerType: 'owner',
+            furnishing: (p.furnishing || 'semi-furnished').toLowerCase() as any,
+            parking: !!p.parking,
+            yearBuilt: 2024,
+          }));
+          setLiveProperties(mapped);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const allSearchable = useMemo(() => {
+    const combined = [...liveProperties, ...properties];
+    const seen = new Set<string>();
+    return combined.filter((p) => {
+      if (!p.id || seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+  }, [liveProperties]);
 
   const results = query.length > 1
-    ? properties.filter(p =>
+    ? allSearchable.filter((p: Property) =>
         p.title.toLowerCase().includes(query.toLowerCase()) ||
         p.location.toLowerCase().includes(query.toLowerCase()) ||
         p.city.toLowerCase().includes(query.toLowerCase())
@@ -94,7 +145,7 @@ export default function SearchScreen() {
           <View style={styles.sectionPadding}>
             <Text style={styles.sectionHeader}>{results.length} Properties Found</Text>
             <View style={styles.resultsList}>
-              {results.map(p => <PropertyCard key={p.id} property={p} horizontal />)}
+              {results.map((p: Property) => <PropertyCard key={p.id} property={p} horizontal />)}
             </View>
           </View>
         )}

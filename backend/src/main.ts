@@ -1,11 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const logger = new Logger('SeedhaPropertiesBackend');
   const app = await NestFactory.create(AppModule);
+
+  // Increase body size limit to 50MB to support property photo uploads
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   app.enableCors({
     origin: '*',
@@ -14,7 +19,7 @@ async function bootstrap() {
   });
 
   app.use((_req: any, res: any, next: any) => {
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
     next();
   });
 

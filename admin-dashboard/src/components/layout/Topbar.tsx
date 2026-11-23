@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -11,15 +11,35 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { adminService } from '../../services/api';
+import { adminSocket } from '../../services/socket';
 
 export const Topbar: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const notifications = adminService.getNotifications();
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  useEffect(() => {
+    let mounted = true;
+    adminService.checkBackendHealth().then((online) => {
+      if (mounted) setIsOnline(online);
+    });
+    adminService.getNotifications().then((notifs) => {
+      if (mounted) setUnreadCount(notifs.filter((n) => !n.read).length);
+    });
+
+    // Real-time notification increment on new property submission
+    const unsub = adminSocket.onPropertyCreated(() => {
+      if (mounted) setUnreadCount((prev) => prev + 1);
+    });
+
+    return () => {
+      mounted = false;
+      unsub();
+    };
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,15 +48,11 @@ export const Topbar: React.FC = () => {
     }
   };
 
-  const handleResetData = () => {
-    if (window.confirm('Reset all demo requests and teams back to factory defaults?')) {
-      setIsResetting(true);
-      adminService.resetDemoData();
-      setTimeout(() => {
-        setIsResetting(false);
-        window.location.reload();
-      }, 400);
-    }
+  const handleRefreshData = async () => {
+    setIsRefreshing(true);
+    await adminService.getMetrics();
+    await adminService.getRequests();
+    window.location.reload();
   };
 
   return (
@@ -58,21 +74,31 @@ export const Topbar: React.FC = () => {
       {/* Right Controls */}
       <div className="flex items-center gap-3">
         {/* Backend Status indicator */}
-        <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 font-medium">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <Server className="w-3.5 h-3.5 text-emerald-600" />
-          <span>NestJS API :4000</span>
+        <div
+          className={`hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium border ${
+            isOnline
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-rose-50 border-rose-200 text-rose-700'
+          }`}
+        >
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+            }`}
+          />
+          <Server className="w-3.5 h-3.5" />
+          <span>{isOnline ? 'NestJS API :4000 Connected' : 'Backend Disconnected'}</span>
         </div>
 
-        {/* Demo reset data shortcut */}
+        {/* Refresh data shortcut */}
         <button
-          onClick={handleResetData}
-          title="Reset Demo Data"
-          disabled={isResetting}
+          onClick={handleRefreshData}
+          title="Refresh Data from Database"
+          disabled={isRefreshing}
           className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-medium transition-colors"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin' : ''}`} />
-          <span>Reset Data</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>Refresh Data</span>
         </button>
 
         {/* Notification Bell */}

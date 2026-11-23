@@ -12,29 +12,45 @@ import {
   Search,
 } from 'lucide-react';
 import { adminService } from '../services/api';
+import { adminSocket } from '../services/socket';
 import { PropertyRequest } from '../types';
 import { ModuleBadge } from '../components/common/ModuleBadge';
 
 export const ListingsPage: React.FC = () => {
   const [listings, setListings] = useState<PropertyRequest[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const loadListings = async () => {
-    const all = await adminService.getRequests();
-    setListings(all.filter((r) => r.status === 'published'));
+    setLoading(true);
+    const live = await adminService.getListings();
+    setListings(live);
+    setLoading(false);
   };
 
   useEffect(() => {
     loadListings();
+
+    // Listen for real-time status updates (approve/unpublish/delete)
+    const unsub = adminSocket.onPropertyStatusUpdated(() => {
+      loadListings();
+    });
+
+    return () => {
+      unsub();
+    };
   }, []);
 
   const handleUnpublish = async (id: string) => {
     if (window.confirm('Are you sure you want to unpublish this listing from live app?')) {
-      await adminService.updateRequest(
-        id,
-        { status: 'in_review' },
-        'Unpublished from live portal by admin'
-      );
+      await adminService.unpublishListing(id);
+      loadListings();
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to permanently delete this property and its images?')) {
+      await adminService.deleteProperty(id);
       loadListings();
     }
   };
@@ -122,12 +138,22 @@ export const ListingsPage: React.FC = () => {
               </div>
 
               <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
-                <button
-                  onClick={() => handleUnpublish(item.id)}
-                  className="text-rose-600 hover:text-rose-700"
-                >
-                  Unpublish
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleUnpublish(item.id)}
+                    className="text-amber-600 hover:text-amber-700"
+                    title="Move back to pending review"
+                  >
+                    Unpublish
+                  </button>
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="text-rose-600 hover:text-rose-700"
+                    title="Permanently remove"
+                  >
+                    Delete
+                  </button>
+                </div>
                 <Link
                   to={`/requests/${item.id}`}
                   className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700"

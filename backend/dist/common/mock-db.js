@@ -1,5 +1,116 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { UserRole, ListingTypeEnum, PropertyStatusEnum } from './constants.js';
 class InMemoryStore {
+    getPersistPaths() {
+        const cwd = process.cwd();
+        const candidatePaths = [
+            path.resolve(cwd, 'seedha-mock-store.json'),
+            path.resolve(cwd, 'backend', 'seedha-mock-store.json'),
+            path.resolve(cwd, '..', 'seedha-mock-store.json'),
+        ];
+        return Array.from(new Set(candidatePaths));
+    }
+    loadFromDisk() {
+        try {
+            const paths = this.getPersistPaths();
+            for (const p of paths) {
+                if (fs.existsSync(p)) {
+                    const raw = fs.readFileSync(p, 'utf8');
+                    const data = JSON.parse(raw);
+                    if (data.users?.length)
+                        this.users = data.users;
+                    if (data.properties?.length)
+                        this.properties = data.properties;
+                    if (data.siteVisits?.length)
+                        this.siteVisits = data.siteVisits;
+                    if (data.propertyManagementRequests?.length)
+                        this.propertyManagementRequests = data.propertyManagementRequests;
+                    if (data.homeLoanRequests?.length)
+                        this.homeLoanRequests = data.homeLoanRequests;
+                    if (data.rentalAgreementOrders?.length)
+                        this.rentalAgreementOrders = data.rentalAgreementOrders;
+                    if (data.ownerBackgroundChecks?.length)
+                        this.ownerBackgroundChecks = data.ownerBackgroundChecks;
+                    if (data.teamMembers?.length)
+                        this.teamMembers = data.teamMembers;
+                    break;
+                }
+            }
+        }
+        catch {
+        }
+    }
+    saveToDisk() {
+        try {
+            const data = {
+                users: this.users,
+                properties: this.properties,
+                siteVisits: this.siteVisits,
+                propertyManagementRequests: this.propertyManagementRequests,
+                homeLoanRequests: this.homeLoanRequests,
+                rentalAgreementOrders: this.rentalAgreementOrders,
+                ownerBackgroundChecks: this.ownerBackgroundChecks,
+                teamMembers: this.teamMembers,
+            };
+            const jsonStr = JSON.stringify(data, null, 2);
+            for (const p of this.getPersistPaths()) {
+                try {
+                    fs.writeFileSync(p, jsonStr, 'utf8');
+                }
+                catch {
+                }
+            }
+        }
+        catch {
+        }
+    }
+    teamMembers = [
+        {
+            id: 'tm-1',
+            name: 'Kavitha Reddy',
+            role: 'Field Agent',
+            phone: '+91 98490 12345',
+            zone: 'HITEC City & Madhapur',
+            activeTasks: 4,
+            completedThisWeek: 12,
+            avgTurnaroundHrs: 2.8,
+            initials: 'KR',
+        },
+        {
+            id: 'tm-2',
+            name: 'Rajesh Varma',
+            role: 'Verification Exec',
+            phone: '+91 98480 23456',
+            zone: 'Gachibowli & Financial District',
+            activeTasks: 3,
+            completedThisWeek: 9,
+            avgTurnaroundHrs: 3.4,
+            initials: 'RV',
+        },
+        {
+            id: 'tm-3',
+            name: 'Siddharth Rao',
+            role: 'Loan Advisor',
+            phone: '+91 98480 34567',
+            zone: 'Central Hyderabad',
+            activeTasks: 5,
+            completedThisWeek: 15,
+            avgTurnaroundHrs: 4.1,
+            initials: 'SR',
+        },
+        {
+            id: 'tm-4',
+            name: 'Pooja Sharma',
+            role: 'Legal Ops',
+            phone: '+91 98480 45678',
+            zone: 'Secunderabad & Jubilee Hills',
+            activeTasks: 2,
+            completedThisWeek: 18,
+            avgTurnaroundHrs: 1.9,
+            initials: 'PS',
+        },
+    ];
     users = [
         {
             id: 'usr_admin',
@@ -8,18 +119,52 @@ class InMemoryStore {
             phone: '+919988776655',
             passwordHash: '$2b$10$epNzTj0hF5vG80X0Z3Qd7eZ1O5cO3Zf4i6zP7C5V8B8C9D0E1F2G3',
             role: UserRole.ADMIN,
+            avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=faces&auto=format',
+            city: 'Hyderabad',
             createdAt: new Date().toISOString(),
         },
         {
             id: 'usr_rahul',
-            name: 'Rahul Sharma',
-            email: 'rahul@example.com',
-            phone: '+919876543210',
+            name: 'Rahul Google User',
+            email: 'rahul.google.test@gmail.com',
+            phone: '+91 98490 63269',
             passwordHash: '$2b$10$epNzTj0hF5vG80X0Z3Qd7eZ1O5cO3Zf4i6zP7C5V8B8C9D0E1F2G3',
             role: UserRole.USER,
+            avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces&auto=format',
+            dob: '1990-05-15',
+            gender: 'Male',
+            userRole: 'Owner',
+            streetAddress: 'Plot 42, Road No. 36, Jubilee Hills',
+            city: 'Hyderabad',
+            state: 'Telangana',
+            pincode: '500033',
+            alternatePhone: null,
+            alternateEmail: null,
+            createdAt: new Date().toISOString(),
+        },
+        {
+            id: 'usr_dev_praghnesh',
+            name: 'Rahul Google User',
+            email: 'rahul.google.test@gmail.com',
+            phone: '+91 98490 63269',
+            passwordHash: '$2b$10$epNzTj0hF5vG80X0Z3Qd7eZ1O5cO3Zf4i6zP7C5V8B8C9D0E1F2G3',
+            role: UserRole.USER,
+            avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces&auto=format',
+            dob: '1990-05-15',
+            gender: 'Male',
+            userRole: 'Owner',
+            streetAddress: 'Plot 42, Road No. 36, Jubilee Hills',
+            city: 'Hyderabad',
+            state: 'Telangana',
+            pincode: '500033',
+            alternatePhone: null,
+            alternateEmail: null,
             createdAt: new Date().toISOString(),
         },
     ];
+    constructor() {
+        this.loadFromDisk();
+    }
     properties = [
         {
             id: 'prop-buy-1',

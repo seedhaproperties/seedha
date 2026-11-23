@@ -42,6 +42,40 @@ declare class RefreshTokenDto {
 declare class ForgotPasswordDto {
     email: string;
 }
+declare class UpdateProfileDto {
+    name?: string;
+    phone?: string;
+    email?: string;
+    avatarUrl?: string;
+    dob?: string;
+    gender?: string;
+    userRole?: string;
+    streetAddress?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    alternatePhone?: string;
+    alternateEmail?: string;
+    summary?: {
+        savedCount?: number;
+        activityCount?: number;
+        propertiesCount?: number;
+        servicesCount?: number;
+    };
+    settings?: {
+        whatsappUpdates?: boolean;
+        pushNotifications?: boolean;
+        emailUpdates?: boolean;
+        smsAlerts?: boolean;
+        offersPromotions?: boolean;
+        visitReminders?: boolean;
+        useLocation?: boolean;
+    };
+}
+declare class UploadAvatarDto {
+    avatarUrl?: string;
+    imageBase64?: string;
+}
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
@@ -164,6 +198,142 @@ export declare class AuthController {
         email: string;
         phone: string;
         role: import("../../common/constants.js").UserRole;
+        avatarUrl: string | null;
+        dob: string;
+        gender: string;
+        userRole: string;
+        streetAddress: string;
+        city: string;
+        state: string;
+        pincode: string;
+        alternatePhone: string | null;
+        alternateEmail: string | null;
+        summary: {
+            savedCount: any;
+            activityCount: any;
+            propertiesCount: any;
+            servicesCount: any;
+        };
+        settings: any;
+    } | {
+        authenticated: boolean;
+        user: null;
+        message: string;
+    }>;
+    updateMe(req: any, dto: UpdateProfileDto): Promise<{
+        success: boolean;
+        message: string;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: import("../../common/constants.js").UserRole;
+            avatarUrl: string | null;
+            dob: string;
+            gender: string;
+            userRole: string;
+            streetAddress: string;
+            city: string;
+            state: string;
+            pincode: string;
+            alternatePhone: string | null;
+            alternateEmail: string | null;
+            summary: {
+                savedCount: any;
+                activityCount: any;
+                propertiesCount: any;
+                servicesCount: any;
+            };
+            settings: any;
+        };
+    }>;
+    updateProfile(req: any, dto: UpdateProfileDto): Promise<{
+        success: boolean;
+        message: string;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: import("../../common/constants.js").UserRole;
+            avatarUrl: string | null;
+            dob: string;
+            gender: string;
+            userRole: string;
+            streetAddress: string;
+            city: string;
+            state: string;
+            pincode: string;
+            alternatePhone: string | null;
+            alternateEmail: string | null;
+            summary: {
+                savedCount: any;
+                activityCount: any;
+                propertiesCount: any;
+                servicesCount: any;
+            };
+            settings: any;
+        };
+    }>;
+    uploadAvatar(req: any, body: UploadAvatarDto): Promise<{
+        success: boolean;
+        avatarUrl: string;
+        publicId: string;
+        message: string;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: import("../../common/constants.js").UserRole;
+            avatarUrl: string | null;
+            dob: string;
+            gender: string;
+            userRole: string;
+            streetAddress: string;
+            city: string;
+            state: string;
+            pincode: string;
+            alternatePhone: string | null;
+            alternateEmail: string | null;
+            summary: {
+                savedCount: any;
+                activityCount: any;
+                propertiesCount: any;
+                servicesCount: any;
+            };
+            settings: any;
+        };
+    }>;
+    deleteAvatar(req: any): Promise<{
+        success: boolean;
+        message: string;
+        avatarUrl: null;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            phone: string;
+            role: import("../../common/constants.js").UserRole;
+            avatarUrl: string | null;
+            dob: string;
+            gender: string;
+            userRole: string;
+            streetAddress: string;
+            city: string;
+            state: string;
+            pincode: string;
+            alternatePhone: string | null;
+            alternateEmail: string | null;
+            summary: {
+                savedCount: any;
+                activityCount: any;
+                propertiesCount: any;
+                servicesCount: any;
+            };
+            settings: any;
+        };
     }>;
 }
 export {};

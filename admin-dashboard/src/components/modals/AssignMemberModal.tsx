@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, UserPlus, Check } from 'lucide-react';
 import { adminService } from '../../services/api';
+import { TeamMember } from '../../types';
 
 interface AssignMemberModalProps {
   isOpen: boolean;
@@ -22,10 +23,15 @@ export const AssignMemberModal: React.FC<AssignMemberModalProps> = ({
   const [selectedId, setSelectedId] = useState<string>(currentAssigneeId || '');
   const [instructions, setInstructions] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      adminService.getTeamMembers().then(setTeam);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
-
-  const team = adminService.getTeamMembers();
 
   const handleAssign = async () => {
     if (!selectedId) return;
