@@ -12,7 +12,7 @@ export const getHost = () => {
   if (debuggerHost && !debuggerHost.includes('exp.direct')) {
     return debuggerHost;
   }
-  return '192.168.29.234';
+  return '192.168.31.145';
 };
 
 export const getApiBaseUrl = () => {
@@ -69,6 +69,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'bypass-tunnel-reminder': 'true',
+    'ngrok-skip-browser-warning': 'true',
     ...(currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {}),
     ...((options.headers as Record<string, string>) || {}),
   };
