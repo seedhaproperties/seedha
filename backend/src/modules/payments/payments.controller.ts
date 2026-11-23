@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Request, Query, Headers } from '@nestjs/common';
+import { Controller, Post, Get, Body, Request, Query, Headers, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service.js';
 import { CreatePaymentOrderDto, VerifyPaymentDto } from './payments.dto.js';
@@ -27,6 +27,12 @@ export class PaymentsController {
     @Headers('x-razorpay-signature') signature?: string,
   ) {
     return this.paymentsService.handleWebhook(payload, signature);
+  }
+
+  @Post(':id/refund')
+  @ApiOperation({ summary: 'Process refund for a payment transaction' })
+  processRefund(@Param('id') id: string, @Body('reason') reason?: string) {
+    return this.paymentsService.processRefund(id, reason);
   }
 
   @Get('my')

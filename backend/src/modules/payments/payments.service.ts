@@ -192,6 +192,15 @@ export class PaymentsService {
     const event = payload?.event;
     this.logger.log(`[Razorpay Webhook] Event received: ${event}`);
 
+    // Map status from event
+    let status = 'SUCCESS';
+    if (event === 'payment.failed') {
+      status = 'FAILED';
+    } else if (event === 'refund.created' || event === 'refund.processed' || event === 'payment.refunded') {
+      status = 'REFUNDED';
+    }
+
+    // 1. Process payment entities
     const paymentEntity = payload?.payload?.payment?.entity;
     if (paymentEntity) {
       const paymentId = paymentEntity.id;
@@ -215,7 +224,7 @@ export class PaymentsService {
               purpose,
               gateway: 'RAZORPAY',
               gatewayTxnId: paymentId,
-              paymentStatus: 'SUCCESS',
+              paymentStatus: status,
               customerName: paymentEntity.notes?.customerName || contact || 'Verified Customer',
               customerPhone: contact,
               metadata: JSON.stringify({
@@ -223,17 +232,91 @@ export class PaymentsService {
                 email,
                 rawEvent: event,
                 capturedAt: new Date().toISOString(),
+                failureReason: paymentEntity.error_description || null,
               }),
             },
           });
-          this.logger.log(`[Razorpay Webhook] ✅ Transaction ${paymentId} recorded for ₹${amount}`);
+          this.logger.log(`[Razorpay Webhook] ✅ Transaction ${paymentId} recorded as ${status} for ₹${amount}`);
+        } else if (existing.paymentStatus !== status) {
+          await this.prisma.paymentTransaction.update({
+            where: { id: existing.id },
+            data: {
+              paymentStatus: status,
+              metadata: JSON.stringify({
+                ...JSON.parse(existing.metadata || '{}'),
+                updatedByEvent: event,
+                updatedAt: new Date().toISOString(),
+              }),
+            },
+          });
+          this.logger.log(`[Razorpay Webhook] 🔄 Updated transaction ${existing.id} status to ${status}`);
         }
       } catch (dbErr: any) {
         this.logger.error(`[Razorpay Webhook] DB recording error: ${dbErr?.message}`);
       }
     }
 
+    // 2. Process standalone refund entities
+    const refundEntity = payload?.payload?.refund?.entity;
+    if (refundEntity) {
+      const targetPaymentId = refundEntity.payment_id;
+      if (targetPaymentId) {
+        try {
+          await this.prisma.paymentTransaction.updateMany({
+            where: { gatewayTxnId: targetPaymentId },
+            data: { paymentStatus: 'REFUNDED' },
+          });
+          this.logger.log(`[Razorpay Webhook] ↩️ Marked payment ${targetPaymentId} as REFUNDED`);
+        } catch (dbErr: any) {
+          this.logger.error(`[Razorpay Webhook] Refund update error: ${dbErr?.message}`);
+        }
+      }
+    }
+
     return { status: 'ok', received: true, event };
+  }
+
+  async processRefund(transactionId: string, reason?: string) {
+    try {
+      const record = await this.prisma.paymentTransaction.findUnique({
+        where: { id: transactionId },
+      });
+
+      if (!record) {
+        throw new BadRequestException('Transaction record not found');
+      }
+
+      if (record.paymentStatus === 'REFUNDED') {
+        return {
+          success: true,
+          message: 'Transaction already marked as refunded',
+          transaction: record,
+        };
+      }
+
+      const updated = await this.prisma.paymentTransaction.update({
+        where: { id: transactionId },
+        data: {
+          paymentStatus: 'REFUNDED',
+          metadata: JSON.stringify({
+            ...JSON.parse(record.metadata || '{}'),
+            refundReason: reason || 'Customer cancellation / Refund Guarantee',
+            refundedAt: new Date().toISOString(),
+          }),
+        },
+      });
+
+      this.logger.log(`[Refund] Processed refund for ${transactionId} (₹${record.amount})`);
+
+      return {
+        success: true,
+        message: 'Refund recorded and processed successfully',
+        transaction: updated,
+      };
+    } catch (err: any) {
+      this.logger.error(`Failed to process refund: ${err.message}`);
+      throw new BadRequestException(`Refund processing failed: ${err.message}`);
+    }
   }
 
   getTermsAndConditions() {
