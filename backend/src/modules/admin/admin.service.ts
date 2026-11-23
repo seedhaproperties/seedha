@@ -201,7 +201,7 @@ export class AdminService {
   }
 
   // Common Property Workflow: After verify -> Publish the post / Approve
-  verifyAndPublishProperty(id: string) {
+  async verifyAndPublishProperty(id: string) {
     const prop = mockDb.properties.find((p) => p.id === id);
     if (!prop) throw new NotFoundException(`Property ${id} not found`);
 
@@ -211,6 +211,23 @@ export class AdminService {
     prop.publishedAt = new Date().toISOString();
     prop.updatedAt = new Date().toISOString();
     mockDb.saveToDisk();
+
+    // Sync state update to PostgreSQL
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.property.updateMany({
+          where: { id },
+          data: {
+            status: 'PUBLISHED' as any,
+            verified: true,
+            verifiedAt: new Date(),
+            publishedAt: new Date(),
+          },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Prisma publish sync: ${err.message}`);
+      }
+    }
 
     if (this.eventsGateway) {
       try {
@@ -233,11 +250,11 @@ export class AdminService {
     };
   }
 
-  approveProperty(id: string) {
+  async approveProperty(id: string) {
     return this.verifyAndPublishProperty(id);
   }
 
-  rejectProperty(id: string, dto: RejectItemDto) {
+  async rejectProperty(id: string, dto: RejectItemDto) {
     const prop = mockDb.properties.find((p) => p.id === id);
     if (!prop) throw new NotFoundException(`Property ${id} not found`);
 
@@ -246,6 +263,22 @@ export class AdminService {
     prop.rejectionReason = dto.reason;
     prop.updatedAt = new Date().toISOString();
     mockDb.saveToDisk();
+
+    // Sync state update to PostgreSQL
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.property.updateMany({
+          where: { id },
+          data: {
+            status: 'REJECTED' as any,
+            verified: false,
+            rejectionReason: dto.reason,
+          },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Prisma reject sync: ${err.message}`);
+      }
+    }
 
     if (this.eventsGateway) {
       try {

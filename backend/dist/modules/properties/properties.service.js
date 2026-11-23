@@ -276,6 +276,14 @@ let PropertiesService = PropertiesService_1 = class PropertiesService {
         }
         mockDb.properties.splice(idx, 1);
         mockDb.saveToDisk();
+        if (this.prisma?.isConnected) {
+            try {
+                await this.prisma.property.deleteMany({ where: { id } });
+            }
+            catch (err) {
+                this.logger.warn(`Prisma delete sync: ${err.message}`);
+            }
+        }
         return {
             success: true,
             message: 'Property and associated Cloudinary images removed successfully',

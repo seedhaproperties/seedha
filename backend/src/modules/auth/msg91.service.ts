@@ -93,6 +93,10 @@ export class Msg91Service {
   }
 
   public get isMockMode(): boolean {
+    if (this.isProduction) {
+      return false; // Strictly disallowed in production
+    }
+
     const mockEnv = (
       this.configService.get<string>('MSG91_MOCK') ||
       process.env.MSG91_MOCK ||

@@ -64,18 +64,18 @@ export declare class AdminController {
         message: string;
         property: import("../../common/mock-db.js").PropertyRecord;
     };
-    verifyAndPublish(id: string): {
+    verifyAndPublish(id: string): Promise<{
         message: string;
         property: import("../../common/mock-db.js").PropertyRecord;
-    };
-    approveProperty(id: string): {
+    }>;
+    approveProperty(id: string): Promise<{
         message: string;
         property: import("../../common/mock-db.js").PropertyRecord;
-    };
-    rejectProperty(id: string, dto: RejectItemDto): {
+    }>;
+    rejectProperty(id: string, dto: RejectItemDto): Promise<{
         message: string;
         property: import("../../common/mock-db.js").PropertyRecord;
-    };
+    }>;
     unpublishProperty(id: string, note?: string): {
         message: string;
         property: import("../../common/mock-db.js").PropertyRecord;

@@ -64,6 +64,9 @@ let Msg91Service = Msg91Service_1 = class Msg91Service {
         return !this.isProduction;
     }
     get isMockMode() {
+        if (this.isProduction) {
+            return false;
+        }
         const mockEnv = (this.configService.get('MSG91_MOCK') ||
             process.env.MSG91_MOCK ||
             '').trim().toLowerCase();

@@ -5,6 +5,7 @@ import { CloudinaryModule } from '../src/modules/cloudinary/cloudinary.module.js
 import { PropertiesService } from '../src/modules/properties/properties.service.js';
 import { AdminService } from '../src/modules/admin/admin.service.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { EventsGateway } from '../src/modules/events/events.gateway.js';
 import { mockDb } from '../src/common/mock-db.js';
 import { ListingTypeEnum, PropertyStatusEnum } from '../src/common/constants.js';
 
@@ -22,6 +23,13 @@ describe('Admin Dashboard Data-Fetching & Real Database Synchronization Audit', 
         PropertiesService,
         AdminService,
         PrismaService,
+        {
+          provide: EventsGateway,
+          useValue: {
+            emitPropertyCreated: () => {},
+            emitPropertyStatusUpdated: () => {},
+          },
+        },
       ],
     }).compile();
 

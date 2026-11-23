@@ -5,6 +5,7 @@ import { CloudinaryModule } from '../src/modules/cloudinary/cloudinary.module.js
 import { PropertiesService } from '../src/modules/properties/properties.service.js';
 import { AdminService } from '../src/modules/admin/admin.service.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { EventsGateway } from '../src/modules/events/events.gateway.js';
 import { mockDb } from '../src/common/mock-db.js';
 import { ListingTypeEnum, PropertyStatusEnum } from '../src/common/constants.js';
 
@@ -26,6 +27,13 @@ describe('Complete Post Property -> Admin Approval -> Public Listing Workflow', 
         PropertiesService,
         AdminService,
         PrismaService,
+        {
+          provide: EventsGateway,
+          useValue: {
+            emitPropertyCreated: () => {},
+            emitPropertyStatusUpdated: () => {},
+          },
+        },
       ],
     }).compile();
 
@@ -117,7 +125,7 @@ describe('Complete Post Property -> Admin Approval -> Public Listing Workflow', 
   });
 
   it('5. When Admin reviews and approves the property, status transitions to PUBLISHED and verified=true', async () => {
-    const approveResult = adminService.approveProperty(createdPropId);
+    const approveResult = await adminService.approveProperty(createdPropId);
     expect(approveResult).toBeDefined();
     expect(approveResult.property.status).toBe(PropertyStatusEnum.PUBLISHED);
     expect(approveResult.property.verified).toBe(true);
@@ -149,7 +157,7 @@ describe('Complete Post Property -> Admin Approval -> Public Listing Workflow', 
 
   it('8. When Admin rejects a property, it is removed from public view and stores rejection reason', async () => {
     const rejectReason = 'RERA documentation could not be verified with registry';
-    const rejectResult = adminService.rejectProperty(createdPropId, { reason: rejectReason });
+    const rejectResult = await adminService.rejectProperty(createdPropId, { reason: rejectReason });
 
     expect(rejectResult.property.status).toBe(PropertyStatusEnum.REJECTED);
     expect(rejectResult.property.verified).toBe(false);

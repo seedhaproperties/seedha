@@ -17,8 +17,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       this.logger.log('Successfully connected to PostgreSQL via Prisma');
     } catch (error) {
       this.isConnected = false;
+      const isProd =
+        (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+      if (isProd) {
+        this.logger.error(
+          `FATAL: PostgreSQL connection failed at DATABASE_URL in PRODUCTION mode: ${(error as Error).message}. Silent local JSON fallback is strictly disabled in production.`,
+        );
+        throw new Error(
+          `Production Database Connection Error: Cannot start application without a reachable PostgreSQL database at DATABASE_URL. Silent local JSON fallback is strictly disabled in production.`,
+        );
+      }
       this.logger.warn(
-        `PostgreSQL not reachable directly at DATABASE_URL (${(error as Error).message}). Local persistent storage will be utilized so services remain fully functional.`,
+        `[DEVELOPMENT ONLY] PostgreSQL not reachable directly at DATABASE_URL (${(error as Error).message}). Local persistent storage will be utilized in development mode so offline workflows remain functional.`,
       );
     }
   }

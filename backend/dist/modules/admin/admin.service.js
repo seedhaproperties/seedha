@@ -136,7 +136,7 @@ let AdminService = AdminService_1 = class AdminService {
             property: prop,
         };
     }
-    verifyAndPublishProperty(id) {
+    async verifyAndPublishProperty(id) {
         const prop = mockDb.properties.find((p) => p.id === id);
         if (!prop)
             throw new NotFoundException(`Property ${id} not found`);
@@ -146,6 +146,22 @@ let AdminService = AdminService_1 = class AdminService {
         prop.publishedAt = new Date().toISOString();
         prop.updatedAt = new Date().toISOString();
         mockDb.saveToDisk();
+        if (this.prisma?.isConnected) {
+            try {
+                await this.prisma.property.updateMany({
+                    where: { id },
+                    data: {
+                        status: 'PUBLISHED',
+                        verified: true,
+                        verifiedAt: new Date(),
+                        publishedAt: new Date(),
+                    },
+                });
+            }
+            catch (err) {
+                this.logger.warn(`Prisma publish sync: ${err.message}`);
+            }
+        }
         if (this.eventsGateway) {
             try {
                 this.eventsGateway.emitPropertyStatusUpdated({
@@ -165,10 +181,10 @@ let AdminService = AdminService_1 = class AdminService {
             property: prop,
         };
     }
-    approveProperty(id) {
+    async approveProperty(id) {
         return this.verifyAndPublishProperty(id);
     }
-    rejectProperty(id, dto) {
+    async rejectProperty(id, dto) {
         const prop = mockDb.properties.find((p) => p.id === id);
         if (!prop)
             throw new NotFoundException(`Property ${id} not found`);
@@ -177,6 +193,21 @@ let AdminService = AdminService_1 = class AdminService {
         prop.rejectionReason = dto.reason;
         prop.updatedAt = new Date().toISOString();
         mockDb.saveToDisk();
+        if (this.prisma?.isConnected) {
+            try {
+                await this.prisma.property.updateMany({
+                    where: { id },
+                    data: {
+                        status: 'REJECTED',
+                        verified: false,
+                        rejectionReason: dto.reason,
+                    },
+                });
+            }
+            catch (err) {
+                this.logger.warn(`Prisma reject sync: ${err.message}`);
+            }
+        }
         if (this.eventsGateway) {
             try {
                 this.eventsGateway.emitPropertyStatusUpdated({

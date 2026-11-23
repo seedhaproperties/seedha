@@ -9,6 +9,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { EmailModule } from '../src/modules/email/email.module.js';
 import { Msg91Service } from '../src/modules/auth/msg91.service.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { EventsGateway } from '../src/modules/events/events.gateway.js';
 import { mockDb } from '../src/common/mock-db.js';
 import { ListingTypeEnum } from '../src/common/constants.js';
 
@@ -34,6 +35,13 @@ describe('Cloudinary Integration & Image Storage (E2E / Service)', () => {
         AuthService,
         Msg91Service,
         PrismaService,
+        {
+          provide: EventsGateway,
+          useValue: {
+            emitPropertyCreated: () => {},
+            emitPropertyStatusUpdated: () => {},
+          },
+        },
       ],
     }).compile();
 

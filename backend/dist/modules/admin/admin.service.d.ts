@@ -51,18 +51,18 @@ export declare class AdminService {
         message: string;
         property: PropertyRecord;
     };
-    verifyAndPublishProperty(id: string): {
+    verifyAndPublishProperty(id: string): Promise<{
         message: string;
         property: PropertyRecord;
-    };
-    approveProperty(id: string): {
+    }>;
+    approveProperty(id: string): Promise<{
         message: string;
         property: PropertyRecord;
-    };
-    rejectProperty(id: string, dto: RejectItemDto): {
+    }>;
+    rejectProperty(id: string, dto: RejectItemDto): Promise<{
         message: string;
         property: PropertyRecord;
-    };
+    }>;
     getPropertyManagementQueue(): import("../../common/mock-db.js").PropertyManagementRecord[];
     checkPropertyManagementLocation(id: string, dto: LocationCheckDecisionDto): {
         message: string;
