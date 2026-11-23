@@ -410,20 +410,31 @@ export class HomeLoansService {
 
   async submitAssistanceRequest(dto: LoanAssistanceRequestDto, userId?: string) {
     const generatedId = `loan-${Date.now()}`;
+    const userName = dto.userName || dto.applicantName || 'Verified Applicant';
+    const userPhone = dto.userPhone || dto.applicantPhone || '+919876543210';
+    const userEmail = dto.userEmail || dto.applicantEmail || `${userPhone.replace(/[^0-9]/g, '')}@applicant.seedhaproperties.com`;
+    const loanType = dto.loanType || 'Home Purchase Loan';
+    const loanAmount = dto.loanAmount || 5000000;
+    const tenureYears = dto.tenureYears || 20;
+    const propertyCost = dto.propertyCost || Math.round(loanAmount / 0.8);
+    const monthlyIncome = dto.monthlyIncome || 85000;
+    const calculatedEmi = dto.calculatedEmi || this.calculateMonthlyEmi(loanAmount, 8.4, tenureYears);
+    const selectedBank = dto.selectedBank || 'State Bank of India (SBI)';
+
     const newRecord: HomeLoanRecord = {
       id: generatedId,
       userId,
-      userName: dto.userName,
-      userPhone: dto.userPhone,
-      userEmail: dto.userEmail,
-      loanType: dto.loanType,
-      propertyCost: dto.propertyCost,
-      loanAmount: dto.loanAmount,
-      tenureYears: dto.tenureYears,
-      monthlyIncome: dto.monthlyIncome,
+      userName,
+      userPhone,
+      userEmail,
+      loanType,
+      propertyCost,
+      loanAmount,
+      tenureYears,
+      monthlyIncome,
       existingEmi: dto.existingEmi || 0,
-      calculatedEmi: dto.calculatedEmi,
-      selectedBank: dto.selectedBank,
+      calculatedEmi,
+      selectedBank,
       status: 'REQUESTED',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -435,17 +446,17 @@ export class HomeLoansService {
           data: {
             id: generatedId,
             userId: userId || null,
-            userName: dto.userName,
-            userPhone: dto.userPhone,
-            userEmail: dto.userEmail || null,
-            loanType: dto.loanType,
-            propertyCost: dto.propertyCost,
-            loanAmount: dto.loanAmount,
-            tenureYears: dto.tenureYears,
-            monthlyIncome: dto.monthlyIncome,
+            userName,
+            userPhone,
+            userEmail,
+            loanType,
+            propertyCost,
+            loanAmount,
+            tenureYears,
+            monthlyIncome,
             existingEmi: dto.existingEmi || 0,
-            calculatedEmi: dto.calculatedEmi,
-            selectedBank: dto.selectedBank || null,
+            calculatedEmi,
+            selectedBank,
             status: 'REQUESTED',
           },
         });

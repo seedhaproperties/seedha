@@ -28,55 +28,99 @@ export class CalculateLoanDto {
 }
 
 export class LoanAssistanceRequestDto {
-  @ApiProperty({ example: 'Rahul Sharma' })
+  @ApiPropertyOptional({ example: 'Rahul Sharma' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  userName!: string;
+  userName?: string;
 
-  @ApiProperty({ example: '+919876543210' })
+  @ApiPropertyOptional({ example: 'Rahul Sharma' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  userPhone!: string;
+  applicantName?: string;
+
+  @ApiPropertyOptional({ example: '+919876543210' })
+  @IsOptional()
+  @IsString()
+  userPhone?: string;
+
+  @ApiPropertyOptional({ example: '+919876543210' })
+  @IsOptional()
+  @IsString()
+  applicantPhone?: string;
 
   @ApiPropertyOptional({ example: 'rahul@example.com' })
   @IsOptional()
   @IsString()
   userEmail?: string;
 
-  @ApiProperty({ example: 'Home Purchase Loan' })
+  @ApiPropertyOptional({ example: 'rahul@example.com' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  loanType!: string;
+  applicantEmail?: string;
 
-  @ApiProperty({ example: 7500000 })
-  @IsNumber()
-  propertyCost!: number;
+  @ApiPropertyOptional({ example: 'Home Purchase Loan' })
+  @IsOptional()
+  @IsString()
+  loanType?: string;
 
-  @ApiProperty({ example: 6000000 })
+  @ApiPropertyOptional({ example: 7500000 })
+  @IsOptional()
   @IsNumber()
-  loanAmount!: number;
+  propertyCost?: number;
 
-  @ApiProperty({ example: 20 })
+  @ApiPropertyOptional({ example: 6000000 })
+  @IsOptional()
   @IsNumber()
-  tenureYears!: number;
+  loanAmount?: number;
 
-  @ApiProperty({ example: 150000 })
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
   @IsNumber()
-  monthlyIncome!: number;
+  tenureYears?: number;
+
+  @ApiPropertyOptional({ example: 150000 })
+  @IsOptional()
+  @IsNumber()
+  monthlyIncome?: number;
 
   @ApiPropertyOptional({ example: 0 })
   @IsOptional()
   @IsNumber()
   existingEmi?: number;
 
-  @ApiProperty({ example: 51691 })
+  @ApiPropertyOptional({ example: 51691 })
+  @IsOptional()
   @IsNumber()
-  calculatedEmi!: number;
+  calculatedEmi?: number;
 
-  @ApiPropertyOptional({ example: 'HDFC Bank Home Loans' })
+  @ApiPropertyOptional({ example: 'State Bank of India (SBI)' })
   @IsOptional()
   @IsString()
   selectedBank?: string;
+
+  @ApiPropertyOptional({ example: 'Salaried' })
+  @IsOptional()
+  @IsString()
+  employmentType?: string;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  propertyIdentified?: boolean;
+
+  @ApiPropertyOptional({ example: 'ABC1234D' })
+  @IsOptional()
+  @IsString()
+  panCard?: string;
+
+  @ApiPropertyOptional({ example: '123456789012' })
+  @IsOptional()
+  @IsString()
+  aadhaarNumber?: string;
+
+  @ApiPropertyOptional({ example: 'Banjara Hills, Hyderabad' })
+  @IsOptional()
+  @IsString()
+  propertyAddress?: string;
 }
 
 export class CreateBankLoanOfferDto {

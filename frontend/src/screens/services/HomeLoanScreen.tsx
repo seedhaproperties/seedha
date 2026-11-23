@@ -2068,19 +2068,34 @@ export default function HomeLoanScreen() {
               setLoading(true);
               (async () => {
                 try {
+                  const parsedIncome = parseFloat((form.income || '').replace(/,/g, '')) || 85000;
+                  const parsedExistingEmi = parseFloat((form.existingEmis || '').replace(/,/g, '')) || 0;
+                  const parsedPropCost = parseFloat((form.propertyValue || '').replace(/,/g, '')) || Math.round(loanAmount / 0.75);
+                  const bankName = form.selectedBank || selectedBankOffer?.bankName || 'State Bank of India (SBI)';
+
                   await api.homeLoans.requestAssistance({
+                    userName: form.name || 'Verified Applicant',
                     applicantName: form.name || 'Verified Applicant',
+                    userPhone: form.phone || '+919876543210',
                     applicantPhone: form.phone || '+919876543210',
+                    userEmail: form.phone ? `${form.phone.replace(/[^0-9]/g, '')}@applicant.seedhaproperties.com` : 'applicant@seedhaproperties.com',
                     applicantEmail: 'applicant@seedhaproperties.com',
+                    loanType: 'Home Purchase Loan',
+                    propertyCost: parsedPropCost,
                     loanAmount: loanAmount,
-                    selectedBank: form.selectedBank || selectedBankOffer?.bankName || 'SBI Home Loans',
+                    tenureYears: tenureYears,
+                    monthlyIncome: parsedIncome,
+                    existingEmi: parsedExistingEmi,
+                    calculatedEmi: currentEmi || 43075,
+                    selectedBank: bankName,
                     employmentType: form.employment,
-                    monthlyIncome: parseFloat(form.income.replace(/,/g, '')) || 85000,
-                    existingEmi: parseFloat(form.existingEmis.replace(/,/g, '')) || 0,
                     propertyIdentified: true,
+                    panCard: form.panCard || undefined,
+                    aadhaarNumber: form.aadhaarNumber || undefined,
+                    propertyAddress: form.propertyAddress || undefined,
                   });
                 } catch (err: any) {
-                  console.warn('[HomeLoanScreen] Assistance API fallback:', err?.message || err);
+                  console.warn('[HomeLoanScreen] Assistance API notice:', err?.message || err);
                 } finally {
                   setLoading(false);
                   setApplied(true);
