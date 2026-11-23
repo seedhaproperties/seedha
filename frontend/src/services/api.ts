@@ -581,4 +581,20 @@ export const api = {
     getReports: () => request<any>('/admin/reports'),
     getNotifications: () => request<any[]>('/admin/notifications'),
   },
+  notifications: {
+    registerDeviceToken: (token: string, platform: string = 'android', userId?: string) =>
+      request<{ success: boolean; message: string }>('/notifications/device-token', {
+        method: 'POST',
+        body: JSON.stringify({ token, platform, userId }),
+      }),
+    unregisterDeviceToken: (token: string) =>
+      request<{ success: boolean; message: string }>('/notifications/device-token/unregister', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+    getMyDevices: () => request<any[]>('/notifications/my-devices'),
+    checkHealth: () => request<any>('/notifications/health'),
+    getUserNotifications: (userId?: string) =>
+      request<any[]>(`/notifications/feed${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`),
+  },
 };

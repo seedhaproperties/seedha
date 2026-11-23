@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   CheckCircle2,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 
 export interface NotificationItem {
   id: string;
@@ -25,6 +26,8 @@ export interface NotificationItem {
   body: string;
   time: string;
   unread: boolean;
+  screen?: string;
+  params?: any;
 }
 
 const INITIAL_NOTIFICATIONS: NotificationItem[] = [
@@ -79,13 +82,42 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 export default function NotificationsScreen() {
-  const { pop, setTab } = useApp();
+  const { pop, push, setTab, user } = useApp();
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.notifications.getUserNotifications(user?.id)
+      .then((res: any) => {
+        const list = Array.isArray(res) ? res : res?.data;
+        if (isMounted && list && list.length > 0) {
+          setNotifications(list);
+        }
+      })
+      .catch((err) => {
+        console.log('[Notifications] Remote feed notice:', err?.message);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   const markAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  };
+
+  const handleNotificationPress = (item: NotificationItem) => {
+    // 1. Mark as read
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n)),
+    );
+
+    // 2. Open real notification destination screen
+    if (item.screen) {
+      push({ name: item.screen as any, params: item.params });
+    }
   };
 
   const getIcon = (type: NotificationItem['type']) => {
@@ -132,7 +164,7 @@ export default function NotificationsScreen() {
             style={styles.backButton}
             onPress={() => {
               if (pop) pop();
-              else setTab('profile');
+              else setTab('home');
             }}
             activeOpacity={0.8}
           >
@@ -158,7 +190,12 @@ export default function NotificationsScreen() {
             <Text style={styles.sectionHeading}>NEW · {newItems.length}</Text>
             <View style={styles.cardsList}>
               {newItems.map((item) => (
-                <View key={item.id} style={styles.card}>
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.card}
+                  onPress={() => handleNotificationPress(item)}
+                  activeOpacity={0.7}
+                >
                   <View style={[styles.iconBox, { backgroundColor: getIconBg(item.type) }]}>
                     {getIcon(item.type)}
                   </View>
@@ -168,7 +205,7 @@ export default function NotificationsScreen() {
                     <Text style={styles.cardTime}>{item.time}</Text>
                   </View>
                   <View style={styles.unreadDot} />
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           </View>
@@ -179,7 +216,12 @@ export default function NotificationsScreen() {
           <Text style={styles.sectionHeading}>EARLIER</Text>
           <View style={styles.cardsList}>
             {earlierItems.map((item) => (
-              <View key={item.id} style={styles.card}>
+              <TouchableOpacity
+                key={item.id}
+                style={styles.card}
+                onPress={() => handleNotificationPress(item)}
+                activeOpacity={0.7}
+              >
                 <View style={[styles.iconBox, { backgroundColor: getIconBg(item.type) }]}>
                   {getIcon(item.type)}
                 </View>
@@ -188,7 +230,7 @@ export default function NotificationsScreen() {
                   <Text style={styles.cardBody}>{item.body}</Text>
                   <Text style={styles.cardTime}>{item.time}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>

@@ -24,6 +24,17 @@ export class FirebaseNotificationController {
     return this.notificationService.checkHealth();
   }
 
+  @Public()
+  @Get('feed')
+  @ApiOperation({
+    summary: 'Get real live notification feed for the current user',
+  })
+  @ApiResponse({ status: 200, description: 'Real notification feed list' })
+  async getFeed(@Req() req: any) {
+    const userId = req.user?.sub || req.user?.id || req.query?.userId;
+    return this.notificationService.getUserNotificationFeed(userId);
+  }
+
   @Post('test-token')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -40,14 +51,18 @@ export class FirebaseNotificationController {
     );
   }
 
+  @Public()
   @Post('device-token')
   @ApiOperation({
-    summary: 'Register or refresh an FCM device push token for the authenticated user',
+    summary: 'Register or refresh an FCM device push token for a user',
   })
   @ApiResponse({ status: 201, description: 'Device token registered successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async registerDeviceToken(@Req() req: any, @Body() dto: RegisterDeviceTokenDto) {
-    const userId = req.user?.sub || req.user?.id;
+    const userId = req.user?.sub || req.user?.id || dto.userId;
+    if (!userId) {
+      return { success: false, message: 'User ID is required to register device token' };
+    }
     return this.notificationService.registerDeviceToken(userId, dto.token, dto.platform);
   }
 
@@ -103,5 +118,17 @@ export class FirebaseNotificationController {
       body: dto.body,
       data: dto.data,
     });
+  }
+
+  @Post('announcement')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Broadcast an admin announcement to all registered device tokens across all active users',
+  })
+  @ApiResponse({ status: 200, description: 'Broadcast announcement result' })
+  async broadcastAnnouncement(
+    @Body() dto: { title: string; body: string; data?: Record<string, string> },
+  ) {
+    return this.notificationService.sendAnnouncement(dto.title, dto.body, dto.data);
   }
 }

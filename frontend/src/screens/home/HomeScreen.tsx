@@ -264,7 +264,7 @@ export default function HomeScreen() {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.notifButton}
-            onPress={() => handleProtectedNavigate({ name: 'notifications' }, 'Notifications')}
+            onPress={() => push({ name: 'notifications' })}
             activeOpacity={0.8}
           >
             <Bell size={18} color="#1A1C1A" strokeWidth={2.2} />
