@@ -1,10 +1,10 @@
-import { Controller, Post, Get, Body, Request, Query } from '@nestjs/common';
+import { Controller, Post, Get, Body, Request, Query, Headers } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service.js';
 import { CreatePaymentOrderDto, VerifyPaymentDto } from './payments.dto.js';
 
 @ApiTags('Payments & Transactions')
-@Controller('api/v1/payments')
+@Controller(['api/v1/payments', 'api/payments'])
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
@@ -18,6 +18,15 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Verify payment and record transaction in database' })
   verifyPayment(@Body() dto: VerifyPaymentDto, @Request() req: any) {
     return this.paymentsService.verifyPayment(dto, req.user?.sub);
+  }
+
+  @Post('webhook')
+  @ApiOperation({ summary: 'Razorpay Webhook receiver for live payment events' })
+  handleWebhook(
+    @Body() payload: any,
+    @Headers('x-razorpay-signature') signature?: string,
+  ) {
+    return this.paymentsService.handleWebhook(payload, signature);
   }
 
   @Get('my')

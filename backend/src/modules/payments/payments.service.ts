@@ -170,6 +170,72 @@ export class PaymentsService {
     }
   }
 
+  async handleWebhook(payload: any, signature?: string) {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || 'Murali@2001';
+
+    if (signature && webhookSecret) {
+      try {
+        const crypto = await import('crypto');
+        const expectedSignature = crypto
+          .createHmac('sha256', webhookSecret)
+          .update(typeof payload === 'string' ? payload : JSON.stringify(payload))
+          .digest('hex');
+
+        if (signature !== expectedSignature) {
+          this.logger.warn(`[Razorpay Webhook] Signature mismatch. Received: ${signature}`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[Razorpay Webhook] Signature verification notice: ${err?.message}`);
+      }
+    }
+
+    const event = payload?.event;
+    this.logger.log(`[Razorpay Webhook] Event received: ${event}`);
+
+    const paymentEntity = payload?.payload?.payment?.entity;
+    if (paymentEntity) {
+      const paymentId = paymentEntity.id;
+      const orderId = paymentEntity.order_id;
+      const amount = paymentEntity.amount ? paymentEntity.amount / 100 : 0;
+      const contact = paymentEntity.contact;
+      const email = paymentEntity.email;
+      const purpose = paymentEntity.notes?.purpose || 'Platform Payment';
+      const propertyId = paymentEntity.notes?.propertyId || null;
+
+      try {
+        const existing = await this.prisma.paymentTransaction.findFirst({
+          where: { gatewayTxnId: paymentId },
+        });
+
+        if (!existing) {
+          await this.prisma.paymentTransaction.create({
+            data: {
+              propertyId,
+              amount,
+              purpose,
+              gateway: 'RAZORPAY',
+              gatewayTxnId: paymentId,
+              paymentStatus: 'SUCCESS',
+              customerName: paymentEntity.notes?.customerName || contact || 'Verified Customer',
+              customerPhone: contact,
+              metadata: JSON.stringify({
+                orderId,
+                email,
+                rawEvent: event,
+                capturedAt: new Date().toISOString(),
+              }),
+            },
+          });
+          this.logger.log(`[Razorpay Webhook] ✅ Transaction ${paymentId} recorded for ₹${amount}`);
+        }
+      } catch (dbErr: any) {
+        this.logger.error(`[Razorpay Webhook] DB recording error: ${dbErr?.message}`);
+      }
+    }
+
+    return { status: 'ok', received: true, event };
+  }
+
   getTermsAndConditions() {
     return {
       title: 'Seedha Properties - Payment Gateway Terms & Conditions',
