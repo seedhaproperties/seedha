@@ -710,35 +710,49 @@ export default function PostPropertyScreen() {
       const promises = files.map((file) => compressImage(file));
       const compressedList = (await Promise.all(promises)).filter(Boolean);
 
-      // Upload each compressed photo to Cloudinary via backend
-      const uploadPromises = compressedList.map(async (base64) => {
-        try {
-          const res = await api.uploads.uploadImage({
-            imageBase64: base64,
-            folder: 'seedha-properties/properties',
-          });
-          return res.url;
-        } catch (uploadErr) {
-          console.warn('[PostPropertyScreen] Cloudinary direct upload fallback:', uploadErr);
+      if (!compressedList.length) return;
+
+      // 1. Immediately show user's uploaded photos in the preview so they NEVER see a blank box
+      setForm((f) => ({
+        ...f,
+        photos: [...f.photos, ...compressedList],
+        photosCount: f.photos.length + compressedList.length,
+      }));
+
+      // 2. Upload to Cloudinary in background; if a live CDN URL is returned, upgrade the base64 URL
+      try {
+        const uploadPromises = compressedList.map(async (base64) => {
           try {
-            const res2 = await api.properties.uploadImage({ imageBase64: base64 });
-            return res2.url || base64;
+            const res = await api.uploads.uploadImage({
+              imageBase64: base64,
+              folder: 'seedha-properties/properties',
+            });
+            // Only adopt if it is a real remote URL, otherwise keep base64
+            if (res?.url && res.url.startsWith('https://res.cloudinary.com/') && !res.url.includes('/img_')) {
+              return res.url;
+            }
+            return base64;
           } catch {
             return base64;
           }
-        }
-      });
+        });
 
-      const cloudinaryUrls = (await Promise.all(uploadPromises)).filter(Boolean);
-      if (cloudinaryUrls.length > 0) {
-        setForm((f) => ({
-          ...f,
-          photos: [...f.photos, ...cloudinaryUrls],
-          photosCount: f.photos.length + cloudinaryUrls.length,
-        }));
+        const uploadedUrls = await Promise.all(uploadPromises);
+        setForm((f) => {
+          const updated = f.photos.map((p) => {
+            const idx = compressedList.indexOf(p);
+            return idx !== -1 && uploadedUrls[idx] ? uploadedUrls[idx] : p;
+          });
+          return {
+            ...f,
+            photos: updated,
+          };
+        });
+      } catch (uploadErr) {
+        console.warn('[PostPropertyScreen] Background upload notice:', uploadErr);
       }
     } catch (err) {
-      console.error('[PostPropertyScreen] Error reading/uploading photos to Cloudinary:', err);
+      console.error('[PostPropertyScreen] Error reading/uploading photos:', err);
     } finally {
       setIsUploadingPhoto(false);
       if (e.target) {
@@ -2871,7 +2885,7 @@ export default function PostPropertyScreen() {
 
                   {form.photos.map((uri, index) => (
                     <View key={index} style={styles.photoThumbWrap}>
-                      <Image source={{ uri }} style={styles.photoThumbImg} />
+                      <Image source={{ uri }} style={styles.photoThumbImg} resizeMode="cover" />
                       <TouchableOpacity
                         style={styles.photoRemoveBtn}
                         onPress={() => handleRemovePhoto(index)}
@@ -4571,6 +4585,8 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 16,
+    resizeMode: 'cover',
+    ...(Platform.OS === 'web' ? { objectFit: 'cover' as any } : {}),
   },
   photoRemoveBtn: {
     position: 'absolute',

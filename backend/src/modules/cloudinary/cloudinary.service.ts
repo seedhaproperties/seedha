@@ -197,6 +197,18 @@ export class CloudinaryService {
       };
     }
 
+    // Return the user's actual base64 data URI so the image is NEVER broken or missing with a 404
+    if (imageInput.startsWith('data:image/')) {
+      return {
+        url: imageInput,
+        publicId,
+        format: 'jpg',
+        width: 1200,
+        height: 800,
+        bytes: Math.round((imageInput.length * 3) / 4),
+      };
+    }
+
     // Return a Cloudinary standard URL with the public ID
     const sampleCloudinaryUrl = `https://res.cloudinary.com/${this.cloudName}/image/upload/v1/${publicId}.jpg`;
 
