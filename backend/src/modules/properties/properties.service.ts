@@ -46,9 +46,8 @@ export class PropertiesService {
   async findAll(query: QueryPropertyDto) {
     try {
       let typeWhere: any = {};
-      const activeType = (query.type || query.category || '').trim();
-      if (activeType) {
-        const qTypeLower = activeType.toLowerCase();
+      if (query.type) {
+        const qTypeLower = (query.type || '').trim().toLowerCase();
         if (qTypeLower === 'pg' || qTypeLower === 'hostel' || qTypeLower === 'coliving') {
           typeWhere = {
             OR: [
@@ -102,7 +101,7 @@ export class PropertiesService {
             },
           };
         } else {
-          const upper = activeType.toUpperCase();
+          const upper = query.type.trim().toUpperCase();
           typeWhere = { listingType: upper };
         }
       }
@@ -125,7 +124,7 @@ export class PropertiesService {
                 ...(query.maxPrice !== undefined ? { price: { lte: Number(query.maxPrice) } } : {}),
               },
             }),
-            new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error('Prisma timeout')), 1000)),
+            new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error('Prisma timeout')), 8000)),
           ]);
         } catch {
           dbProps = [];
@@ -151,8 +150,8 @@ export class PropertiesService {
           (p.status as any) !== 'UNDER_REVIEW',
       );
 
-      if (activeType) {
-        const qTypeLower = activeType.toLowerCase().trim();
+      if (query.type) {
+        const qTypeLower = query.type.toLowerCase().trim();
         if (qTypeLower === 'pg' || qTypeLower === 'hostel' || qTypeLower === 'coliving') {
           mockFiltered = mockFiltered.filter((p) => {
             const pt = (p.propertyType || '').toLowerCase();

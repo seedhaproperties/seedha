@@ -173,13 +173,29 @@ export default function OwnerVerificationScreen() {
   };
 
   // Submit Flat & Owner Details -> Proceed to Payment
-  const handleProceedToPayment = () => {
-    if (!flatNumber.trim()) setFlatNumber('402');
-    if (!locality.trim()) setLocality('FGFHG');
-    if (!city.trim()) setCity('Hyderabad');
-    if (!pincode.trim()) setPincode('533261');
-    if (!ownerName.trim()) setOwnerName('FGFJGHJH');
-    if (!ownerPhone.trim()) setOwnerPhone('+91 98850 11223');
+  const handleProceedToPayment = async () => {
+    const fNum = flatNumber.trim() || '402';
+    const bName = buildingName.trim() || 'Greenfield Apartments';
+    const loc = locality.trim() || 'Madhapur';
+    const cName = city.trim() || 'Hyderabad';
+    const oName = ownerName.trim() || 'Property Owner';
+    const oPhone = ownerPhone.trim() || '+91 98850 11223';
+
+    try {
+      const res = await api.ownerBackground.create({
+        flatNumber: fNum,
+        buildingName: bName,
+        propertyAddress: `${loc}, ${cName} - ${pincode || '500081'}`,
+        city: cName,
+        ownerName: oName,
+        ownerPhone: oPhone,
+      });
+      if (res?.request?.id) {
+        setRequestId(res.request.id);
+      }
+    } catch (err) {
+      console.warn('[OwnerVerification] Create request notice:', err);
+    }
 
     setStep('payment');
   };
@@ -189,7 +205,7 @@ export default function OwnerVerificationScreen() {
     if (step !== 'inProgress') return;
     const timer = setTimeout(() => {
       setStep('verificationCompleted');
-    }, 5000);
+    }, 4000);
     return () => clearTimeout(timer);
   }, [step]);
 
@@ -202,11 +218,26 @@ export default function OwnerVerificationScreen() {
 
     setLoading(true);
     try {
-      const id = requestId || `bg-${Date.now()}`;
-      const res: any = await Promise.race([
-        api.ownerBackground.pay(id, `txn_bg_${Date.now()}`, 799),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
-      ]);
+      let activeId = requestId;
+      if (!activeId) {
+        const createRes = await api.ownerBackground.create({
+          flatNumber: flatNumber.trim() || '402',
+          buildingName: buildingName.trim() || 'Greenfield Apartments',
+          propertyAddress: `${locality || 'Madhapur'}, ${city || 'Hyderabad'} - ${pincode || '500081'}`,
+          city: city || 'Hyderabad',
+          ownerName: ownerName || 'Property Owner',
+          ownerPhone: ownerPhone || '+91 98850 11223',
+        });
+        activeId = createRes?.request?.id || `bg-${Date.now()}`;
+        setRequestId(activeId);
+      }
+
+      const targetId = activeId || `bg-${Date.now()}`;
+      const res: any = await api.ownerBackground.pay(
+        targetId,
+        `txn_bg_${Date.now()}`,
+        499,
+      );
       if (res?.record) {
         setReport(res.record);
       }

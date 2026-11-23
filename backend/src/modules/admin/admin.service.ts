@@ -329,8 +329,17 @@ export class AdminService {
     return mockDb.propertyManagementRequests;
   }
 
-  checkPropertyManagementLocation(id: string, dto: LocationCheckDecisionDto) {
-    const req = mockDb.propertyManagementRequests.find((r) => r.id === id);
+  async checkPropertyManagementLocation(id: string, dto: LocationCheckDecisionDto) {
+    let req = mockDb.propertyManagementRequests.find((r) => r.id === id);
+    if (!req && this.prisma?.isConnected) {
+      try {
+        const dbReq: any = await this.prisma.propertyManagementRequest.findUnique({ where: { id } });
+        if (dbReq) {
+          req = dbReq;
+          mockDb.propertyManagementRequests.unshift(dbReq);
+        }
+      } catch {}
+    }
     if (!req) throw new NotFoundException(`Request ${id} not found`);
 
     if (dto.matchesLocation) {
@@ -338,6 +347,18 @@ export class AdminService {
       req.locationMatched = true;
       req.updatedAt = new Date().toISOString();
       mockDb.saveToDisk();
+
+      if (this.prisma?.isConnected) {
+        try {
+          await this.prisma.propertyManagementRequest.updateMany({
+            where: { id },
+            data: { status: 'LOCATION_CHECK_PASSED', locationMatched: true },
+          });
+        } catch (err: any) {
+          this.logger.warn(`Prisma PM location pass error: ${err.message}`);
+        }
+      }
+
       return {
         message: 'Location matches serviceability rules! Ready for team contact to owner.',
         request: req,
@@ -349,6 +370,22 @@ export class AdminService {
         dto.rejectMessage || 'Sorry, this location is currently outside our service coverage.';
       req.updatedAt = new Date().toISOString();
       mockDb.saveToDisk();
+
+      if (this.prisma?.isConnected) {
+        try {
+          await this.prisma.propertyManagementRequest.updateMany({
+            where: { id },
+            data: {
+              status: 'LOCATION_CHECK_REJECTED',
+              locationMatched: false,
+              rejectionMessage: req.rejectionMessage,
+            },
+          });
+        } catch (err: any) {
+          this.logger.warn(`Prisma PM location reject error: ${err.message}`);
+        }
+      }
+
       return {
         message: 'Location does not match service zone. Rejection message sent to owner.',
         request: req,
@@ -356,8 +393,17 @@ export class AdminService {
     }
   }
 
-  contactPropertyManagementOwner(id: string, dto: ContactOwnerDto) {
-    const req = mockDb.propertyManagementRequests.find((r) => r.id === id);
+  async contactPropertyManagementOwner(id: string, dto: ContactOwnerDto) {
+    let req = mockDb.propertyManagementRequests.find((r) => r.id === id);
+    if (!req && this.prisma?.isConnected) {
+      try {
+        const dbReq: any = await this.prisma.propertyManagementRequest.findUnique({ where: { id } });
+        if (dbReq) {
+          req = dbReq;
+          mockDb.propertyManagementRequests.unshift(dbReq);
+        }
+      } catch {}
+    }
     if (!req) throw new NotFoundException(`Request ${id} not found`);
 
     if (!req.locationMatched && req.status === 'LOCATION_CHECK_REJECTED') {
@@ -370,6 +416,21 @@ export class AdminService {
     req.updatedAt = new Date().toISOString();
     mockDb.saveToDisk();
 
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.propertyManagementRequest.updateMany({
+          where: { id },
+          data: {
+            status: 'OWNER_CONTACTED',
+            assignedTeamMember: req.assignedTeamMember,
+            contactNotes: req.contactNotes,
+          },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Prisma PM contact error: ${err.message}`);
+      }
+    }
+
     return {
       message: 'Owner successfully contacted by operations team. Property management process onboarded.',
       request: req,
@@ -381,8 +442,17 @@ export class AdminService {
     return mockDb.homeLoanRequests;
   }
 
-  contactHomeLoanUser(id: string, dto: ContactOwnerDto) {
-    const loan = mockDb.homeLoanRequests.find((h) => h.id === id);
+  async contactHomeLoanUser(id: string, dto: ContactOwnerDto) {
+    let loan = mockDb.homeLoanRequests.find((h) => h.id === id);
+    if (!loan && this.prisma?.isConnected) {
+      try {
+        const dbLoan: any = await this.prisma.homeLoanRequest.findUnique({ where: { id } });
+        if (dbLoan) {
+          loan = dbLoan;
+          mockDb.homeLoanRequests.unshift(dbLoan);
+        }
+      } catch {}
+    }
     if (!loan) throw new NotFoundException(`Loan request ${id} not found`);
 
     loan.status = 'TEAM_CONTACTED';
@@ -390,6 +460,21 @@ export class AdminService {
     loan.contactNotes = dto.notes;
     loan.updatedAt = new Date().toISOString();
     mockDb.saveToDisk();
+
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.homeLoanRequest.updateMany({
+          where: { id },
+          data: {
+            status: 'TEAM_CONTACTED',
+            assignedStaff: loan.assignedStaff,
+            contactNotes: loan.contactNotes,
+          },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Prisma loan contact error: ${err.message}`);
+      }
+    }
 
     return {
       message: 'Team directly contacted customer regarding home loan processing and document pickup.',
@@ -402,8 +487,17 @@ export class AdminService {
     return mockDb.rentalAgreementOrders;
   }
 
-  prepareAndSendAgreement(id: string, dto: PrepareAgreementDto) {
-    const agr = mockDb.rentalAgreementOrders.find((a) => a.id === id);
+  async prepareAndSendAgreement(id: string, dto: PrepareAgreementDto) {
+    let agr = mockDb.rentalAgreementOrders.find((a) => a.id === id);
+    if (!agr && this.prisma?.isConnected) {
+      try {
+        const dbAgr: any = await this.prisma.rentalAgreementOrder.findUnique({ where: { id } });
+        if (dbAgr) {
+          agr = dbAgr;
+          mockDb.rentalAgreementOrders.unshift(dbAgr);
+        }
+      } catch {}
+    }
     if (!agr) throw new NotFoundException(`Rental agreement ${id} not found`);
 
     agr.status = 'SENT_TO_USER';
@@ -411,6 +505,20 @@ export class AdminService {
     agr.documentUrl = dto.documentUrl || `/api/v1/rental-agreements/documents/${agr.id}.pdf`;
     agr.updatedAt = new Date().toISOString();
     mockDb.saveToDisk();
+
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.rentalAgreementOrder.updateMany({
+          where: { id },
+          data: {
+            status: 'SENT_TO_USER',
+            documentUrl: agr.documentUrl,
+          },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Prisma agreement prepare error: ${err.message}`);
+      }
+    }
 
     return {
       message: 'Legal rental agreement prepared and dispatched to user digitally.',
@@ -423,8 +531,17 @@ export class AdminService {
     return mockDb.ownerBackgroundChecks;
   }
 
-  assignOwnerBackgroundFieldWork(id: string, dto: AssignFieldWorkDto) {
-    const check = mockDb.ownerBackgroundChecks.find((o) => o.id === id);
+  async assignOwnerBackgroundFieldWork(id: string, dto: AssignFieldWorkDto) {
+    let check = mockDb.ownerBackgroundChecks.find((o) => o.id === id);
+    if (!check && this.prisma?.isConnected) {
+      try {
+        const dbCheck: any = await this.prisma.ownerBackgroundCheck.findUnique({ where: { id } });
+        if (dbCheck) {
+          check = dbCheck;
+          mockDb.ownerBackgroundChecks.unshift(dbCheck);
+        }
+      } catch {}
+    }
     if (!check) throw new NotFoundException(`Owner background check ${id} not found`);
 
     check.status = 'FIELD_WORK_ASSIGNED';
@@ -432,14 +549,37 @@ export class AdminService {
     check.updatedAt = new Date().toISOString();
     mockDb.saveToDisk();
 
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.ownerBackgroundCheck.updateMany({
+          where: { id },
+          data: {
+            status: 'FIELD_WORK_ASSIGNED',
+            fieldAgentNotes: check.fieldAgentNotes,
+          },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Prisma owner bg assign error: ${err.message}`);
+      }
+    }
+
     return {
       message: `Field verification assigned to ${dto.fieldAgentName} to contact owner and inspect records.`,
       check,
     };
   }
 
-  collectAndSendDigitalOwnerDetails(id: string, dto: CollectAndSendDigitalDto) {
-    const check = mockDb.ownerBackgroundChecks.find((o) => o.id === id);
+  async collectAndSendDigitalOwnerDetails(id: string, dto: CollectAndSendDigitalDto) {
+    let check = mockDb.ownerBackgroundChecks.find((o) => o.id === id);
+    if (!check && this.prisma?.isConnected) {
+      try {
+        const dbCheck: any = await this.prisma.ownerBackgroundCheck.findUnique({ where: { id } });
+        if (dbCheck) {
+          check = dbCheck;
+          mockDb.ownerBackgroundChecks.unshift(dbCheck);
+        }
+      } catch {}
+    }
     if (!check) throw new NotFoundException(`Owner background check ${id} not found`);
 
     check.status = 'SENT_DIGITALLY';
@@ -452,6 +592,26 @@ export class AdminService {
     check.reportPdfUrl = `/api/v1/owner-background/${check.id}/report-pdf`;
     check.updatedAt = new Date().toISOString();
     mockDb.saveToDisk();
+
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.ownerBackgroundCheck.updateMany({
+          where: { id },
+          data: {
+            status: 'SENT_DIGITALLY',
+            ownershipVerified: dto.ownershipVerified,
+            legalDisputeClear: dto.legalDisputeClear,
+            taxReceiptsVerified: true,
+            societyDuesClear: true,
+            reportSummary: dto.summary,
+            reportPdfUrl: check.reportPdfUrl,
+            digitalSentAt: new Date(),
+          },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Prisma owner bg digital send error: ${err.message}`);
+      }
+    }
 
     return {
       message: 'Details collected and background verification report sent to user through digital delivery.',
@@ -482,7 +642,7 @@ export class AdminService {
         };
 
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Prisma query timeout (1000ms)')), 1000),
+          setTimeout(() => reject(new Error('Prisma query timeout (8000ms)')), 8000),
         );
 
         const { dbProps, dbPm, dbLoans, dbAgr, dbBg } = await Promise.race([
@@ -525,8 +685,7 @@ export class AdminService {
           bgChecks = Array.from(bMap.values());
         }
       } catch (err) {
-        this.prisma.isConnected = false;
-        this.logger.warn(`Prisma query fallback: ${(err as Error).message}`);
+        this.logger.warn(`Prisma unified requests query notice: ${(err as Error).message}`);
       }
     }
 

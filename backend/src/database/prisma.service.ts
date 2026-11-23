@@ -10,7 +10,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       const connectPromise = this.$connect().then(() => this.$queryRaw`SELECT 1`);
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('PostgreSQL ping timeout (1500ms)')), 1500),
+        setTimeout(() => reject(new Error('PostgreSQL ping timeout (8000ms)')), 8000),
       );
       await Promise.race([connectPromise, timeoutPromise]);
       this.isConnected = true;

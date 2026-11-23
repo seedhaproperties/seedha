@@ -202,14 +202,11 @@ export default function CommercialSpacesScreen() {
 
     const matched = withDistance.filter((p) => {
       if (selectedTab === 'Offices') {
-        const pt = (p.propertyType || '').toLowerCase();
-        if (!pt.includes('office') && !pt.includes('commercial')) return false;
+        if (p.propertyType !== 'office') return false;
       } else if (selectedTab === 'Retail Shops') {
-        const pt = (p.propertyType || '').toLowerCase();
-        if (!pt.includes('shop') && !pt.includes('retail') && !pt.includes('showroom')) return false;
+        if (p.propertyType !== 'shop') return false;
       } else if (selectedTab === 'Co-working') {
-        const pt = (p.propertyType || '').toLowerCase();
-        if (!pt.includes('coworking') && !pt.includes('co-working')) return false;
+        if (p.propertyType !== 'coworking') return false;
       }
 
       if (selectedLocation !== 'All') {

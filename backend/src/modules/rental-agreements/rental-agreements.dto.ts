@@ -2,25 +2,35 @@ import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RentalAgreementDetailsDto {
-  @ApiProperty({ example: 'Suresh Chandra' })
+  @ApiPropertyOptional({ example: 'Suresh Chandra' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  landlordName!: string;
+  landlordName?: string;
 
-  @ApiProperty({ example: '+919849098765' })
+  @ApiPropertyOptional({ example: 'Suresh Chandra' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  landlordPhone!: string;
+  ownerName?: string;
+
+  @ApiPropertyOptional({ example: '+919849098765' })
+  @IsOptional()
+  @IsString()
+  landlordPhone?: string;
+
+  @ApiPropertyOptional({ example: '+919849098765' })
+  @IsOptional()
+  @IsString()
+  ownerPhone?: string;
 
   @ApiPropertyOptional({ example: 'suresh@example.com' })
   @IsOptional()
   @IsString()
   landlordEmail?: string;
 
-  @ApiProperty({ example: 'Plot 45, Jubilee Hills, Hyderabad' })
+  @ApiPropertyOptional({ example: 'Plot 45, Jubilee Hills, Hyderabad' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  landlordAddress!: string;
+  landlordAddress?: string;
 
   @ApiProperty({ example: 'Rahul Sharma' })
   @IsString()
@@ -37,32 +47,60 @@ export class RentalAgreementDetailsDto {
   @IsString()
   tenantEmail?: string;
 
-  @ApiProperty({ example: 'Flat 301, Fortune Heights, Madhapur, Hyderabad' })
+  @ApiPropertyOptional({ example: 'Flat 301, Fortune Heights, Madhapur, Hyderabad' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  tenantAddress!: string;
+  tenantAddress?: string;
 
   @ApiProperty({ example: 'Flat 301, Fortune Heights, Madhapur, Hyderabad - 500081' })
   @IsString()
   @IsNotEmpty()
   propertyAddress!: string;
 
-  @ApiProperty({ example: 35000 })
+  @ApiPropertyOptional({ example: 35000 })
+  @IsOptional()
   @IsNumber()
-  monthlyRent!: number;
+  monthlyRent?: number;
 
-  @ApiProperty({ example: 105000 })
+  @ApiPropertyOptional({ example: 35000 })
+  @IsOptional()
   @IsNumber()
-  securityDeposit!: number;
+  rentAmount?: number;
 
-  @ApiProperty({ example: 11 })
+  @ApiPropertyOptional({ example: 105000 })
+  @IsOptional()
   @IsNumber()
-  leaseTermMonths!: number;
+  securityDeposit?: number;
 
-  @ApiProperty({ example: '2026-11-01' })
+  @ApiPropertyOptional({ example: 105000 })
+  @IsOptional()
+  @IsNumber()
+  depositAmount?: number;
+
+  @ApiPropertyOptional({ example: 11 })
+  @IsOptional()
+  @IsNumber()
+  leaseTermMonths?: number;
+
+  @ApiPropertyOptional({ example: 11 })
+  @IsOptional()
+  @IsNumber()
+  durationMonths?: number;
+
+  @ApiPropertyOptional({ example: '2026-11-01' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  agreementStartDate!: string;
+  agreementStartDate?: string;
+
+  @ApiPropertyOptional({ example: 'tenant' })
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @ApiPropertyOptional({ example: 'Standard E-Stamp' })
+  @IsOptional()
+  @IsString()
+  stampDutyType?: string;
 }
 
 export class OrderAgreementDto {

@@ -198,11 +198,9 @@ export default function RentHomesScreen() {
     const matched = withDistance.filter((p) => {
       // Category Filter
       if (selectedTab === 'Independent House') {
-        const pt = (p.propertyType || '').toLowerCase();
-        if (!pt.includes('house') && !pt.includes('villa')) return false;
+        if (p.propertyType !== 'house') return false;
       } else if (selectedTab === 'Apartments') {
-        const pt = (p.propertyType || '').toLowerCase();
-        if (!pt.includes('apartment') && !pt.includes('flat')) return false;
+        if (p.propertyType !== 'apartment') return false;
       }
 
       // Search Query (Filters by title, location, or city)

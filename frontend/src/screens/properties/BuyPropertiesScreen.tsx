@@ -215,11 +215,9 @@ export default function BuyPropertiesScreen() {
     const matched = withDistance.filter((p) => {
       // Tab filter
       if (selectedTab === 'Apartments') {
-        const pt = (p.propertyType || '').toLowerCase();
-        if (!pt.includes('apartment') && !pt.includes('flat')) return false;
+        if (p.propertyType !== 'apartment') return false;
       } else if (selectedTab === 'Villas') {
-        const pt = (p.propertyType || '').toLowerCase();
-        if (!pt.includes('villa') && !pt.includes('house')) return false;
+        if (p.propertyType !== 'villa') return false;
       }
 
       // Location filter from location selection interface
