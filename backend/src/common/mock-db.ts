@@ -113,6 +113,32 @@ export interface HomeLoanRecord {
   updatedAt: string;
 }
 
+export interface BankLoanOfferRecord {
+  id: string;
+  bankName: string;
+  bankCode: string;
+  interestRateMin: number;
+  interestRateMax?: number;
+  minLoanAmount: number;
+  maxLoanAmount: number;
+  minTenureYears: number;
+  maxTenureYears: number;
+  processingFee: string;
+  processingFeePercent?: number;
+  maxLtvRatio: number;
+  badge?: string;
+  highlights?: string;
+  rateValidityDate?: string;
+  lastUpdatedDate?: string;
+  iconType?: string;
+  iconBg?: string;
+  iconColor?: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RentalAgreementRecord {
   id: string;
   userId?: string;
@@ -521,6 +547,133 @@ class InMemoryStore {
   homeLoanRequests: HomeLoanRecord[] = [];
   rentalAgreementOrders: RentalAgreementRecord[] = [];
   ownerBackgroundChecks: OwnerBackgroundRecord[] = [];
+  bankLoanOffers: BankLoanOfferRecord[] = [
+    {
+      id: 'offer-sbi',
+      bankName: 'State Bank of India (SBI)',
+      bankCode: 'sbi',
+      interestRateMin: 8.40,
+      interestRateMax: 9.05,
+      minLoanAmount: 500000,
+      maxLoanAmount: 150000000,
+      minTenureYears: 5,
+      maxTenureYears: 30,
+      processingFee: 'Nil (Special campaign offer)',
+      processingFeePercent: 0.0,
+      maxLtvRatio: 90.0,
+      badge: 'Lowest Rate',
+      highlights: 'Daily reducing balance calculation, 0.05% concession for women borrowers, zero prepayment penalty.',
+      rateValidityDate: 'Valid through 31 Dec 2026',
+      lastUpdatedDate: '23 Nov 2026',
+      iconType: 'sbi',
+      iconBg: '#E0F2FE',
+      iconColor: '#0284C7',
+      isActive: true,
+      sortOrder: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'offer-hdfc',
+      bankName: 'HDFC Bank',
+      bankCode: 'hdfc',
+      interestRateMin: 8.50,
+      interestRateMax: 9.15,
+      minLoanAmount: 500000,
+      maxLoanAmount: 120000000,
+      minTenureYears: 5,
+      maxTenureYears: 30,
+      processingFee: '0.25% (Min ₹3,000, Max ₹10,000) + GST',
+      processingFeePercent: 0.25,
+      maxLtvRatio: 85.0,
+      badge: 'Fast Sanction',
+      highlights: 'Digital in-principle sanction in 48 hours, doorstep document collection.',
+      rateValidityDate: 'Valid through 31 Dec 2026',
+      lastUpdatedDate: '23 Nov 2026',
+      iconType: 'hdfc',
+      iconBg: '#FEF3C7',
+      iconColor: '#D97706',
+      isActive: true,
+      sortOrder: 2,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'offer-icici',
+      bankName: 'ICICI Bank',
+      bankCode: 'icici',
+      interestRateMin: 8.60,
+      interestRateMax: 9.25,
+      minLoanAmount: 500000,
+      maxLoanAmount: 100000000,
+      minTenureYears: 5,
+      maxTenureYears: 30,
+      processingFee: '0.50% (Min ₹3,500) + GST',
+      processingFeePercent: 0.50,
+      maxLtvRatio: 85.0,
+      badge: 'Pre-Approved',
+      highlights: 'Express home loan pre-approval online with minimal documentation.',
+      rateValidityDate: 'Valid through 31 Dec 2026',
+      lastUpdatedDate: '23 Nov 2026',
+      iconType: 'icici',
+      iconBg: '#F1F5F9',
+      iconColor: '#475569',
+      isActive: true,
+      sortOrder: 3,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'offer-axis',
+      bankName: 'Axis Bank',
+      bankCode: 'axis',
+      interestRateMin: 8.75,
+      interestRateMax: 9.35,
+      minLoanAmount: 500000,
+      maxLoanAmount: 90000000,
+      minTenureYears: 5,
+      maxTenureYears: 30,
+      processingFee: '₹10,000 flat + GST',
+      processingFeePercent: 0.35,
+      maxLtvRatio: 80.0,
+      badge: 'Flexible Tenure',
+      highlights: 'Shubh Aarambh Home Loan: 12 EMIs waived on regular repayment.',
+      rateValidityDate: 'Valid through 31 Dec 2026',
+      lastUpdatedDate: '23 Nov 2026',
+      iconType: 'axis',
+      iconBg: '#FEF9C3',
+      iconColor: '#CA8A04',
+      isActive: true,
+      sortOrder: 4,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'offer-bob',
+      bankName: 'Bank of Baroda',
+      bankCode: 'bob',
+      interestRateMin: 8.45,
+      interestRateMax: 9.10,
+      minLoanAmount: 500000,
+      maxLoanAmount: 100000000,
+      minTenureYears: 5,
+      maxTenureYears: 30,
+      processingFee: '0.25% (Min ₹2,500, Max ₹8,000) + GST',
+      processingFeePercent: 0.25,
+      maxLtvRatio: 90.0,
+      badge: 'Low Processing Fee',
+      highlights: 'Baroda Home Loan linked to BRLLR, concession on green rated buildings.',
+      rateValidityDate: 'Valid through 31 Dec 2026',
+      lastUpdatedDate: '23 Nov 2026',
+      iconType: 'bob',
+      iconBg: '#FFEDD5',
+      iconColor: '#EA580C',
+      isActive: true,
+      sortOrder: 5,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ];
 }
 
 export const mockDb = new InMemoryStore();

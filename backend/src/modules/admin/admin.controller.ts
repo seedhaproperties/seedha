@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AdminService } from './admin.service.js';
 import {
@@ -144,6 +144,37 @@ export class AdminController {
   @ApiOperation({ summary: 'Team directly contact user for Home Loan assistance' })
   contactLoanUser(@Param('id') id: string, @Body() dto: ContactOwnerDto) {
     return this.adminService.contactHomeLoanUser(id, dto);
+  }
+
+  // Bank Loan Offers Management
+  @Get('loan-offers')
+  @ApiOperation({ summary: 'Admin: Get all bank loan offers' })
+  getLoanOffers(@Query('includeInactive') includeInactive?: string) {
+    return this.adminService.getAllLoanOffers(includeInactive !== 'false');
+  }
+
+  @Post('loan-offers')
+  @ApiOperation({ summary: 'Admin: Create new bank loan offer' })
+  createLoanOffer(@Body() dto: any) {
+    return this.adminService.createLoanOffer(dto);
+  }
+
+  @Put('loan-offers/:id')
+  @ApiOperation({ summary: 'Admin: Update bank loan offer' })
+  updateLoanOffer(@Param('id') id: string, @Body() dto: any) {
+    return this.adminService.updateLoanOffer(id, dto);
+  }
+
+  @Patch('loan-offers/:id/toggle')
+  @ApiOperation({ summary: 'Admin: Toggle bank loan offer active state' })
+  toggleLoanOffer(@Param('id') id: string, @Body('isActive') isActive?: boolean) {
+    return this.adminService.toggleLoanOffer(id, isActive);
+  }
+
+  @Delete('loan-offers/:id')
+  @ApiOperation({ summary: 'Admin: Delete bank loan offer' })
+  deleteLoanOffer(@Param('id') id: string) {
+    return this.adminService.deleteLoanOffer(id);
   }
 
   // Queue 6: Rental Agreement Requests

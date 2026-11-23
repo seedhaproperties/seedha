@@ -125,18 +125,31 @@ export default function PropertyManagementScreen() {
 
     setIsUploadingPhoto(true);
     try {
-      const promises = selectedFiles.map((file) => compressImage(file));
-      const compressedList = (await Promise.all(promises)).filter(Boolean);
+      // 1. Instant local object URLs for 0ms immediate preview
+      const instantUrls = selectedFiles.map((file) => {
+        try {
+          if (typeof window !== 'undefined' && window.URL && window.URL.createObjectURL) {
+            return window.URL.createObjectURL(file);
+          }
+        } catch {}
+        return '';
+      }).filter(Boolean);
 
-      if (!compressedList.length) return;
+      const immediateList = instantUrls.length === selectedFiles.length
+        ? instantUrls
+        : (await Promise.all(selectedFiles.map(compressImage))).filter(Boolean);
 
-      // 1. Immediately show user's uploaded photos in the preview so they NEVER see a blank box
-      setPhotos((prev) => [...prev, ...compressedList]);
+      if (!immediateList.length) return;
+
+      // Immediately show user's uploaded photos in the preview so they NEVER see a blank box
+      setPhotos((prev) => [...prev, ...immediateList]);
 
       // 2. Background upload to Cloudinary/server
       try {
-        const uploadPromises = compressedList.map(async (base64) => {
+        const compressedList = await Promise.all(selectedFiles.map(compressImage));
+        const uploadPromises = compressedList.map(async (base64, fileIdx) => {
           try {
+            if (!base64) return immediateList[fileIdx] || '';
             const res = await api.uploads.uploadImage({
               imageBase64: base64,
               folder: 'seedha-properties/property-management',
@@ -144,16 +157,16 @@ export default function PropertyManagementScreen() {
             if (res?.url && res.url.startsWith('http')) {
               return res.url;
             }
-            return base64;
+            return base64 || immediateList[fileIdx] || '';
           } catch {
-            return base64;
+            return base64 || immediateList[fileIdx] || '';
           }
         });
 
         const uploadedUrls = await Promise.all(uploadPromises);
         setPhotos((current) =>
           current.map((p) => {
-            const idx = compressedList.indexOf(p);
+            const idx = immediateList.indexOf(p);
             return idx !== -1 && uploadedUrls[idx] ? uploadedUrls[idx] : p;
           }),
         );

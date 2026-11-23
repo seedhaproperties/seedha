@@ -1521,4 +1521,131 @@ export class AdminService {
     }
     return list;
   }
+
+  // ── Admin Loan Offers Management ──
+
+  async getAllLoanOffers(includeInactive = true) {
+    if (this.prisma?.isConnected) {
+      try {
+        const whereClause = includeInactive ? {} : { isActive: true };
+        const dbOffers = await this.prisma.bankLoanOffer.findMany({
+          where: whereClause,
+          orderBy: { sortOrder: 'asc' },
+        });
+        if (dbOffers && dbOffers.length > 0) return dbOffers;
+      } catch (err: any) {
+        this.logger.warn(`Prisma getAllLoanOffers: ${err.message}`);
+      }
+    }
+    return includeInactive
+      ? mockDb.bankLoanOffers
+      : mockDb.bankLoanOffers.filter((b) => b.isActive);
+  }
+
+  async createLoanOffer(dto: any) {
+    const generatedId = `offer-${Date.now()}`;
+    const newOffer = {
+      id: generatedId,
+      bankName: dto.bankName,
+      bankCode: dto.bankCode,
+      interestRateMin: Number(dto.interestRateMin),
+      interestRateMax: dto.interestRateMax ? Number(dto.interestRateMax) : null,
+      minLoanAmount: Number(dto.minLoanAmount) || 500000,
+      maxLoanAmount: Number(dto.maxLoanAmount) || 150000000,
+      minTenureYears: Number(dto.minTenureYears) || 5,
+      maxTenureYears: Number(dto.maxTenureYears) || 30,
+      processingFee: dto.processingFee,
+      processingFeePercent: dto.processingFeePercent ? Number(dto.processingFeePercent) : 0.35,
+      maxLtvRatio: Number(dto.maxLtvRatio) || 85.0,
+      badge: dto.badge,
+      highlights: dto.highlights,
+      rateValidityDate: dto.rateValidityDate || 'Valid through 31 Dec 2026',
+      lastUpdatedDate: dto.lastUpdatedDate || new Date().toISOString().split('T')[0],
+      iconType: dto.iconType || dto.bankCode,
+      iconBg: dto.iconBg || '#E0F2FE',
+      iconColor: dto.iconColor || '#0284C7',
+      isActive: dto.isActive !== undefined ? dto.isActive : true,
+      sortOrder: Number(dto.sortOrder) || (mockDb.bankLoanOffers.length + 1),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.bankLoanOffer.create({ data: newOffer as any });
+      } catch (err: any) {
+        this.logger.warn(`Prisma createLoanOffer: ${err.message}`);
+      }
+    }
+
+    mockDb.bankLoanOffers.push(newOffer as any);
+    mockDb.saveToDisk();
+
+    return { message: `Loan offer for ${newOffer.bankName} created!`, offer: newOffer };
+  }
+
+  async updateLoanOffer(id: string, dto: any) {
+    let offer = mockDb.bankLoanOffers.find((b) => b.id === id);
+
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.bankLoanOffer.updateMany({
+          where: { id },
+          data: { ...dto, updatedAt: new Date() },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Prisma updateLoanOffer: ${err.message}`);
+      }
+    }
+
+    if (offer) {
+      Object.assign(offer, dto);
+      offer.updatedAt = new Date().toISOString();
+      mockDb.saveToDisk();
+    }
+
+    return { message: `Loan offer updated!`, offer };
+  }
+
+  async toggleLoanOffer(id: string, isActive?: boolean) {
+    let offer = mockDb.bankLoanOffers.find((b) => b.id === id);
+    const targetStatus = isActive !== undefined ? isActive : offer ? !offer.isActive : true;
+
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.bankLoanOffer.updateMany({
+          where: { id },
+          data: { isActive: targetStatus, updatedAt: new Date() },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Prisma toggleLoanOffer: ${err.message}`);
+      }
+    }
+
+    if (offer) {
+      offer.isActive = targetStatus;
+      offer.updatedAt = new Date().toISOString();
+      mockDb.saveToDisk();
+    }
+
+    return { message: `Loan offer status updated to ${targetStatus ? 'Active' : 'Inactive'}`, id, isActive: targetStatus };
+  }
+
+  async deleteLoanOffer(id: string) {
+    const idx = mockDb.bankLoanOffers.findIndex((b) => b.id === id);
+    if (idx !== -1) {
+      mockDb.bankLoanOffers.splice(idx, 1);
+      mockDb.saveToDisk();
+    }
+
+    if (this.prisma?.isConnected) {
+      try {
+        await this.prisma.bankLoanOffer.deleteMany({ where: { id } });
+      } catch (err: any) {
+        this.logger.warn(`Prisma deleteLoanOffer: ${err.message}`);
+      }
+    }
+
+    return { message: `Loan offer ${id} removed.` };
+  }
 }

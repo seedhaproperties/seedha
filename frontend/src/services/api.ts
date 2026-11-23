@@ -463,7 +463,13 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
-    compareBanks: () => request<any[]>('/home-loans/compare-banks'),
+    compareBanks: (params?: { loanAmount?: number; tenureYears?: number }) => {
+      const queryParts: string[] = [];
+      if (params?.loanAmount) queryParts.push(`loanAmount=${params.loanAmount}`);
+      if (params?.tenureYears) queryParts.push(`tenureYears=${params.tenureYears}`);
+      const qs = queryParts.length ? `?${queryParts.join('&')}` : '';
+      return request<any>(`/home-loans/compare-banks${qs}`);
+    },
     getDocuments: (loanType: string) => request<any>(`/home-loans/documents/${loanType}`),
     requestAssistance: (payload: any) =>
       request<any>('/home-loans/assistance', {

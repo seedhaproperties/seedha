@@ -707,40 +707,52 @@ export default function PostPropertyScreen() {
 
     setIsUploadingPhoto(true);
     try {
-      const promises = files.map((file) => compressImage(file));
-      const compressedList = (await Promise.all(promises)).filter(Boolean);
+      // 1. Instant local object URLs for 0ms immediate preview
+      const instantUrls = files.map((file) => {
+        try {
+          if (typeof window !== 'undefined' && window.URL && window.URL.createObjectURL) {
+            return window.URL.createObjectURL(file);
+          }
+        } catch {}
+        return '';
+      }).filter(Boolean);
 
-      if (!compressedList.length) return;
+      const immediateList = instantUrls.length === files.length
+        ? instantUrls
+        : (await Promise.all(files.map(compressImage))).filter(Boolean);
 
-      // 1. Immediately show user's uploaded photos in the preview so they NEVER see a blank box
+      if (!immediateList.length) return;
+
+      // Immediately show photos in the preview grid so user NEVER sees a blank box
       setForm((f) => ({
         ...f,
-        photos: [...f.photos, ...compressedList],
-        photosCount: f.photos.length + compressedList.length,
+        photos: [...f.photos, ...immediateList],
+        photosCount: f.photos.length + immediateList.length,
       }));
 
-      // 2. Upload to Cloudinary in background; if a live CDN URL is returned, upgrade the base64 URL
+      // 2. Compress and upload to backend in background
       try {
-        const uploadPromises = compressedList.map(async (base64) => {
+        const compressedList = await Promise.all(files.map(compressImage));
+        const uploadPromises = compressedList.map(async (base64, fileIdx) => {
           try {
+            if (!base64) return immediateList[fileIdx] || '';
             const res = await api.uploads.uploadImage({
               imageBase64: base64,
               folder: 'seedha-properties/properties',
             });
-            // Only adopt if it is a real remote URL, otherwise keep base64
             if (res?.url && res.url.startsWith('https://res.cloudinary.com/') && !res.url.includes('/img_')) {
               return res.url;
             }
-            return base64;
+            return base64 || immediateList[fileIdx] || '';
           } catch {
-            return base64;
+            return base64 || immediateList[fileIdx] || '';
           }
         });
 
         const uploadedUrls = await Promise.all(uploadPromises);
         setForm((f) => {
           const updated = f.photos.map((p) => {
-            const idx = compressedList.indexOf(p);
+            const idx = immediateList.indexOf(p);
             return idx !== -1 && uploadedUrls[idx] ? uploadedUrls[idx] : p;
           });
           return {
@@ -798,6 +810,12 @@ export default function PostPropertyScreen() {
   };
 
   const handleRemovePhoto = (index: number) => {
+    const target = form.photos[index];
+    if (target && target.startsWith('blob:') && typeof window !== 'undefined' && (window as any).URL?.revokeObjectURL) {
+      try {
+        (window as any).URL.revokeObjectURL(target);
+      } catch {}
+    }
     setForm(f => ({
       ...f,
       photos: f.photos.filter((_, i) => i !== index),
@@ -2884,7 +2902,12 @@ export default function PostPropertyScreen() {
 
                   {form.photos.map((uri, index) => (
                     <View key={index} style={styles.photoThumbWrap}>
-                      {Platform.OS === 'web' ? (
+                      <Image
+                        source={{ uri }}
+                        style={styles.photoThumbImg}
+                        resizeMode="cover"
+                      />
+                      {Platform.OS === 'web' && (
                         <img
                           src={uri}
                           alt={`Uploaded photo ${index + 1}`}
@@ -2892,15 +2915,14 @@ export default function PostPropertyScreen() {
                             position: 'absolute',
                             top: 0,
                             left: 0,
-                            width: '100%',
-                            height: '100%',
+                            width: 111,
+                            height: 111,
                             objectFit: 'cover',
                             borderRadius: 16,
                             display: 'block',
+                            pointerEvents: 'none',
                           }}
                         />
-                      ) : (
-                        <Image source={{ uri }} style={styles.photoThumbImg} resizeMode="cover" />
                       )}
                       <TouchableOpacity
                         style={styles.photoRemoveBtn}
@@ -4611,8 +4633,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   photoThumbImg: {
-    width: '100%',
-    height: '100%',
+    width: 111,
+    height: 111,
     borderRadius: 16,
     resizeMode: 'cover',
     ...(Platform.OS === 'web' ? { objectFit: 'cover' as any } : {}),
