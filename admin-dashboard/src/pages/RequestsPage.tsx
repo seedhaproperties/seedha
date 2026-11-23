@@ -136,9 +136,21 @@ export const RequestsPage: React.FC = () => {
       );
     });
 
+    // Auto-reload requests when socket connects or recovers
+    const unsubReconnect = adminSocket.onReconnect(() => {
+      loadRequests();
+    });
+    const unsubConn = adminSocket.onConnectionChange((connected) => {
+      if (connected) {
+        loadRequests();
+      }
+    });
+
     return () => {
       unsubCreated();
       unsubStatus();
+      unsubReconnect();
+      unsubConn();
     };
   }, [currentModule, currentStatus, searchQuery]);
 

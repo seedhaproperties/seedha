@@ -23,11 +23,23 @@ export const Topbar: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
-    adminService.checkBackendHealth().then((online) => {
-      if (mounted) setIsOnline(online);
-    });
+
+    const checkHealth = () => {
+      adminService.checkBackendHealth().then((online) => {
+        if (mounted) setIsOnline(online);
+      });
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 6000);
+
     adminService.getNotifications().then((notifs) => {
       if (mounted) setUnreadCount(notifs.filter((n) => !n.read).length);
+    });
+
+    // Real-time socket connection sync
+    const unsubConn = adminSocket.onConnectionChange((connected) => {
+      if (mounted) setIsOnline(connected);
     });
 
     // Real-time notification increment on new property submission
@@ -37,6 +49,8 @@ export const Topbar: React.FC = () => {
 
     return () => {
       mounted = false;
+      clearInterval(interval);
+      unsubConn();
       unsub();
     };
   }, []);

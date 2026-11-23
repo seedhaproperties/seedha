@@ -22,6 +22,8 @@ export interface PropertyStatusUpdatedSocketPayload {
 
 type PropertyCreatedListener = (request: PropertyRequest) => void;
 type PropertyStatusListener = (payload: PropertyStatusUpdatedSocketPayload) => void;
+type ConnectionListener = (connected: boolean) => void;
+type ReconnectListener = () => void;
 
 class AdminSocketService {
   private socket: Socket | null = null;
@@ -29,6 +31,8 @@ class AdminSocketService {
   private maxProcessedEvents = 200;
   private propertyCreatedListeners = new Set<PropertyCreatedListener>();
   private propertyStatusListeners = new Set<PropertyStatusListener>();
+  private connectionListeners = new Set<ConnectionListener>();
+  private reconnectListeners = new Set<ReconnectListener>();
 
   public getSocketUrl(): string {
     if ((import.meta as any).env?.VITE_SOCKET_URL) {
@@ -67,6 +71,7 @@ class AdminSocketService {
 
     this.socket.on('connect', () => {
       console.log('⚡ [AdminSocket] Connected to NestJS Socket.IO Server:', this.socket?.id);
+      this.connectionListeners.forEach((l) => l(true));
       // Join admin room explicitly
       this.socket?.emit('user:identify', {
         userId: 'admin_dashboard',
@@ -76,14 +81,17 @@ class AdminSocketService {
 
     this.socket.on('disconnect', (reason) => {
       console.warn('⚠️ [AdminSocket] Disconnected from server:', reason);
+      this.connectionListeners.forEach((l) => l(false));
     });
 
     // Reconnection handling: fetch missed updates from REST API
     this.socket.on('reconnect', async (attemptNumber) => {
       console.log(`🔄 [AdminSocket] Reconnected after ${attemptNumber} attempts. Backfilling missed records...`);
+      this.connectionListeners.forEach((l) => l(true));
       try {
         await adminService.getMetrics();
         await adminService.getRequests();
+        this.reconnectListeners.forEach((l) => l());
       } catch (err) {
         console.error('Error backfilling after reconnect:', err);
       }
@@ -96,15 +104,26 @@ class AdminSocketService {
 
       console.log('📢 [AdminSocket] New property submitted in real-time:', payload.property.title);
 
+      const p = payload.property;
+      const isPg =
+        p.propertyType?.toLowerCase().includes('pg') ||
+        p.propertyType?.toLowerCase().includes('hostel') ||
+        p.details?.pgAccommodationType ||
+        p.title?.toLowerCase().includes('pg') ||
+        p.title?.toLowerCase().includes('hostel');
+
+      const computedModule = isPg
+        ? 'pg_hostel'
+        : p.listingType === 'RENT'
+        ? 'rent'
+        : p.listingType === 'COMMERCIAL'
+        ? 'commercial'
+        : 'flat_building';
+
       const normalized = normalizeRequest({
         id: payload.property.id,
         code: (payload.property.id || '').slice(0, 8).toUpperCase(),
-        module:
-          payload.property.listingType === 'RENT'
-            ? 'rent'
-            : payload.property.listingType === 'COMMERCIAL'
-            ? 'commercial'
-            : 'flat_building',
+        module: computedModule,
         title: payload.property.title,
         description: payload.property.description || '',
         subtitle: `${payload.property.bedrooms ? `${payload.property.bedrooms} BHK · ` : ''}${
@@ -220,6 +239,24 @@ class AdminSocketService {
     return () => {
       this.propertyStatusListeners.delete(listener);
     };
+  }
+
+  public onConnectionChange(listener: ConnectionListener): () => void {
+    this.connectionListeners.add(listener);
+    return () => {
+      this.connectionListeners.delete(listener);
+    };
+  }
+
+  public onReconnect(listener: ReconnectListener): () => void {
+    this.reconnectListeners.add(listener);
+    return () => {
+      this.reconnectListeners.delete(listener);
+    };
+  }
+
+  public isConnected(): boolean {
+    return !!this.socket?.connected;
   }
 
   public disconnect() {
