@@ -34,9 +34,12 @@ export interface PropertyStatusUpdatedEvent {
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: (origin: string | undefined, callback: (err: Error | null, origin?: any) => void) => {
+      callback(null, origin || true);
+    },
     credentials: true,
   },
+  transports: ['polling', 'websocket'],
 })
 export class EventsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect

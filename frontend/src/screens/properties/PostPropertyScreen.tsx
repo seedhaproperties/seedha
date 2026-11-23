@@ -879,14 +879,13 @@ export default function PostPropertyScreen() {
 
       const computedTitle =
         form.title ||
-        `${form.bhk ? form.bhk + ' BHK ' : ''}${
-          mode === 'commercial'
-            ? (form.propertyType || form.propertySubtype || 'Commercial Property')
-            : mode === 'pg'
-              ? (form.pgAccommodationType || 'PG Room')
-              : mode === 'flatmate'
-                ? 'Flatmate Room'
-                : (form.propertyType || form.propertySubtype || 'Residential Property')
+        `${form.bhk ? form.bhk + ' BHK ' : ''}${mode === 'commercial'
+          ? (form.propertyType || form.propertySubtype || 'Commercial Property')
+          : mode === 'pg'
+            ? (form.pgAccommodationType || 'PG Room')
+            : mode === 'flatmate'
+              ? 'Flatmate Room'
+              : (form.propertyType || form.propertySubtype || 'Residential Property')
         } in ${form.locality || 'Hyderabad'}`;
 
       const computedLocation = `${form.locality ? form.locality + ', ' : ''}${form.city || 'Hyderabad'}`;

@@ -41,7 +41,7 @@ class UserSocketService {
     const serverUrl = this.getSocketUrl();
 
     this.socket = io(serverUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: Infinity,

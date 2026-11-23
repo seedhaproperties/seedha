@@ -162,9 +162,12 @@ __decorate([
 EventsGateway = EventsGateway_1 = __decorate([
     WebSocketGateway({
         cors: {
-            origin: '*',
+            origin: (origin, callback) => {
+                callback(null, origin || true);
+            },
             credentials: true,
         },
+        transports: ['polling', 'websocket'],
     }),
     __metadata("design:paramtypes", [JwtService])
 ], EventsGateway);
