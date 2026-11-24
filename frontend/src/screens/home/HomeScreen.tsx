@@ -142,9 +142,8 @@ export default function HomeScreen() {
               ownerType: (p.ownerType as any) || 'owner',
             };
           });
-          const existingIds = new Set(mappedApiProps.map((p) => p.id));
-          const combined = [...mappedApiProps, ...properties.filter((p) => !existingIds.has(p.id))];
-          setLiveProperties(combined);
+          // Real database content only
+          setLiveProperties(mappedApiProps);
         }
       })
       .catch(() => {
@@ -168,33 +167,64 @@ export default function HomeScreen() {
   const spotlightSnapInterval = spotlightCardWidth + 12;
 
   const spotlightProperty =
-    liveProperties.find((p) => p.id === 'spotlight-1') || liveProperties[0] || properties[0];
+    liveProperties.find((p) => p.featured) || liveProperties[0] || properties[0];
 
-  const spotlightList = useMemo(() => {
-    const list: Property[] = [];
-    const s1 = liveProperties.find((p) => p.id === 'spotlight-1') || properties.find((p) => p.id === 'spotlight-1');
-    if (s1) list.push(s1);
+  // Real database content only for the spotlight carousel
+  const baseSpotlightList = useMemo(() => {
+    // Only real database properties: prioritize featured or verified properties
+    const dbFeatured = liveProperties.filter((p) => p.featured || p.verified);
+    const pool = dbFeatured.length >= 2 ? dbFeatured : liveProperties;
+    return pool.slice(0, 5);
+  }, [liveProperties]);
 
-    const candidates = [
-      ...liveProperties.filter((p) => p.featured && p.id !== 'spotlight-1'),
-      ...liveProperties.filter((p) => p.id === 'feat-1' || p.id === 'feat-2' || p.id === '3'),
-      ...properties.filter((p) => (p.featured || p.id === 'feat-1' || p.id === '3') && p.id !== 'spotlight-1'),
-    ];
+  const CIRCULAR_COPIES = 20;
 
-    for (const c of candidates) {
-      if (!list.some((item) => item.id === c.id)) {
-        list.push(c);
-      }
-      if (list.length >= 4) break;
+  // Infinite circular item buffer
+  const circularSpotlightList = useMemo(() => {
+    if (baseSpotlightList.length <= 1) {
+      return baseSpotlightList.map((p, idx) => ({
+        property: p,
+        uniqueKey: `${p.id}-${idx}`,
+        originalIndex: idx,
+      }));
     }
+    const items: Array<{ property: Property; uniqueKey: string; originalIndex: number }> = [];
+    for (let c = 0; c < CIRCULAR_COPIES; c++) {
+      baseSpotlightList.forEach((prop, origIdx) => {
+        items.push({
+          property: prop,
+          uniqueKey: `${prop.id}-c${c}-i${origIdx}`,
+          originalIndex: origIdx,
+        });
+      });
+    }
+    return items;
+  }, [baseSpotlightList]);
 
-    return list.length > 0 ? list : [spotlightProperty];
-  }, [liveProperties, spotlightProperty]);
+  const centerStartIndex = useMemo(() => {
+    if (baseSpotlightList.length <= 1) return 0;
+    return Math.floor(CIRCULAR_COPIES / 2) * baseSpotlightList.length;
+  }, [baseSpotlightList.length]);
 
+  const currentRawIndexRef = useRef(centerStartIndex);
   const spotlightScrollX = useRef(new Animated.Value(0)).current;
   const spotlightCarouselRef = useRef<any>(null);
   const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
   const isUserTouchingSpotlightRef = useRef(false);
+
+  // Initialize position at center copy on mount/change
+  useEffect(() => {
+    if (baseSpotlightList.length > 1) {
+      currentRawIndexRef.current = centerStartIndex;
+      const initialX = centerStartIndex * spotlightSnapInterval;
+      setTimeout(() => {
+        spotlightCarouselRef.current?.scrollTo({
+          x: initialX,
+          animated: false,
+        });
+      }, 80);
+    }
+  }, [centerStartIndex, spotlightSnapInterval, baseSpotlightList.length]);
 
   const smoothScrollToSpotlight = useCallback(
     (index: number) => {
@@ -220,21 +250,32 @@ export default function HomeScreen() {
     [spotlightSnapInterval]
   );
 
-  // Auto-advance spotlight carousel every 3s with smooth ease-in-out animation
+  // Auto-advance spotlight carousel every 3s with seamless infinite circular scrolling
   useEffect(() => {
-    if (spotlightList.length <= 1) return;
+    if (baseSpotlightList.length <= 1) return;
 
     const timer = setInterval(() => {
       if (isUserTouchingSpotlightRef.current) return;
-      setActiveSpotlightIndex((prev) => {
-        const next = (prev + 1) % spotlightList.length;
-        smoothScrollToSpotlight(next);
-        return next;
-      });
+      currentRawIndexRef.current += 1;
+      smoothScrollToSpotlight(currentRawIndexRef.current);
+      setActiveSpotlightIndex(currentRawIndexRef.current % baseSpotlightList.length);
+
+      // Silently re-center when approaching buffer boundaries without visual jump
+      if (currentRawIndexRef.current > (CIRCULAR_COPIES - 4) * baseSpotlightList.length) {
+        setTimeout(() => {
+          const norm = currentRawIndexRef.current % baseSpotlightList.length;
+          const resetIdx = centerStartIndex + norm;
+          currentRawIndexRef.current = resetIdx;
+          spotlightCarouselRef.current?.scrollTo({
+            x: resetIdx * spotlightSnapInterval,
+            animated: false,
+          });
+        }, 800);
+      }
     }, 3000);
 
     return () => clearInterval(timer);
-  }, [spotlightList.length, smoothScrollToSpotlight]);
+  }, [baseSpotlightList.length, centerStartIndex, smoothScrollToSpotlight, spotlightSnapInterval]);
 
   const handleSpotlightScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: spotlightScrollX } } }],
@@ -242,9 +283,13 @@ export default function HomeScreen() {
       useNativeDriver: false,
       listener: (event: any) => {
         const offsetX = event.nativeEvent?.contentOffset?.x || 0;
-        const index = Math.round(offsetX / spotlightSnapInterval);
-        if (index >= 0 && index < spotlightList.length && index !== activeSpotlightIndex) {
-          setActiveSpotlightIndex(index);
+        const rawIndex = Math.round(offsetX / spotlightSnapInterval);
+        currentRawIndexRef.current = rawIndex;
+        if (baseSpotlightList.length > 0) {
+          const norm = ((rawIndex % baseSpotlightList.length) + baseSpotlightList.length) % baseSpotlightList.length;
+          if (norm !== activeSpotlightIndex) {
+            setActiveSpotlightIndex(norm);
+          }
         }
       },
     }
@@ -685,7 +730,7 @@ export default function HomeScreen() {
             }, 3000);
           }}
         >
-          {spotlightList.map((item, idx) => {
+          {circularSpotlightList.map(({ property: item, uniqueKey, originalIndex }, idx) => {
             const isSaved = savedIds.has(item.id);
 
             const cardScale = spotlightScrollX.interpolate({
@@ -710,12 +755,12 @@ export default function HomeScreen() {
 
             return (
               <Animated.View
-                key={item.id || idx}
+                key={uniqueKey}
                 style={[
                   styles.spotlightCardWrapper,
                   {
                     width: spotlightCardWidth,
-                    marginRight: idx === spotlightList.length - 1 ? 0 : 12,
+                    marginRight: idx === circularSpotlightList.length - 1 ? 0 : 12,
                     transform: [{ scale: cardScale }],
                     opacity: cardOpacity,
                   },
@@ -742,45 +787,35 @@ export default function HomeScreen() {
                       <Text style={styles.featuredPillText}>Featured</Text>
                     </View>
 
-                    {/* Animated Image Carousel Dots */}
+                    {/* Circular Animated Indicator Dots */}
                     <View style={styles.carouselDotsRow}>
-                      {spotlightList.map((_, dotIdx) => {
-                        const dWidth = spotlightScrollX.interpolate({
-                          inputRange: [
-                            (dotIdx - 1) * spotlightSnapInterval,
-                            dotIdx * spotlightSnapInterval,
-                            (dotIdx + 1) * spotlightSnapInterval,
-                          ],
-                          outputRange: [6, 22, 6],
-                          extrapolate: 'clamp',
-                        });
-                        const dOpacity = spotlightScrollX.interpolate({
-                          inputRange: [
-                            (dotIdx - 1) * spotlightSnapInterval,
-                            dotIdx * spotlightSnapInterval,
-                            (dotIdx + 1) * spotlightSnapInterval,
-                          ],
-                          outputRange: [0.4, 1.0, 0.4],
-                          extrapolate: 'clamp',
-                        });
-
+                      {baseSpotlightList.map((_, dotIdx) => {
+                        const isActive = dotIdx === activeSpotlightIndex;
                         return (
                           <TouchableOpacity
                             key={dotIdx}
                             onPress={() => {
+                              const cur = currentRawIndexRef.current;
+                              const curNorm =
+                                ((cur % baseSpotlightList.length) + baseSpotlightList.length) %
+                                baseSpotlightList.length;
+                              const diff = dotIdx - curNorm;
+                              currentRawIndexRef.current = cur + diff;
+                              smoothScrollToSpotlight(currentRawIndexRef.current);
                               setActiveSpotlightIndex(dotIdx);
-                              smoothScrollToSpotlight(dotIdx);
                             }}
                             activeOpacity={0.7}
                             hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                           >
-                            <Animated.View
+                            <View
                               style={[
                                 styles.inactiveDot,
+                                isActive && styles.activeDot,
                                 {
-                                  width: dWidth,
-                                  opacity: dOpacity,
-                                  backgroundColor: '#FFFFFF',
+                                  width: isActive ? 22 : 6,
+                                  backgroundColor: isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.4)',
+                                  opacity: isActive ? 1.0 : 0.45,
+                                  borderRadius: 9999,
                                 },
                               ]}
                             />
