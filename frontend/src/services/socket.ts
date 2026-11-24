@@ -76,7 +76,7 @@ class UserSocketService {
       }
     });
 
-    this.socket.on('disconnect', (reason) => {
+    this.socket.on('disconnect', (reason: any) => {
       console.log('🔌 [UserSocket] Disconnected:', reason);
     });
 
