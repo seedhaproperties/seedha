@@ -16,7 +16,7 @@ export interface GoogleAuthResult {
 }
 
 const DEFAULT_WEB_CLIENT_ID =
-  '557082409167-jb1ni7kc4e2eua2l93sshfn0hvk8m5r4.apps.googleusercontent.com';
+  '258337837438-lhqp7g0e4p650fvhb1tkrvr8uucile21.apps.googleusercontent.com';
 
 /**
  * Returns the Web Client ID used for native and backend ID-token verification

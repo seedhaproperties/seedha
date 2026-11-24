@@ -464,6 +464,7 @@ export class AuthService {
         audience: isConfigured
           ? [
               googleClientId,
+              '258337837438-lhqp7g0e4p650fvhb1tkrvr8uucile21.apps.googleusercontent.com',
               '557082409167-5putmtnclofhcjvvbpfop7siajj82jie.apps.googleusercontent.com',
               '557082409167-jb1ni7kc4e2eua2l93sshfn0hvk8m5r4.apps.googleusercontent.com',
             ].filter(Boolean)
