@@ -177,6 +177,9 @@ export default function HomeScreen() {
     return pool.slice(0, 5);
   }, [liveProperties]);
 
+  // Backward compatibility alias so spotlightList is never undefined
+  const spotlightList = baseSpotlightList;
+
   const CIRCULAR_COPIES = 20;
 
   // Infinite circular item buffer
