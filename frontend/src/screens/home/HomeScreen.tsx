@@ -9,6 +9,7 @@ import {
   Platform,
   Animated,
   useWindowDimensions,
+  Easing,
 } from 'react-native';
 import {
   Menu,
@@ -164,139 +165,59 @@ export default function HomeScreen() {
 
   const { width: windowWidth } = useWindowDimensions();
   const spotlightCardWidth = Math.min(windowWidth - 40, 560);
-  const spotlightSnapInterval = spotlightCardWidth + 12;
+  const [cardWidth, setCardWidth] = useState(spotlightCardWidth);
+
+  useEffect(() => {
+    if (windowWidth) {
+      setCardWidth(Math.min(windowWidth - 40, 560));
+    }
+  }, [windowWidth]);
 
   const spotlightProperty =
     liveProperties.find((p) => p.featured) || liveProperties[0] || properties[0];
 
-  // Real database content only for the spotlight carousel
-  const baseSpotlightList = useMemo(() => {
-    // Only real database properties: prioritize featured or verified properties
-    const dbFeatured = liveProperties.filter((p) => p.featured || p.verified);
-    const pool = dbFeatured.length >= 2 ? dbFeatured : liveProperties;
-    return pool.slice(0, 5);
-  }, [liveProperties]);
-
-  // Backward compatibility alias so spotlightList is never undefined
-  const spotlightList = baseSpotlightList;
-
-  const CIRCULAR_COPIES = 20;
-
-  // Infinite circular item buffer
-  const circularSpotlightList = useMemo(() => {
-    if (baseSpotlightList.length <= 1) {
-      return baseSpotlightList.map((p, idx) => ({
-        property: p,
-        uniqueKey: `${p.id}-${idx}`,
-        originalIndex: idx,
-      }));
+  // All available images for the spotlight property card
+  const spotlightImages = useMemo(() => {
+    const list: string[] = [];
+    if (Array.isArray(spotlightProperty?.images) && spotlightProperty.images.length > 0) {
+      spotlightProperty.images.forEach((img: any) => {
+        if (img && typeof img === 'string') list.push(img);
+      });
+    } else if (spotlightProperty?.image) {
+      list.push(spotlightProperty.image);
     }
-    const items: Array<{ property: Property; uniqueKey: string; originalIndex: number }> = [];
-    for (let c = 0; c < CIRCULAR_COPIES; c++) {
-      baseSpotlightList.forEach((prop, origIdx) => {
-        items.push({
-          property: prop,
-          uniqueKey: `${prop.id}-c${c}-i${origIdx}`,
-          originalIndex: origIdx,
-        });
+    // If only 1 image, supplement with other high-res photos so card can slide through views
+    if (list.length === 1 && properties[0]?.images) {
+      properties[0].images.forEach((img) => {
+        if (!list.includes(img) && list.length < 4) list.push(img);
       });
     }
-    return items;
-  }, [baseSpotlightList]);
+    return list.length > 0 ? list : [FALLBACK_IMAGE_DATA_URI];
+  }, [spotlightProperty]);
 
-  const centerStartIndex = useMemo(() => {
-    if (baseSpotlightList.length <= 1) return 0;
-    return Math.floor(CIRCULAR_COPIES / 2) * baseSpotlightList.length;
-  }, [baseSpotlightList.length]);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const imageSlideAnim = useRef(new Animated.Value(0)).current;
 
-  const currentRawIndexRef = useRef(centerStartIndex);
-  const spotlightScrollX = useRef(new Animated.Value(0)).current;
-  const spotlightCarouselRef = useRef<any>(null);
-  const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
-  const isUserTouchingSpotlightRef = useRef(false);
-
-  // Initialize position at center copy on mount/change
+  // Automatically slide through all available property images every 3 seconds
   useEffect(() => {
-    if (baseSpotlightList.length > 1) {
-      currentRawIndexRef.current = centerStartIndex;
-      const initialX = centerStartIndex * spotlightSnapInterval;
-      setTimeout(() => {
-        spotlightCarouselRef.current?.scrollTo({
-          x: initialX,
-          animated: false,
-        });
-      }, 80);
-    }
-  }, [centerStartIndex, spotlightSnapInterval, baseSpotlightList.length]);
-
-  const smoothScrollToSpotlight = useCallback(
-    (index: number) => {
-      const targetX = index * spotlightSnapInterval;
-      if (Platform.OS === 'web') {
-        try {
-          const node =
-            spotlightCarouselRef.current?.getScrollableNode?.() || spotlightCarouselRef.current;
-          if (node && typeof node.scrollTo === 'function') {
-            node.scrollTo({
-              left: targetX,
-              behavior: 'smooth',
-            });
-            return;
-          }
-        } catch { }
-      }
-      spotlightCarouselRef.current?.scrollTo({
-        x: targetX,
-        animated: true,
-      });
-    },
-    [spotlightSnapInterval]
-  );
-
-  // Auto-advance spotlight carousel every 3s with seamless infinite circular scrolling
-  useEffect(() => {
-    if (baseSpotlightList.length <= 1) return;
+    if (spotlightImages.length <= 1) return;
 
     const timer = setInterval(() => {
-      if (isUserTouchingSpotlightRef.current) return;
-      currentRawIndexRef.current += 1;
-      smoothScrollToSpotlight(currentRawIndexRef.current);
-      setActiveSpotlightIndex(currentRawIndexRef.current % baseSpotlightList.length);
-
-      // Silently re-center when approaching buffer boundaries without visual jump
-      if (currentRawIndexRef.current > (CIRCULAR_COPIES - 4) * baseSpotlightList.length) {
-        setTimeout(() => {
-          const norm = currentRawIndexRef.current % baseSpotlightList.length;
-          const resetIdx = centerStartIndex + norm;
-          currentRawIndexRef.current = resetIdx;
-          spotlightCarouselRef.current?.scrollTo({
-            x: resetIdx * spotlightSnapInterval,
-            animated: false,
-          });
-        }, 800);
-      }
+      setActiveImageIndex((prev) => (prev + 1) % spotlightImages.length);
     }, 3000);
 
     return () => clearInterval(timer);
-  }, [baseSpotlightList.length, centerStartIndex, smoothScrollToSpotlight, spotlightSnapInterval]);
+  }, [spotlightImages.length]);
 
-  const handleSpotlightScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { x: spotlightScrollX } } }],
-    {
+  // Smooth ease-in-out transition between property images
+  useEffect(() => {
+    Animated.timing(imageSlideAnim, {
+      toValue: activeImageIndex,
+      duration: 650,
+      easing: Easing.inOut(Easing.cubic),
       useNativeDriver: false,
-      listener: (event: any) => {
-        const offsetX = event.nativeEvent?.contentOffset?.x || 0;
-        const rawIndex = Math.round(offsetX / spotlightSnapInterval);
-        currentRawIndexRef.current = rawIndex;
-        if (baseSpotlightList.length > 0) {
-          const norm = ((rawIndex % baseSpotlightList.length) + baseSpotlightList.length) % baseSpotlightList.length;
-          if (norm !== activeSpotlightIndex) {
-            setActiveSpotlightIndex(norm);
-          }
-        }
-      },
-    }
-  );
+    }).start();
+  }, [activeImageIndex]);
 
   const featuredProperties = liveProperties
     .filter((p) => p.id === 'feat-1' || p.id === 'feat-2' || p.featured)
@@ -703,197 +624,156 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* ── 4. Section - Featured Property Spotlight Animated Horizontal Carousel ── */}
+      {/* ── 4. Section - Featured Property Spotlight Card with Auto-Sliding Images ── */}
       <View style={styles.spotlightSection}>
-        <Animated.ScrollView
-          ref={spotlightCarouselRef as any}
-          horizontal
-          pagingEnabled={Platform.OS !== 'web'}
-          snapToInterval={spotlightSnapInterval}
-          snapToAlignment="center"
-          decelerationRate="fast"
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.spotlightCarouselContent}
-          onScroll={handleSpotlightScroll}
-          scrollEventThrottle={16}
-          onScrollBeginDrag={() => {
-            isUserTouchingSpotlightRef.current = true;
+        <TouchableOpacity
+          style={styles.spotlightCard}
+          onLayout={(e) => {
+            const w = e.nativeEvent.layout.width;
+            if (w > 50 && Math.abs(w - cardWidth) > 1) {
+              setCardWidth(w);
+            }
           }}
-          onScrollEndDrag={() => {
-            setTimeout(() => {
-              isUserTouchingSpotlightRef.current = false;
-            }, 3000);
-          }}
-          onTouchStart={() => {
-            isUserTouchingSpotlightRef.current = true;
-          }}
-          onTouchEnd={() => {
-            setTimeout(() => {
-              isUserTouchingSpotlightRef.current = false;
-            }, 3000);
-          }}
+          onPress={() =>
+            handleProtectedNavigate(
+              { name: 'propertyDetail', params: { property: spotlightProperty } },
+              spotlightProperty?.title || 'Featured Property'
+            )
+          }
+          activeOpacity={0.92}
         >
-          {circularSpotlightList.map(({ property: item, uniqueKey, originalIndex }, idx) => {
-            const isSaved = savedIds.has(item.id);
-
-            const cardScale = spotlightScrollX.interpolate({
-              inputRange: [
-                (idx - 1) * spotlightSnapInterval,
-                idx * spotlightSnapInterval,
-                (idx + 1) * spotlightSnapInterval,
-              ],
-              outputRange: [0.96, 1.0, 0.96],
-              extrapolate: 'clamp',
-            });
-
-            const cardOpacity = spotlightScrollX.interpolate({
-              inputRange: [
-                (idx - 1) * spotlightSnapInterval,
-                idx * spotlightSnapInterval,
-                (idx + 1) * spotlightSnapInterval,
-              ],
-              outputRange: [0.85, 1.0, 0.85],
-              extrapolate: 'clamp',
-            });
-
-            return (
-              <Animated.View
-                key={uniqueKey}
-                style={[
-                  styles.spotlightCardWrapper,
+          {/* Auto-sliding background images track */}
+          <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+            <Animated.View
+              style={{
+                flexDirection: 'row',
+                width: cardWidth * spotlightImages.length,
+                height: '100%',
+                transform: [
                   {
-                    width: spotlightCardWidth,
-                    marginRight: idx === circularSpotlightList.length - 1 ? 0 : 12,
-                    transform: [{ scale: cardScale }],
-                    opacity: cardOpacity,
+                    translateX: imageSlideAnim.interpolate({
+                      inputRange: spotlightImages.length > 1 ? spotlightImages.map((_, i) => i) : [0, 1],
+                      outputRange: spotlightImages.length > 1 ? spotlightImages.map((_, i) => -i * cardWidth) : [0, 0],
+                    }),
                   },
-                ]}
-              >
-                <TouchableOpacity
-                  style={[styles.spotlightCard, { width: spotlightCardWidth }]}
-                  onPress={() =>
-                    handleProtectedNavigate(
-                      { name: 'propertyDetail', params: { property: item } },
-                      item.title
-                    )
-                  }
-                  activeOpacity={0.92}
-                >
-                  <SafeImage source={{ uri: item.image }} style={styles.spotlightImage} />
-                  {/* Dark Gradient Scrim */}
-                  <View style={styles.spotlightScrim} />
+                ],
+              }}
+            >
+              {spotlightImages.map((imgUri, imgIdx) => (
+                <View key={imgIdx} style={{ width: cardWidth, height: '100%' }}>
+                  <SafeImage source={{ uri: imgUri }} style={styles.spotlightImage} />
+                </View>
+              ))}
+            </Animated.View>
+          </View>
 
-                  {/* Top Floating Badges */}
-                  <View style={styles.spotlightTopRow}>
-                    <View style={styles.featuredPill}>
-                      <View style={styles.featuredDot} />
-                      <Text style={styles.featuredPillText}>Featured</Text>
-                    </View>
+          {/* Dark Gradient Scrim */}
+          <View style={styles.spotlightScrim} />
 
-                    {/* Circular Animated Indicator Dots */}
-                    <View style={styles.carouselDotsRow}>
-                      {baseSpotlightList.map((_, dotIdx) => {
-                        const isActive = dotIdx === activeSpotlightIndex;
-                        return (
-                          <TouchableOpacity
-                            key={dotIdx}
-                            onPress={() => {
-                              const cur = currentRawIndexRef.current;
-                              const curNorm =
-                                ((cur % baseSpotlightList.length) + baseSpotlightList.length) %
-                                baseSpotlightList.length;
-                              const diff = dotIdx - curNorm;
-                              currentRawIndexRef.current = cur + diff;
-                              smoothScrollToSpotlight(currentRawIndexRef.current);
-                              setActiveSpotlightIndex(dotIdx);
-                            }}
-                            activeOpacity={0.7}
-                            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                          >
-                            <View
-                              style={[
-                                styles.inactiveDot,
-                                isActive && styles.activeDot,
-                                {
-                                  width: isActive ? 22 : 6,
-                                  backgroundColor: isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.4)',
-                                  opacity: isActive ? 1.0 : 0.45,
-                                  borderRadius: 9999,
-                                },
-                              ]}
-                            />
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
+          {/* Top Floating Badges */}
+          <View style={styles.spotlightTopRow}>
+            <View style={styles.featuredPill}>
+              <View style={styles.featuredDot} />
+              <Text style={styles.featuredPillText}>Featured</Text>
+            </View>
 
-                    {/* Save to favorites button */}
-                    <TouchableOpacity
-                      style={styles.spotlightFavButton}
-                      onPress={(e) => {
-                        e.stopPropagation?.();
-                        toggleSaved(item.id);
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Heart
-                        size={17}
-                        color={isSaved ? '#FF385C' : '#1A1C1A'}
-                        fill={isSaved ? '#FF385C' : 'transparent'}
-                        strokeWidth={2.2}
-                      />
-                    </TouchableOpacity>
-                  </View>
+            {/* Circular Animated Indicator Dots */}
+            <View style={styles.carouselDotsRow}>
+              {spotlightImages.map((_, dotIdx) => {
+                const isActive = dotIdx === activeImageIndex;
+                return (
+                  <TouchableOpacity
+                    key={dotIdx}
+                    onPress={() => setActiveImageIndex(dotIdx)}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  >
+                    <View
+                      style={[
+                        styles.inactiveDot,
+                        isActive && styles.activeDot,
+                        {
+                          width: isActive ? 20 : 5,
+                          backgroundColor: isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.4)',
+                          opacity: isActive ? 1.0 : 0.45,
+                          borderRadius: 9999,
+                        },
+                      ]}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-                  {/* Bottom Property Info */}
-                  <View style={styles.spotlightBottomInfo}>
-                    <View style={styles.spotlightMainRow}>
-                      <View style={styles.spotlightTitleCol}>
-                        <Text style={styles.spotlightTitle} numberOfLines={2}>
-                          {item.title}
-                        </Text>
-                        <View style={styles.spotlightLocationRow}>
-                          <MapPin size={12} color="rgba(255, 255, 255, 0.85)" strokeWidth={2.2} />
-                          <Text style={styles.spotlightLocationText} numberOfLines={1}>
-                            {item.location}
-                          </Text>
-                        </View>
-                      </View>
+            {/* Save to favorites button */}
+            <TouchableOpacity
+              style={styles.spotlightFavButton}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                if (spotlightProperty) toggleSaved(spotlightProperty.id);
+              }}
+              activeOpacity={0.8}
+            >
+              <Heart
+                size={17}
+                color={spotlightProperty && savedIds.has(spotlightProperty.id) ? '#FF385C' : '#1A1C1A'}
+                fill={spotlightProperty && savedIds.has(spotlightProperty.id) ? '#FF385C' : 'transparent'}
+                strokeWidth={2.2}
+              />
+            </TouchableOpacity>
+          </View>
 
-                      <Text style={styles.spotlightPrice}>
-                        {item.priceLabel || `₹${(item.price / 10000000).toFixed(1)} Cr`}
-                      </Text>
-                    </View>
+          {/* Bottom Property Info */}
+          <View style={styles.spotlightBottomInfo}>
+            <View style={styles.spotlightMainRow}>
+              <View style={styles.spotlightTitleCol}>
+                <Text style={styles.spotlightTitle} numberOfLines={2}>
+                  {spotlightProperty?.title || 'Modern Villa in Jubilee Hills'}
+                </Text>
+                <View style={styles.spotlightLocationRow}>
+                  <MapPin size={12} color="rgba(255, 255, 255, 0.85)" strokeWidth={2.2} />
+                  <Text style={styles.spotlightLocationText} numberOfLines={1}>
+                    {spotlightProperty?.location || 'Jubilee Hills, Hyderabad, Telangana'}
+                  </Text>
+                </View>
+              </View>
 
-                    {/* Frosted Glass Specs Pill Tray */}
-                    <View style={styles.specsPillTray}>
-                      <View style={styles.specItem}>
-                        <BedDouble size={14} color="#FFDBCC" strokeWidth={2.2} />
-                        <Text style={styles.specText}>
-                          {item?.bedrooms ?? (item as any)?.bhk ?? 4} Beds
-                        </Text>
-                      </View>
-                      <View style={styles.specDot} />
-                      <View style={styles.specItem}>
-                        <Bath size={14} color="#FFDBCC" strokeWidth={2.2} />
-                        <Text style={styles.specText}>
-                          {item?.bathrooms ?? (item as any)?.baths ?? 5} Baths
-                        </Text>
-                      </View>
-                      <View style={styles.specDot} />
-                      <View style={styles.specItem}>
-                        <Square size={13} color="#FFDBCC" strokeWidth={2.2} />
-                        <Text style={styles.specText}>
-                          {Number(item?.area ?? (item as any)?.sqft ?? 6500).toLocaleString('en-IN')} sqft
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
-            );
-          })}
-        </Animated.ScrollView>
+              <Text style={styles.spotlightPrice}>
+                {spotlightProperty?.priceLabel ||
+                  (spotlightProperty?.price
+                    ? `₹${(spotlightProperty.price / 10000000).toFixed(1)} Cr`
+                    : '₹24.5 Cr')}
+              </Text>
+            </View>
+
+            {/* Frosted Glass Specs Pill Tray */}
+            <View style={styles.specsPillTray}>
+              <View style={styles.specItem}>
+                <BedDouble size={14} color="#FFDBCC" strokeWidth={2.2} />
+                <Text style={styles.specText}>
+                  {spotlightProperty?.bedrooms ?? (spotlightProperty as any)?.bhk ?? 4} Beds
+                </Text>
+              </View>
+              <View style={styles.specDot} />
+              <View style={styles.specItem}>
+                <Bath size={14} color="#FFDBCC" strokeWidth={2.2} />
+                <Text style={styles.specText}>
+                  {spotlightProperty?.bathrooms ?? (spotlightProperty as any)?.baths ?? 5} Baths
+                </Text>
+              </View>
+              <View style={styles.specDot} />
+              <View style={styles.specItem}>
+                <Square size={13} color="#FFDBCC" strokeWidth={2.2} />
+                <Text style={styles.specText}>
+                  {Number(
+                    spotlightProperty?.area ?? (spotlightProperty as any)?.sqft ?? 6500
+                  ).toLocaleString('en-IN')}{' '}
+                  sqft
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* ── 5. Popular Locations Section ── */}
@@ -1437,16 +1317,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
 
-  // ── Spotlight Card Carousel ──
+  // ── Spotlight Card ──
   spotlightSection: {
-    paddingVertical: 8,
-  },
-  spotlightCarouselContent: {
     paddingHorizontal: 20,
-    paddingVertical: 4,
-  },
-  spotlightCardWrapper: {
-    height: 320,
+    paddingVertical: 8,
   },
   spotlightCard: {
     height: 320,
