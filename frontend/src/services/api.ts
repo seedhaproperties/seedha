@@ -76,7 +76,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  // 35s timeout to gracefully accommodate Render cold starts & SMTP handshakes
+  const timeoutId = setTimeout(() => controller.abort(), 35000);
 
   try {
     const res = await fetch(url, { ...options, headers, signal: controller.signal });

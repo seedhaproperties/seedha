@@ -44,6 +44,9 @@ let EmailService = EmailService_1 = class EmailService {
                     tls: {
                         rejectUnauthorized: false,
                     },
+                    connectionTimeout: 5000,
+                    greetingTimeout: 5000,
+                    socketTimeout: 7000,
                 });
                 this.isConfigured = true;
                 this.logger.log(`📧 SMTP Transporter initialized using ${host}:${port} (user: ${user})`);
@@ -70,13 +73,16 @@ let EmailService = EmailService_1 = class EmailService {
         const { to, subject, text, html } = options;
         if (this.isConfigured && this.transporter) {
             try {
-                const info = await this.transporter.sendMail({
-                    from: this.fromAddress,
-                    to,
-                    subject,
-                    text: text || html?.replace(/<[^>]*>?/gm, ''),
-                    html,
-                });
+                const info = await Promise.race([
+                    this.transporter.sendMail({
+                        from: this.fromAddress,
+                        to,
+                        subject,
+                        text: text || html?.replace(/<[^>]*>?/gm, ''),
+                        html,
+                    }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP dispatch timed out after 6 seconds')), 6000)),
+                ]);
                 this.logger.log(`📤 Email sent to ${to} (Message ID: ${info.messageId})`);
                 return { success: true, messageId: info.messageId };
             }

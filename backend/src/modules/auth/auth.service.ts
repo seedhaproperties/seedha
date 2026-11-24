@@ -253,7 +253,19 @@ export class AuthService {
       const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
       this.otpStore.set(cleanKey, { otp, expiresAt });
 
-      const emailSent = await this.emailService.sendOtp(cleanKey, otp);
+      // Dispatch email OTP with safety timeout so slow networks never block the response
+      let emailSent = false;
+      try {
+        emailSent = await Promise.race([
+          this.emailService.sendOtp(cleanKey, otp),
+          new Promise<boolean>((_, reject) =>
+            setTimeout(() => reject(new Error('Email dispatch timeout')), 5000),
+          ),
+        ]);
+      } catch (err: any) {
+        this.logger.warn(`Email OTP dispatch delayed/failed: ${err.message}. Code preserved: ${otp}`);
+        emailSent = false;
+      }
       if ((process.env.NODE_ENV || '').toLowerCase() !== 'production') {
         this.logger.log(`🧪 [DEVELOPMENT OTP MODE] Email: ${cleanKey} | Generated OTP: ${otp} | Fixed Test OTP: 123456`);
       }
