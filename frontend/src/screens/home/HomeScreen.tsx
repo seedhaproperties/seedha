@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -196,7 +196,31 @@ export default function HomeScreen() {
   const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
   const isUserTouchingSpotlightRef = useRef(false);
 
-  // Auto-advance spotlight carousel every 4.5s with smooth animation
+  const smoothScrollToSpotlight = useCallback(
+    (index: number) => {
+      const targetX = index * spotlightSnapInterval;
+      if (Platform.OS === 'web') {
+        try {
+          const node =
+            spotlightCarouselRef.current?.getScrollableNode?.() || spotlightCarouselRef.current;
+          if (node && typeof node.scrollTo === 'function') {
+            node.scrollTo({
+              left: targetX,
+              behavior: 'smooth',
+            });
+            return;
+          }
+        } catch { }
+      }
+      spotlightCarouselRef.current?.scrollTo({
+        x: targetX,
+        animated: true,
+      });
+    },
+    [spotlightSnapInterval]
+  );
+
+  // Auto-advance spotlight carousel every 3s with smooth ease-in-out animation
   useEffect(() => {
     if (spotlightList.length <= 1) return;
 
@@ -204,16 +228,13 @@ export default function HomeScreen() {
       if (isUserTouchingSpotlightRef.current) return;
       setActiveSpotlightIndex((prev) => {
         const next = (prev + 1) % spotlightList.length;
-        spotlightCarouselRef.current?.scrollTo({
-          x: next * spotlightSnapInterval,
-          animated: true,
-        });
+        smoothScrollToSpotlight(next);
         return next;
       });
-    }, 4500);
+    }, 3000);
 
     return () => clearInterval(timer);
-  }, [spotlightList.length, spotlightSnapInterval]);
+  }, [spotlightList.length, smoothScrollToSpotlight]);
 
   const handleSpotlightScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: spotlightScrollX } } }],
@@ -673,7 +694,17 @@ export default function HomeScreen() {
                 idx * spotlightSnapInterval,
                 (idx + 1) * spotlightSnapInterval,
               ],
-              outputRange: [0.97, 1.0, 0.97],
+              outputRange: [0.96, 1.0, 0.96],
+              extrapolate: 'clamp',
+            });
+
+            const cardOpacity = spotlightScrollX.interpolate({
+              inputRange: [
+                (idx - 1) * spotlightSnapInterval,
+                idx * spotlightSnapInterval,
+                (idx + 1) * spotlightSnapInterval,
+              ],
+              outputRange: [0.85, 1.0, 0.85],
               extrapolate: 'clamp',
             });
 
@@ -686,6 +717,7 @@ export default function HomeScreen() {
                     width: spotlightCardWidth,
                     marginRight: idx === spotlightList.length - 1 ? 0 : 12,
                     transform: [{ scale: cardScale }],
+                    opacity: cardOpacity,
                   },
                 ]}
               >
@@ -737,10 +769,7 @@ export default function HomeScreen() {
                             key={dotIdx}
                             onPress={() => {
                               setActiveSpotlightIndex(dotIdx);
-                              spotlightCarouselRef.current?.scrollTo({
-                                x: dotIdx * spotlightSnapInterval,
-                                animated: true,
-                              });
+                              smoothScrollToSpotlight(dotIdx);
                             }}
                             activeOpacity={0.7}
                             hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
