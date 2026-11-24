@@ -18,24 +18,31 @@ export interface PropertyStatusEvent {
 
 type PropertyStatusListener = (event: PropertyStatusEvent) => void;
 
+export const PRODUCTION_SOCKET_URL = 'https://seedha-backend-hpol.onrender.com';
+
 class UserSocketService {
   private socket: Socket | null = null;
   private statusListeners = new Set<PropertyStatusListener>();
   private processedEvents = new Set<string>();
 
   public getSocketUrl(): string {
+    // 1. Explicit environment variable
+    if (process.env.EXPO_PUBLIC_SOCKET_URL && process.env.EXPO_PUBLIC_SOCKET_URL.trim() !== '') {
+      return process.env.EXPO_PUBLIC_SOCKET_URL.replace(/\/+$/, '');
+    }
+
+    // 2. Localhost web dev with local flag
     if (
       Platform.OS === 'web' &&
       typeof window !== 'undefined' &&
-      (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1')
+      (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1') &&
+      process.env.EXPO_PUBLIC_USE_LOCAL_BACKEND === 'true'
     ) {
       return `http://${window.location.hostname}:4000`;
     }
-    if (process.env.EXPO_PUBLIC_SOCKET_URL) {
-      return process.env.EXPO_PUBLIC_SOCKET_URL;
-    }
-    const host = getHost();
-    return `http://${host}:4000`;
+
+    // 3. Fallback to production Render socket
+    return PRODUCTION_SOCKET_URL;
   }
 
   public connect(userId?: string, token?: string): Socket {

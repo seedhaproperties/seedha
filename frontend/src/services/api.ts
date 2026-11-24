@@ -15,15 +15,10 @@ export const getHost = () => {
   return '192.168.31.145';
 };
 
-export const getApiBaseUrl = () => {
-  // If running in browser on localhost (e.g. Expo Web on port 8081), use local backend directly
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocal) {
-      return `http://${window.location.hostname}:4000/api/v1`;
-    }
-  }
+export const PRODUCTION_API_URL = 'https://seedha-backend-hpol.onrender.com/api/v1';
 
+export const getApiBaseUrl = () => {
+  // 1. Explicit environment variable takes top precedence
   if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim() !== '') {
     const raw = process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
     if (Platform.OS !== 'web' && (raw.includes('localhost') || raw.includes('127.0.0.1'))) {
@@ -32,19 +27,17 @@ export const getApiBaseUrl = () => {
     }
     return raw;
   }
-  if (typeof window !== 'undefined' && window.location?.hostname) {
+
+  // 2. Web browser on localhost: connect to local backend only if local flag is active
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocal && window.location.port !== '4000') {
+    if (isLocal && process.env.EXPO_PUBLIC_USE_LOCAL_BACKEND === 'true') {
       return `http://${window.location.hostname}:4000/api/v1`;
     }
-    return `${window.location.origin}/api/v1`;
   }
-  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
-  if (hostUri && hostUri.includes('exp.direct')) {
-    return `https://${hostUri}/api/v1`;
-  }
-  const host = getHost();
-  return `http://${host}:4000/api/v1`;
+
+  // 3. Fallback to production Render backend
+  return PRODUCTION_API_URL;
 };
 
 let currentAuthToken: string | null = null;
