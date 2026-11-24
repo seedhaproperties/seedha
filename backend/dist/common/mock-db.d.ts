@@ -106,6 +106,31 @@ export interface HomeLoanRecord {
     createdAt: string;
     updatedAt: string;
 }
+export interface BankLoanOfferRecord {
+    id: string;
+    bankName: string;
+    bankCode: string;
+    interestRateMin: number;
+    interestRateMax?: number;
+    minLoanAmount: number;
+    maxLoanAmount: number;
+    minTenureYears: number;
+    maxTenureYears: number;
+    processingFee: string;
+    processingFeePercent?: number;
+    maxLtvRatio: number;
+    badge?: string;
+    highlights?: string;
+    rateValidityDate?: string;
+    lastUpdatedDate?: string;
+    iconType?: string;
+    iconBg?: string;
+    iconColor?: string;
+    isActive: boolean;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+}
 export interface RentalAgreementRecord {
     id: string;
     userId?: string;
@@ -214,6 +239,7 @@ declare class InMemoryStore {
     homeLoanRequests: HomeLoanRecord[];
     rentalAgreementOrders: RentalAgreementRecord[];
     ownerBackgroundChecks: OwnerBackgroundRecord[];
+    bankLoanOffers: BankLoanOfferRecord[];
 }
 export declare const mockDb: InMemoryStore;
 export {};

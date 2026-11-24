@@ -4,6 +4,7 @@ import { ListingTypeEnum, PropertyStatusEnum, SERVICEABLE_LOCALITIES } from '../
 import { PrismaService } from '../../database/prisma.service.js';
 import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
 import { EventsGateway } from '../events/events.gateway.js';
+import { FirebaseNotificationService } from '../firebase-notification/firebase-notification.service.js';
 import {
   AssignFieldWorkDto,
   RejectItemDto,
@@ -21,6 +22,7 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly eventsGateway?: EventsGateway,
+    private readonly notificationService?: FirebaseNotificationService,
   ) { }
 
   async getOverview() {
@@ -397,6 +399,18 @@ export class AdminService {
       }
     }
 
+    if (this.notificationService && prop.ownerId) {
+      this.notificationService
+        .sendPropertyStatusNotification(
+          prop.ownerId,
+          prop.title,
+          'APPROVED',
+          undefined,
+          prop.id,
+        )
+        .catch((e: any) => this.logger.warn(`Push notification notice: ${e?.message}`));
+    }
+
     return {
       message: `Property verified and successfully published to live listings!`,
       property: prop,
@@ -577,6 +591,18 @@ export class AdminService {
       } catch (err) {
         // Safe emission
       }
+    }
+
+    if (this.notificationService && prop.ownerId) {
+      this.notificationService
+        .sendPropertyStatusNotification(
+          prop.ownerId,
+          prop.title,
+          'REJECTED',
+          dto.reason,
+          prop.id,
+        )
+        .catch((e: any) => this.logger.warn(`Push notification notice: ${e?.message}`));
     }
 
     return {

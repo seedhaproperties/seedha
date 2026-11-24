@@ -145,6 +145,71 @@ export declare class AdminController {
         message: string;
         request: import("../../common/mock-db.js").HomeLoanRecord;
     }>;
+    getLoanOffers(includeInactive?: string): Promise<import("../../common/mock-db.js").BankLoanOfferRecord[] | {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        bankName: string;
+        bankCode: string;
+        interestRateMin: number;
+        interestRateMax: number | null;
+        minLoanAmount: number;
+        maxLoanAmount: number;
+        minTenureYears: number;
+        maxTenureYears: number;
+        processingFee: string;
+        processingFeePercent: number | null;
+        maxLtvRatio: number;
+        badge: string | null;
+        highlights: string | null;
+        rateValidityDate: string | null;
+        lastUpdatedDate: string | null;
+        iconType: string | null;
+        iconBg: string | null;
+        iconColor: string | null;
+        isActive: boolean;
+        sortOrder: number;
+    }[]>;
+    createLoanOffer(dto: any): Promise<{
+        message: string;
+        offer: {
+            id: string;
+            bankName: any;
+            bankCode: any;
+            interestRateMin: number;
+            interestRateMax: number | null;
+            minLoanAmount: number;
+            maxLoanAmount: number;
+            minTenureYears: number;
+            maxTenureYears: number;
+            processingFee: any;
+            processingFeePercent: number;
+            maxLtvRatio: number;
+            badge: any;
+            highlights: any;
+            rateValidityDate: any;
+            lastUpdatedDate: any;
+            iconType: any;
+            iconBg: any;
+            iconColor: any;
+            isActive: any;
+            sortOrder: number;
+            createdAt: string;
+            updatedAt: string;
+        };
+    }>;
+    updateLoanOffer(id: string, dto: any): Promise<{
+        message: string;
+        offer: import("../../common/mock-db.js").BankLoanOfferRecord | undefined;
+    }>;
+    toggleLoanOffer(id: string, isActive?: boolean): Promise<{
+        message: string;
+        id: string;
+        isActive: boolean;
+    }>;
+    deleteLoanOffer(id: string): Promise<{
+        message: string;
+    }>;
     getRentalAgreementsQueue(): import("../../common/mock-db.js").RentalAgreementRecord[];
     prepareAndSendAgreement(id: string, dto: PrepareAgreementDto): Promise<{
         message: string;

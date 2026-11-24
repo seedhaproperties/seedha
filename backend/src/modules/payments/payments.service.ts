@@ -1,12 +1,18 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
+import { EmailService } from '../email/email.service.js';
+import { FirebaseNotificationService } from '../firebase-notification/firebase-notification.service.js';
 import { CreatePaymentOrderDto, VerifyPaymentDto } from './payments.dto.js';
 
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+    private readonly notificationService?: FirebaseNotificationService,
+  ) {}
 
   async createOrder(dto: CreatePaymentOrderDto, userId?: string) {
     const orderId = `order_sp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -67,6 +73,43 @@ export class PaymentsService {
       });
 
       this.logger.log(`✅ Payment verified & saved to DB: ${record.id} (Txn: ${txnId}, ₹${dto.amount})`);
+
+      // Dispatch Payment Confirmation Email in the background if customer email exists
+      if (dto.customerEmail || targetUserId) {
+        (async () => {
+          try {
+            let emailToSend = dto.customerEmail;
+            if (!emailToSend && targetUserId) {
+              const u = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+              emailToSend = u?.email;
+            }
+            if (emailToSend) {
+              await this.emailService.sendPaymentConfirmation(emailToSend, {
+                txnId,
+                amount: dto.amount,
+                purpose: dto.purpose,
+                customerName: dto.customerName,
+              });
+              this.logger.log(`📧 Payment confirmation email sent to ${emailToSend}`);
+            }
+          } catch (e: any) {
+            this.logger.warn(`Failed sending payment email: ${e?.message}`);
+          }
+        })();
+      }
+
+      // Dispatch Payment Success Push Notification
+      if (this.notificationService && targetUserId) {
+        this.notificationService
+          .sendPaymentNotification(
+            targetUserId,
+            dto.amount,
+            dto.purpose,
+            'SUCCESS',
+            txnId,
+          )
+          .catch((e: any) => this.logger.warn(`Payment push notification notice: ${e?.message}`));
+      }
 
       return {
         success: true,
@@ -237,6 +280,17 @@ export class PaymentsService {
             },
           });
           this.logger.log(`[Razorpay Webhook] ✅ Transaction ${paymentId} recorded as ${status} for ₹${amount}`);
+
+          if (status === 'SUCCESS' && email) {
+            this.emailService
+              .sendPaymentConfirmation(email, {
+                txnId: paymentId,
+                amount,
+                purpose,
+                customerName: paymentEntity.notes?.customerName || 'Verified Customer',
+              })
+              .catch((e: any) => this.logger.warn(`Failed sending webhook payment email: ${e?.message}`));
+          }
         } else if (existing.paymentStatus !== status) {
           await this.prisma.paymentTransaction.update({
             where: { id: existing.id },

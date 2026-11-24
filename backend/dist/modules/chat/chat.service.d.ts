@@ -1,9 +1,13 @@
 import { PrismaService } from '../../database/prisma.service.js';
+import { EmailService } from '../email/email.service.js';
+import { FirebaseNotificationService } from '../firebase-notification/firebase-notification.service.js';
 import { SendChatMessageDto, ChatWebhookDto } from './chat.dto.js';
 export declare class ChatService {
     private readonly prisma;
+    private readonly emailService;
+    private readonly notificationService;
     private readonly logger;
-    constructor(prisma: PrismaService);
+    constructor(prisma: PrismaService, emailService: EmailService, notificationService: FirebaseNotificationService);
     sendMessage(dto: SendChatMessageDto, userId?: string): Promise<{
         success: boolean;
         conversationId: string;

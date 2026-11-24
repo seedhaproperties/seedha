@@ -15,12 +15,91 @@ import { getMessaging } from 'firebase-admin/messaging';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PrismaService } from '../../database/prisma.service.js';
+import { mockDb } from '../../common/mock-db.js';
 let FirebaseNotificationService = FirebaseNotificationService_1 = class FirebaseNotificationService {
     configService;
     prisma;
     logger = new Logger(FirebaseNotificationService_1.name);
     firebaseApp = null;
     isConfigured = false;
+    notificationHistory = [];
+    recordNotification(item) {
+        const entry = {
+            id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            userId: item.userId,
+            type: item.type,
+            title: item.title,
+            body: item.body,
+            time: 'Just now',
+            unread: item.unread !== undefined ? item.unread : true,
+            screen: item.screen,
+            params: item.params,
+            createdAt: new Date(),
+        };
+        this.notificationHistory.unshift(entry);
+        if (this.notificationHistory.length > 50) {
+            this.notificationHistory.pop();
+        }
+        return entry;
+    }
+    async getUserNotificationFeed(userId) {
+        const feed = [];
+        for (const item of this.notificationHistory) {
+            if (!userId || !item.userId || item.userId === userId) {
+                feed.push({ ...item });
+            }
+        }
+        if (mockDb && mockDb.siteVisits) {
+            for (const v of mockDb.siteVisits.slice(0, 5)) {
+                if (!userId || !v.userId || v.userId === userId) {
+                    const prop = mockDb.properties.find((p) => p.id === v.propertyId);
+                    feed.push({
+                        id: `visit-${v.id}`,
+                        type: 'visit',
+                        title: `Visit ${v.status === 'CONFIRMED' ? 'Confirmed! 🏡' : 'Scheduled'}`,
+                        body: `Visit to ${prop ? prop.title : 'property'} scheduled for ${v.date} (${v.timeSlot}).`,
+                        time: v.createdAt ? 'Recent' : '1 hr ago',
+                        unread: v.status !== 'CANCELLED',
+                        screen: 'bookVisit',
+                        params: { propertyId: v.propertyId, visitId: v.id },
+                        createdAt: v.createdAt ? new Date(v.createdAt) : new Date(),
+                    });
+                }
+            }
+        }
+        if (mockDb && mockDb.properties) {
+            for (const p of mockDb.properties.slice(0, 3)) {
+                feed.push({
+                    id: `prop-${p.id}`,
+                    type: (p.verified ? 'verified' : 'property'),
+                    title: p.verified ? 'Property Verified ✅' : `New Property in ${p.location}`,
+                    body: `${p.title} (${p.priceLabel}) is available in ${p.city}.`,
+                    time: 'Today',
+                    unread: p.verified,
+                    screen: 'propertyDetail',
+                    params: { property: p, id: p.id },
+                    createdAt: new Date(),
+                });
+            }
+        }
+        if (feed.length === 0) {
+            feed.push({
+                id: 'welcome-1',
+                type: 'property',
+                title: 'Welcome to Seedha Properties! 🌟',
+                body: 'Discover direct zero-brokerage verified properties in Hyderabad and beyond.',
+                time: 'Just now',
+                unread: true,
+                screen: 'home',
+            });
+        }
+        feed.sort((a, b) => {
+            const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return tB - tA;
+        });
+        return feed;
+    }
     constructor(configService, prisma) {
         this.configService = configService;
         this.prisma = prisma;
@@ -395,6 +474,172 @@ let FirebaseNotificationService = FirebaseNotificationService_1 = class Firebase
         return this.prisma.deviceToken.findMany({
             where: { userId },
             orderBy: { updatedAt: 'desc' },
+        });
+    }
+    async sendAnnouncement(title, body, data) {
+        this.recordNotification({
+            type: 'property',
+            title,
+            body,
+            screen: data?.screen || 'notifications',
+            params: data,
+        });
+        const allTokens = await this.prisma.deviceToken.findMany({
+            select: { token: true },
+        });
+        const tokens = Array.from(new Set(allTokens.map((t) => t.token)));
+        if (tokens.length === 0) {
+            this.logger.log(`[Announcement] No devices registered for announcement "${title}"`);
+            return {
+                success: true,
+                totalDevices: 0,
+                sentCount: 0,
+                failureCount: 0,
+                cleanedTokens: 0,
+                message: 'No registered devices to broadcast announcement to.',
+            };
+        }
+        return this.sendMulticastToTokens(tokens, {
+            title,
+            body,
+            data: {
+                ...data,
+                screen: data?.screen || 'notifications',
+                type: 'ANNOUNCEMENT',
+            },
+        }, 'All registered devices (Announcement)');
+    }
+    async sendPropertyEnquiryNotification(ownerId, propertyTitle, customerName, message, propertyId) {
+        this.recordNotification({
+            userId: ownerId,
+            type: 'message',
+            title: 'New Property Enquiry 🏠',
+            body: `${customerName} enquired on "${propertyTitle}": "${message.slice(0, 80)}"`,
+            screen: 'chat',
+            params: { propertyId },
+        });
+        return this.sendToUser(ownerId, {
+            title: 'New Property Enquiry 🏠',
+            body: `${customerName} enquired on "${propertyTitle}": "${message.slice(0, 80)}"`,
+            data: {
+                screen: 'chat',
+                propertyId,
+                type: 'ENQUIRY',
+            },
+        }).catch((err) => {
+            this.logger.warn(`Property enquiry push notification notice: ${err.message}`);
+            return {
+                success: false,
+                totalDevices: 0,
+                sentCount: 0,
+                failureCount: 0,
+                cleanedTokens: 0,
+                message: err.message,
+            };
+        });
+    }
+    async sendPropertyStatusNotification(ownerId, propertyTitle, status, reason, propertyId) {
+        const isApproved = status === 'APPROVED';
+        const title = isApproved
+            ? 'Property Listing Approved! 🎉'
+            : 'Property Listing Update ⚠️';
+        const body = isApproved
+            ? `Your property "${propertyTitle}" has been verified and is now live on Seedha Properties!`
+            : `Your listing "${propertyTitle}" requires changes: ${reason || 'Needs review'}`;
+        this.recordNotification({
+            userId: ownerId,
+            type: isApproved ? 'verified' : 'property',
+            title,
+            body,
+            screen: 'propertyDetail',
+            params: { propertyId },
+        });
+        return this.sendToUser(ownerId, {
+            title,
+            body,
+            data: {
+                screen: 'propertyDetail',
+                propertyId: propertyId || '',
+                status,
+                type: isApproved ? 'PROPERTY_APPROVED' : 'PROPERTY_REJECTED',
+            },
+        }).catch((err) => {
+            this.logger.warn(`Property status push notification notice: ${err.message}`);
+            return {
+                success: false,
+                totalDevices: 0,
+                sentCount: 0,
+                failureCount: 0,
+                cleanedTokens: 0,
+                message: err.message,
+            };
+        });
+    }
+    async sendBookingConfirmationNotification(userId, propertyTitle, date, timeSlot, propertyId, visitId) {
+        this.recordNotification({
+            userId,
+            type: 'visit',
+            title: 'Site Visit Confirmed! 🏡',
+            body: `Your visit for "${propertyTitle}" on ${date} (${timeSlot}) has been confirmed!`,
+            screen: 'bookVisit',
+            params: { propertyId, visitId },
+        });
+        return this.sendToUser(userId, {
+            title: 'Site Visit Confirmed! 🏡',
+            body: `Your visit for "${propertyTitle}" on ${date} (${timeSlot}) has been confirmed!`,
+            data: {
+                screen: 'bookVisit',
+                propertyId,
+                visitId,
+                type: 'VISIT_CONFIRMED',
+            },
+        }).catch((err) => {
+            this.logger.warn(`Booking confirmation push notice: ${err.message}`);
+            return {
+                success: false,
+                totalDevices: 0,
+                sentCount: 0,
+                failureCount: 0,
+                cleanedTokens: 0,
+                message: err.message,
+            };
+        });
+    }
+    async sendPaymentNotification(userId, amount, purpose, status, txnId, reason) {
+        const isSuccess = status === 'SUCCESS';
+        const title = isSuccess
+            ? 'Payment Successful! ✅'
+            : 'Payment Failed ❌';
+        const body = isSuccess
+            ? `Payment of ₹${amount.toLocaleString('en-IN')} for ${purpose} was successful. Txn: ${txnId}`
+            : `Payment of ₹${amount.toLocaleString('en-IN')} could not be processed: ${reason || 'Transaction failed'}`;
+        this.recordNotification({
+            userId,
+            type: 'loan',
+            title,
+            body,
+            screen: 'payments',
+            params: { txnId },
+        });
+        return this.sendToUser(userId, {
+            title,
+            body,
+            data: {
+                screen: 'payments',
+                txnId,
+                status,
+                type: isSuccess ? 'PAYMENT_SUCCESS' : 'PAYMENT_FAILED',
+            },
+        }).catch((err) => {
+            this.logger.warn(`Payment push notification notice: ${err.message}`);
+            return {
+                success: false,
+                totalDevices: 0,
+                sentCount: 0,
+                failureCount: 0,
+                cleanedTokens: 0,
+                message: err.message,
+            };
         });
     }
 };

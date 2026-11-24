@@ -50,9 +50,9 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(R * c * 10) / 10;
 }
@@ -340,7 +340,7 @@ export default function BuyPropertiesScreen() {
 
           // Open Google Maps centered at current GPS coordinates with pin marker
           const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-          Linking.openURL(mapsUrl).catch(() => {});
+          Linking.openURL(mapsUrl).catch(() => { });
         },
         (error) => {
           if (error.code === error.PERMISSION_DENIED) {
@@ -378,7 +378,7 @@ export default function BuyPropertiesScreen() {
 
   const handleOpenGoogleMapsUrl = (lat: number, lng: number) => {
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-    Linking.openURL(mapsUrl).catch(() => {});
+    Linking.openURL(mapsUrl).catch(() => { });
   };
 
   return (

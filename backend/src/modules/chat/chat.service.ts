@@ -1,12 +1,18 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
+import { EmailService } from '../email/email.service.js';
+import { FirebaseNotificationService } from '../firebase-notification/firebase-notification.service.js';
 import { SendChatMessageDto, ChatWebhookDto } from './chat.dto.js';
 
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+    private readonly notificationService: FirebaseNotificationService,
+  ) {}
 
   async sendMessage(dto: SendChatMessageDto, userId?: string) {
     const targetUserId = userId || `user_guest_${Date.now()}`;
@@ -55,6 +61,43 @@ export class ChatService {
       });
 
       this.logger.log(`💬 Message saved for property ${dto.propertyId} from ${senderName}: "${messageText.slice(0, 30)}..."`);
+
+      // Dispatch Property Enquiry Email asynchronously to owner if user enquiry
+      if (senderType === 'USER' && dto.propertyId) {
+        (async () => {
+          try {
+            const prop = await this.prisma.property.findUnique({
+              where: { id: dto.propertyId },
+              include: { owner: true },
+            });
+            const ownerEmail = prop?.owner?.email || process.env.SMTP_USER;
+            if (ownerEmail) {
+              await this.emailService.sendPropertyEnquiry(ownerEmail, {
+                propertyTitle: prop?.title || `Property #${dto.propertyId}`,
+                customerName: senderName,
+                customerPhone: dto.ownerPhone,
+                message: messageText,
+              });
+              this.logger.log(`📧 Property enquiry email dispatched to ${ownerEmail}`);
+            }
+
+            // Dispatch FCM Push Notification to property owner
+            const ownerId = prop?.ownerId || (prop?.owner as any)?.id;
+            if (ownerId) {
+              await this.notificationService.sendPropertyEnquiryNotification(
+                ownerId,
+                prop?.title || 'Your Property',
+                senderName,
+                messageText,
+                dto.propertyId,
+              );
+              this.logger.log(`📲 Property enquiry FCM push notification dispatched to owner ${ownerId}`);
+            }
+          } catch (mailErr: any) {
+            this.logger.warn(`Property enquiry email notice: ${mailErr?.message}`);
+          }
+        })();
+      }
 
       // Owner response generation / simulation
       let ownerReply: any = null;

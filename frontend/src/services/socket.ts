@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { Platform } from 'react-native';
 import { getHost } from './api';
 
 export interface PropertyStatusEvent {
@@ -23,6 +24,13 @@ class UserSocketService {
   private processedEvents = new Set<string>();
 
   public getSocketUrl(): string {
+    if (
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1')
+    ) {
+      return `http://${window.location.hostname}:4000`;
+    }
     if (process.env.EXPO_PUBLIC_SOCKET_URL) {
       return process.env.EXPO_PUBLIC_SOCKET_URL;
     }

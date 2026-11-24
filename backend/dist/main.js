@@ -10,11 +10,28 @@ async function bootstrap() {
     app.use(urlencoded({ extended: true, limit: '50mb' }));
     app.enableCors({
         origin: true,
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+        allowedHeaders: [
+            'Origin',
+            'X-Requested-With',
+            'Content-Type',
+            'Accept',
+            'Authorization',
+            'ngrok-skip-browser-warning',
+            'bypass-tunnel-reminder',
+            'Cross-Origin-Opener-Policy',
+        ],
         credentials: true,
+        optionsSuccessStatus: 200,
     });
-    app.use((_req, res, next) => {
-        res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
+    app.use((req, res, next) => {
+        res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, ngrok-skip-browser-warning, bypass-tunnel-reminder');
+        if (req.method === 'OPTIONS') {
+            return res.sendStatus(200);
+        }
         next();
     });
     app.useGlobalPipes(new ValidationPipe({

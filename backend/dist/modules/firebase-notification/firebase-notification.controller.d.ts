@@ -16,6 +16,7 @@ export declare class FirebaseNotificationController {
         timestamp: string;
         error?: string;
     }>;
+    getFeed(req: any): Promise<any[]>;
     sendTestToken(dto: TestNotificationDto): Promise<{
         success: boolean;
         messageId?: string;
@@ -27,6 +28,9 @@ export declare class FirebaseNotificationController {
         success: boolean;
         message: string;
         deviceTokenId: string;
+    } | {
+        success: boolean;
+        message: string;
     }>;
     unregisterDeviceToken(req: any, dto: UnregisterDeviceTokenDto): Promise<{
         success: boolean;
@@ -42,4 +46,9 @@ export declare class FirebaseNotificationController {
     }[]>;
     sendToUser(dto: SendNotificationDto): Promise<import("./firebase-notification.service.js").SendPushNotificationResult>;
     sendMulticast(dto: SendMulticastNotificationDto): Promise<import("./firebase-notification.service.js").SendPushNotificationResult>;
+    broadcastAnnouncement(dto: {
+        title: string;
+        body: string;
+        data?: Record<string, string>;
+    }): Promise<import("./firebase-notification.service.js").SendPushNotificationResult>;
 }

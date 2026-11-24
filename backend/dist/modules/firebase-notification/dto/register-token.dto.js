@@ -12,6 +12,7 @@ import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 export class RegisterDeviceTokenDto {
     token;
     platform;
+    userId;
 }
 __decorate([
     ApiProperty({
@@ -33,6 +34,16 @@ __decorate([
     IsString(),
     __metadata("design:type", String)
 ], RegisterDeviceTokenDto.prototype, "platform", void 0);
+__decorate([
+    ApiProperty({
+        example: 'usr_12345',
+        required: false,
+        description: 'Optional User ID if registering before or alongside JWT auth',
+    }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], RegisterDeviceTokenDto.prototype, "userId", void 0);
 export class UnregisterDeviceTokenDto {
     token;
 }

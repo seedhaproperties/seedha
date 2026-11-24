@@ -1,9 +1,13 @@
 import { PrismaService } from '../../database/prisma.service.js';
+import { EmailService } from '../email/email.service.js';
+import { FirebaseNotificationService } from '../firebase-notification/firebase-notification.service.js';
 import { CreatePaymentOrderDto, VerifyPaymentDto } from './payments.dto.js';
 export declare class PaymentsService {
     private readonly prisma;
+    private readonly emailService;
+    private readonly notificationService?;
     private readonly logger;
-    constructor(prisma: PrismaService);
+    constructor(prisma: PrismaService, emailService: EmailService, notificationService?: FirebaseNotificationService | undefined);
     createOrder(dto: CreatePaymentOrderDto, userId?: string): Promise<{
         success: boolean;
         orderId: string;
@@ -77,6 +81,31 @@ export declare class PaymentsService {
             location: string;
         } | null;
     }[]>;
+    handleWebhook(payload: any, signature?: string): Promise<{
+        status: string;
+        received: boolean;
+        event: any;
+    }>;
+    processRefund(transactionId: string, reason?: string): Promise<{
+        success: boolean;
+        message: string;
+        transaction: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            userId: string | null;
+            propertyId: string | null;
+            amount: number;
+            purpose: string;
+            customerName: string;
+            customerPhone: string;
+            customerEmail: string | null;
+            gateway: string;
+            gatewayTxnId: string;
+            paymentStatus: string;
+            metadata: string | null;
+        };
+    }>;
     getTermsAndConditions(): {
         title: string;
         lastUpdated: string;

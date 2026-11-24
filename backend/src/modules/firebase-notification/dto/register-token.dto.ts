@@ -19,6 +19,15 @@ export class RegisterDeviceTokenDto {
   @IsOptional()
   @IsString()
   platform?: string;
+
+  @ApiProperty({
+    example: 'usr_12345',
+    required: false,
+    description: 'Optional User ID if registering before or alongside JWT auth',
+  })
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }
 
 export class UnregisterDeviceTokenDto {

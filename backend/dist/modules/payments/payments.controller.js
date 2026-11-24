@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Controller, Post, Get, Body, Request, Query } from '@nestjs/common';
+import { Controller, Post, Get, Body, Request, Query, Headers, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service.js';
 import { CreatePaymentOrderDto, VerifyPaymentDto } from './payments.dto.js';
@@ -24,6 +24,12 @@ let PaymentsController = class PaymentsController {
     }
     verifyPayment(dto, req) {
         return this.paymentsService.verifyPayment(dto, req.user?.sub);
+    }
+    handleWebhook(payload, signature) {
+        return this.paymentsService.handleWebhook(payload, signature);
+    }
+    processRefund(id, reason) {
+        return this.paymentsService.processRefund(id, reason);
     }
     getMyTransactions(phone, req) {
         return this.paymentsService.getMyTransactions(req?.user?.sub, phone);
@@ -54,6 +60,24 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PaymentsController.prototype, "verifyPayment", null);
 __decorate([
+    Post('webhook'),
+    ApiOperation({ summary: 'Razorpay Webhook receiver for live payment events' }),
+    __param(0, Body()),
+    __param(1, Headers('x-razorpay-signature')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], PaymentsController.prototype, "handleWebhook", null);
+__decorate([
+    Post(':id/refund'),
+    ApiOperation({ summary: 'Process refund for a payment transaction' }),
+    __param(0, Param('id')),
+    __param(1, Body('reason')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], PaymentsController.prototype, "processRefund", null);
+__decorate([
     Get('my'),
     ApiOperation({ summary: 'Get current user payment transaction history and receipts' }),
     __param(0, Query('phone')),
@@ -78,7 +102,7 @@ __decorate([
 ], PaymentsController.prototype, "getTerms", null);
 PaymentsController = __decorate([
     ApiTags('Payments & Transactions'),
-    Controller('api/v1/payments'),
+    Controller(['api/v1/payments', 'api/payments']),
     __metadata("design:paramtypes", [PaymentsService])
 ], PaymentsController);
 export { PaymentsController };

@@ -75,6 +75,11 @@ export class VerifyPaymentDto {
   @IsString()
   customerPhone!: string;
 
+  @ApiPropertyOptional({ example: 'rahul@example.com' })
+  @IsOptional()
+  @IsString()
+  customerEmail?: string;
+
   @ApiPropertyOptional({ example: 'UPI' })
   @IsOptional()
   @IsString()

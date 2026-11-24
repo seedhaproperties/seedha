@@ -15,6 +15,28 @@ export declare class FirebaseNotificationService implements OnModuleInit {
     private readonly logger;
     private firebaseApp;
     private isConfigured;
+    private notificationHistory;
+    recordNotification(item: {
+        userId?: string;
+        type: 'message' | 'visit' | 'property' | 'loan' | 'verified';
+        title: string;
+        body: string;
+        screen?: string;
+        params?: any;
+        unread?: boolean;
+    }): {
+        id: string;
+        userId: string | undefined;
+        type: "property" | "message" | "verified" | "visit" | "loan";
+        title: string;
+        body: string;
+        time: string;
+        unread: boolean;
+        screen: string | undefined;
+        params: any;
+        createdAt: Date;
+    };
+    getUserNotificationFeed(userId?: string): Promise<any[]>;
     constructor(configService: ConfigService, prisma: PrismaService);
     onModuleInit(): Promise<void>;
     private initFirebaseAdmin;
@@ -63,4 +85,9 @@ export declare class FirebaseNotificationService implements OnModuleInit {
         token: string;
         platform: string;
     }[]>;
+    sendAnnouncement(title: string, body: string, data?: Record<string, string>): Promise<SendPushNotificationResult>;
+    sendPropertyEnquiryNotification(ownerId: string, propertyTitle: string, customerName: string, message: string, propertyId: string): Promise<SendPushNotificationResult>;
+    sendPropertyStatusNotification(ownerId: string, propertyTitle: string, status: 'APPROVED' | 'REJECTED', reason?: string, propertyId?: string): Promise<SendPushNotificationResult>;
+    sendBookingConfirmationNotification(userId: string, propertyTitle: string, date: string, timeSlot: string, propertyId: string, visitId: string): Promise<SendPushNotificationResult>;
+    sendPaymentNotification(userId: string, amount: number, purpose: string, status: 'SUCCESS' | 'FAILED', txnId: string, reason?: string): Promise<SendPushNotificationResult>;
 }

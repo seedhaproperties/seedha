@@ -10,9 +10,6 @@ config.server.enhanceMiddleware = (metroMiddleware, server) => {
     : metroMiddleware;
 
   return (req, res, next) => {
-    // Set Cross-Origin-Opener-Policy so OAuth popups (e.g. Google Sign-In) operate cleanly without COOP block warnings
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
-
     if (req.url && req.url.startsWith('/api/')) {
       const proxyReq = http.request(
         {

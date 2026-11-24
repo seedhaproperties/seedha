@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminService } from './admin.service.js';
 import { AssignFieldWorkDto, RejectItemDto, LocationCheckDecisionDto, ContactOwnerDto, PrepareAgreementDto, CollectAndSendDigitalDto, } from './admin.dto.js';
@@ -78,6 +78,21 @@ let AdminController = class AdminController {
     }
     contactLoanUser(id, dto) {
         return this.adminService.contactHomeLoanUser(id, dto);
+    }
+    getLoanOffers(includeInactive) {
+        return this.adminService.getAllLoanOffers(includeInactive !== 'false');
+    }
+    createLoanOffer(dto) {
+        return this.adminService.createLoanOffer(dto);
+    }
+    updateLoanOffer(id, dto) {
+        return this.adminService.updateLoanOffer(id, dto);
+    }
+    toggleLoanOffer(id, isActive) {
+        return this.adminService.toggleLoanOffer(id, isActive);
+    }
+    deleteLoanOffer(id) {
+        return this.adminService.deleteLoanOffer(id);
     }
     getRentalAgreementsQueue() {
         return this.adminService.getRentalAgreementsQueue();
@@ -266,6 +281,48 @@ __decorate([
     __metadata("design:paramtypes", [String, ContactOwnerDto]),
     __metadata("design:returntype", void 0)
 ], AdminController.prototype, "contactLoanUser", null);
+__decorate([
+    Get('loan-offers'),
+    ApiOperation({ summary: 'Admin: Get all bank loan offers' }),
+    __param(0, Query('includeInactive')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "getLoanOffers", null);
+__decorate([
+    Post('loan-offers'),
+    ApiOperation({ summary: 'Admin: Create new bank loan offer' }),
+    __param(0, Body()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "createLoanOffer", null);
+__decorate([
+    Put('loan-offers/:id'),
+    ApiOperation({ summary: 'Admin: Update bank loan offer' }),
+    __param(0, Param('id')),
+    __param(1, Body()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "updateLoanOffer", null);
+__decorate([
+    Patch('loan-offers/:id/toggle'),
+    ApiOperation({ summary: 'Admin: Toggle bank loan offer active state' }),
+    __param(0, Param('id')),
+    __param(1, Body('isActive')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Boolean]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "toggleLoanOffer", null);
+__decorate([
+    Delete('loan-offers/:id'),
+    ApiOperation({ summary: 'Admin: Delete bank loan offer' }),
+    __param(0, Param('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AdminController.prototype, "deleteLoanOffer", null);
 __decorate([
     Get('rental-agreements-review'),
     ApiOperation({ summary: 'Queue 6: Receive Rental Agreement details' }),

@@ -10,11 +10,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var ChatService_1;
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
+import { EmailService } from '../email/email.service.js';
+import { FirebaseNotificationService } from '../firebase-notification/firebase-notification.service.js';
 let ChatService = ChatService_1 = class ChatService {
     prisma;
+    emailService;
+    notificationService;
     logger = new Logger(ChatService_1.name);
-    constructor(prisma) {
+    constructor(prisma, emailService, notificationService) {
         this.prisma = prisma;
+        this.emailService = emailService;
+        this.notificationService = notificationService;
     }
     async sendMessage(dto, userId) {
         const targetUserId = userId || `user_guest_${Date.now()}`;
@@ -56,6 +62,34 @@ let ChatService = ChatService_1 = class ChatService {
                 },
             });
             this.logger.log(`💬 Message saved for property ${dto.propertyId} from ${senderName}: "${messageText.slice(0, 30)}..."`);
+            if (senderType === 'USER' && dto.propertyId) {
+                (async () => {
+                    try {
+                        const prop = await this.prisma.property.findUnique({
+                            where: { id: dto.propertyId },
+                            include: { owner: true },
+                        });
+                        const ownerEmail = prop?.owner?.email || process.env.SMTP_USER;
+                        if (ownerEmail) {
+                            await this.emailService.sendPropertyEnquiry(ownerEmail, {
+                                propertyTitle: prop?.title || `Property #${dto.propertyId}`,
+                                customerName: senderName,
+                                customerPhone: dto.ownerPhone,
+                                message: messageText,
+                            });
+                            this.logger.log(`📧 Property enquiry email dispatched to ${ownerEmail}`);
+                        }
+                        const ownerId = prop?.ownerId || prop?.owner?.id;
+                        if (ownerId) {
+                            await this.notificationService.sendPropertyEnquiryNotification(ownerId, prop?.title || 'Your Property', senderName, messageText, dto.propertyId);
+                            this.logger.log(`📲 Property enquiry FCM push notification dispatched to owner ${ownerId}`);
+                        }
+                    }
+                    catch (mailErr) {
+                        this.logger.warn(`Property enquiry email notice: ${mailErr?.message}`);
+                    }
+                })();
+            }
             let ownerReply = null;
             if (senderType === 'USER') {
                 const lower = messageText.toLowerCase();
@@ -222,7 +256,9 @@ let ChatService = ChatService_1 = class ChatService {
 };
 ChatService = ChatService_1 = __decorate([
     Injectable(),
-    __metadata("design:paramtypes", [PrismaService])
+    __metadata("design:paramtypes", [PrismaService,
+        EmailService,
+        FirebaseNotificationService])
 ], ChatService);
 export { ChatService };
 //# sourceMappingURL=chat.service.js.map

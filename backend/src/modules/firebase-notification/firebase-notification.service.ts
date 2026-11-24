@@ -1,3 +1,4 @@
+
 import { Injectable, Logger, OnModuleInit, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { initializeApp, cert, applicationDefault, getApps, getApp, App } from 'firebase-admin/app';
@@ -135,7 +136,7 @@ export class FirebaseNotificationService implements OnModuleInit {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     this.initFirebaseAdmin();

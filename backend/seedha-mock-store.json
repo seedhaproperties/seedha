@@ -2581,7 +2581,42 @@
   ],
   "siteVisits": [],
   "propertyManagementRequests": [],
-  "homeLoanRequests": [],
+  "homeLoanRequests": [
+    {
+      "id": "loan-1795445388229",
+      "userName": "Sneha Rao",
+      "userPhone": "+919123456789",
+      "userEmail": "919123456789@applicant.seedhaproperties.com",
+      "loanType": "Home Purchase Loan",
+      "propertyCost": 5000000,
+      "loanAmount": 4000000,
+      "tenureYears": 20,
+      "monthlyIncome": 85000,
+      "existingEmi": 0,
+      "calculatedEmi": 34460,
+      "selectedBank": "HDFC Bank",
+      "status": "REQUESTED",
+      "createdAt": "2026-11-23T14:49:48.230Z",
+      "updatedAt": "2026-11-23T14:49:48.230Z"
+    },
+    {
+      "id": "loan-1795445387323",
+      "userName": "Murali Saripilli",
+      "userPhone": "+919876543210",
+      "userEmail": "murali@example.com",
+      "loanType": "Home Purchase Loan",
+      "propertyCost": 7000000,
+      "loanAmount": 5000000,
+      "tenureYears": 20,
+      "monthlyIncome": 95000,
+      "existingEmi": 0,
+      "calculatedEmi": 43075,
+      "selectedBank": "State Bank of India (SBI)",
+      "status": "REQUESTED",
+      "createdAt": "2026-11-23T14:49:47.323Z",
+      "updatedAt": "2026-11-23T14:49:47.323Z"
+    }
+  ],
   "rentalAgreementOrders": [
     {
       "id": "agr-1795437671953",

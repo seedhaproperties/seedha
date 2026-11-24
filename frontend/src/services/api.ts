@@ -16,6 +16,14 @@ export const getHost = () => {
 };
 
 export const getApiBaseUrl = () => {
+  // If running in browser on localhost (e.g. Expo Web on port 8081), use local backend directly
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal) {
+      return `http://${window.location.hostname}:4000/api/v1`;
+    }
+  }
+
   if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim() !== '') {
     const raw = process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
     if (Platform.OS !== 'web' && (raw.includes('localhost') || raw.includes('127.0.0.1'))) {

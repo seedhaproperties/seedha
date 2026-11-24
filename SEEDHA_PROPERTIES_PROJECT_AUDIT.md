@@ -137,11 +137,11 @@ The core business logic, database migrations, real-time sync, and CRUD pipelines
 | :--- | :--- | :--- | :---: | :---: | :--- |
 | **PostgreSQL Database** | Supabase | Primary transactional storage | **CONNECTED** | No | Fully operational. |
 | **SMS OTP Verification** | MSG91 | Phone authentication | **CONFIGURED** | No | Auth Key & Template ID active in `.env`. |
-| **Push Notifications** | Firebase Admin (FCM) | Device notifications | **CONFIGURED** | No | Project `murali-ef8ef` private key loaded. |
+| **Push Notifications** | Firebase Admin (FCM) | Device notifications | **CONNECTED & ACTIVE** | No | Project `murali-ef8ef` authenticated; token registration in PostgreSQL, foreground/background handlers, and event triggers active. |
 | **Image & Media Storage** | Cloudinary | Property & document images | **CONNECTED & ACTIVE** | No | Verified live upload to cloud `wef54cpt`. |
 | **Email Delivery** | SMTP / Gmail | Transactional notifications | **CONNECTED & ACTIVE** | No | Gmail SMTP verified and ready with App Password. |
-| **Payment Gateway** | Razorpay / Cashfree | Service fees & unlock fees | **SIMULATED** | **Yes** | Add live merchant keys to enable actual card/UPI debits. |
-| **OAuth Authentication** | Google Cloud Console | Social login | **CONFIGURED** | Minor | Backend ready (`55708240...`); frontend requires native build config. |
+| **Payment Gateway** | Razorpay / Webhooks | Service fees & unlock fees | **CONFIGURED & ACTIVE** | No | Key ID `rzp_test_SxzMjTrOVruY37`, Webhook secret `Murali@2001`, signature validation & idempotency active. |
+| **OAuth Authentication** | Google Cloud Console | Social login | **CONNECTED & ACTIVE** | No | Package `com.muralikrishnasaripilli.seedhaproperties` & SHA-1 extracted; Web Client ID `55708240...` verified, dual auth active. |
 
 ---
 

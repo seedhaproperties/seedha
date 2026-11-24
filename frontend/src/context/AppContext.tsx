@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ScreenState, AdminItem, AdminCategory, AuthUser, UserRole } from '../types';
 import { api, setAuthToken, getAuthToken } from '../services/api';
+import { fcmService } from '../services/fcmService';
+import { signOutGoogle } from '../services/googleAuth';
 import { authenticateCredentials, authorizeAdmin } from '../services/authService';
 
 export type { UserRole };
@@ -496,6 +498,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(() => {
+    fcmService.unregisterDeviceToken().catch(() => {});
+    signOutGoogle().catch(() => {});
     setUser(null);
     setTokenState(null);
     setIsAuthenticated(false);

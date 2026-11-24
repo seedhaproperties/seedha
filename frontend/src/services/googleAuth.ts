@@ -326,3 +326,29 @@ try {
   };
 }
 }
+
+/**
+ * Safely signs out the native Google Sign-In session if available.
+ * Disables auto-select on web and clears Google Play Services credential cache on Android.
+ */
+export async function signOutGoogle(): Promise<void> {
+  if (Platform.OS === 'web') {
+    try {
+      const google = (window as any).google;
+      if (google?.accounts?.id?.disableAutoSelect) {
+        google.accounts.id.disableAutoSelect();
+      }
+    } catch {}
+    return;
+  }
+
+  const nitro = getNitroGoogleSignIn();
+  if (nitro?.GoogleOneTapSignIn?.signOut) {
+    try {
+      await nitro.GoogleOneTapSignIn.signOut();
+      console.log('[GoogleAuth] Native Google session signed out successfully');
+    } catch (err: any) {
+      console.warn('[GoogleAuth] Native Google signOut notice:', err?.message || err);
+    }
+  }
+}

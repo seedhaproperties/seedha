@@ -3,13 +3,15 @@ import { PropertyStatusEnum } from '../../common/constants.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
 import { EventsGateway } from '../events/events.gateway.js';
+import { FirebaseNotificationService } from '../firebase-notification/firebase-notification.service.js';
 import { AssignFieldWorkDto, RejectItemDto, LocationCheckDecisionDto, ContactOwnerDto, PrepareAgreementDto, CollectAndSendDigitalDto } from './admin.dto.js';
 export declare class AdminService {
     private readonly prisma;
     private readonly cloudinaryService;
     private readonly eventsGateway?;
+    private readonly notificationService?;
     private readonly logger;
-    constructor(prisma: PrismaService, cloudinaryService: CloudinaryService, eventsGateway?: EventsGateway | undefined);
+    constructor(prisma: PrismaService, cloudinaryService: CloudinaryService, eventsGateway?: EventsGateway | undefined, notificationService?: FirebaseNotificationService | undefined);
     getOverview(): Promise<{
         totalUsers: number;
         totalProperties: number;
@@ -203,4 +205,69 @@ export declare class AdminService {
         }[];
     };
     getNotifications(): any[];
+    getAllLoanOffers(includeInactive?: boolean): Promise<import("../../common/mock-db.js").BankLoanOfferRecord[] | {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        bankName: string;
+        bankCode: string;
+        interestRateMin: number;
+        interestRateMax: number | null;
+        minLoanAmount: number;
+        maxLoanAmount: number;
+        minTenureYears: number;
+        maxTenureYears: number;
+        processingFee: string;
+        processingFeePercent: number | null;
+        maxLtvRatio: number;
+        badge: string | null;
+        highlights: string | null;
+        rateValidityDate: string | null;
+        lastUpdatedDate: string | null;
+        iconType: string | null;
+        iconBg: string | null;
+        iconColor: string | null;
+        isActive: boolean;
+        sortOrder: number;
+    }[]>;
+    createLoanOffer(dto: any): Promise<{
+        message: string;
+        offer: {
+            id: string;
+            bankName: any;
+            bankCode: any;
+            interestRateMin: number;
+            interestRateMax: number | null;
+            minLoanAmount: number;
+            maxLoanAmount: number;
+            minTenureYears: number;
+            maxTenureYears: number;
+            processingFee: any;
+            processingFeePercent: number;
+            maxLtvRatio: number;
+            badge: any;
+            highlights: any;
+            rateValidityDate: any;
+            lastUpdatedDate: any;
+            iconType: any;
+            iconBg: any;
+            iconColor: any;
+            isActive: any;
+            sortOrder: number;
+            createdAt: string;
+            updatedAt: string;
+        };
+    }>;
+    updateLoanOffer(id: string, dto: any): Promise<{
+        message: string;
+        offer: import("../../common/mock-db.js").BankLoanOfferRecord | undefined;
+    }>;
+    toggleLoanOffer(id: string, isActive?: boolean): Promise<{
+        message: string;
+        id: string;
+        isActive: boolean;
+    }>;
+    deleteLoanOffer(id: string): Promise<{
+        message: string;
+    }>;
 }

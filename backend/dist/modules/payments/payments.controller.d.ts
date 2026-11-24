@@ -32,6 +32,31 @@ export declare class PaymentsController {
             customerPhone: string;
         };
     }>;
+    handleWebhook(payload: any, signature?: string): Promise<{
+        status: string;
+        received: boolean;
+        event: any;
+    }>;
+    processRefund(id: string, reason?: string): Promise<{
+        success: boolean;
+        message: string;
+        transaction: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            userId: string | null;
+            propertyId: string | null;
+            amount: number;
+            purpose: string;
+            customerName: string;
+            customerPhone: string;
+            customerEmail: string | null;
+            gateway: string;
+            gatewayTxnId: string;
+            paymentStatus: string;
+            metadata: string | null;
+        };
+    }>;
     getMyTransactions(phone?: string, req?: any): Promise<{
         id: string;
         referenceId: string;

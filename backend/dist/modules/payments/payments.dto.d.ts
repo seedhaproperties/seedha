@@ -16,5 +16,6 @@ export declare class VerifyPaymentDto {
     propertyId?: string;
     customerName: string;
     customerPhone: string;
+    customerEmail?: string;
     gatewayMethod?: string;
 }

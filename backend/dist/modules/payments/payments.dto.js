@@ -69,6 +69,7 @@ export class VerifyPaymentDto {
     propertyId;
     customerName;
     customerPhone;
+    customerEmail;
     gatewayMethod;
 }
 __decorate([
@@ -115,6 +116,12 @@ __decorate([
     IsString(),
     __metadata("design:type", String)
 ], VerifyPaymentDto.prototype, "customerPhone", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 'rahul@example.com' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], VerifyPaymentDto.prototype, "customerEmail", void 0);
 __decorate([
     ApiPropertyOptional({ example: 'UPI' }),
     IsOptional(),
