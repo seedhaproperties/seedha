@@ -21,6 +21,7 @@ export interface Property {
   description: string;
   ownerName: string;
   ownerAvatar: string;
+  ownerPhone?: string;
   ownerType: 'owner' | 'builder' | 'agent';
   possessionDate?: string;
   furnishing: 'unfurnished' | 'semi-furnished' | 'fully-furnished';
@@ -85,6 +86,7 @@ export type ScreenName =
   | 'postProperty'
   | 'compare'
   | 'savedProperties'
+  | 'buyProperties'
   | 'myActivity'
   | 'myProperties'
   | 'personalInformation'
@@ -92,7 +94,6 @@ export type ScreenName =
   | 'helpSupport'
   | 'accountSettings'
   | 'privacySecurity'
-  | 'buyProperties'
   | 'rentHomes'
   | 'commercialSpaces'
   | 'pgHostels'
@@ -102,11 +103,14 @@ export type ScreenName =
 
 export type AdminCategory =
   | 'flat_building'
+  | 'buy_sell'
   | 'rent'
   | 'commercial'
+  | 'pg_hostel'
   | 'property_management'
   | 'home_loan'
   | 'rental_agreement'
+  | 'rental_agreements'
   | 'owner_background';
 
 export interface AdminItem {

@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useApp, BYPASS_AUTH_FOR_DEV } from './context/AppContext';
+import { fcmService } from './services/fcmService';
 import { BottomNav } from './components';
 import {
   SplashScreen,
@@ -139,8 +140,25 @@ function ScreenRouter() {
 }
 
 function MainAppShell() {
-  const { currentScreen } = useApp();
+  const { currentScreen, push, user } = useApp();
   const isDarkScreen = currentScreen.name === 'splash' || currentScreen.name === 'onboarding';
+
+  // Initialize Firebase Cloud Messaging listeners & register device push token
+  React.useEffect(() => {
+    // Register FCM device token with backend
+    fcmService.registerDeviceToken(user?.id);
+
+    // Setup foreground, background-tap and cold-start push notification listeners
+    const unsubscribe = fcmService.setupNotificationListeners((screenName, data) => {
+      if (screenName) {
+        push({ name: screenName as any, params: data });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user?.id]);
 
   return (
     <SafeAreaView

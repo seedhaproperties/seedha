@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { UserRole, ListingTypeEnum, PropertyStatusEnum, SERVICEABLE_LOCALITIES } from './constants.js';
 
 export interface PropertyRecord {
@@ -11,6 +13,11 @@ export interface PropertyRecord {
   priceLabel: string;
   location: string;
   city: string;
+  state?: string;
+  pincode?: string;
+  latitude?: number;
+  longitude?: number;
+  fullAddress?: string;
   area: number;
   bedrooms: number;
   bathrooms: number;
@@ -22,12 +29,17 @@ export interface PropertyRecord {
   floor?: string;
   totalFloors?: number;
   images: string[];
+  imagePublicIds?: string[];
   amenities: string[];
   verified: boolean;
   featured?: boolean;
   ownerId?: string;
   ownerName: string;
   ownerPhone: string;
+  ownerEmail?: string;
+  details?: any;
+  views?: number;
+  leads?: number;
   rejectionReason?: string;
   fieldAgentName?: string;
   fieldNotes?: string;
@@ -63,8 +75,14 @@ export interface PropertyManagementRecord {
   flatDetails: string;
   address: string;
   city: string;
+  state?: string;
+  pincode?: string;
+  latitude?: number;
+  longitude?: number;
+  fullAddress?: string;
   locality: string;
   serviceRequested: string;
+  photos?: string[];
   status: 'SUBMITTED' | 'ADMIN_REVIEW' | 'LOCATION_CHECK_PASSED' | 'LOCATION_CHECK_REJECTED' | 'ASSIGNED_TEAM' | 'OWNER_CONTACTED' | 'COMPLETED';
   locationMatched: boolean;
   rejectionMessage?: string;
@@ -91,6 +109,32 @@ export interface HomeLoanRecord {
   status: 'REQUESTED' | 'UNDER_REVIEW' | 'TEAM_CONTACTED' | 'DOCUMENTS_COLLECTED' | 'APPROVED' | 'REJECTED';
   assignedStaff?: string;
   contactNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BankLoanOfferRecord {
+  id: string;
+  bankName: string;
+  bankCode: string;
+  interestRateMin: number;
+  interestRateMax?: number;
+  minLoanAmount: number;
+  maxLoanAmount: number;
+  minTenureYears: number;
+  maxTenureYears: number;
+  processingFee: string;
+  processingFeePercent?: number;
+  maxLtvRatio: number;
+  badge?: string;
+  highlights?: string;
+  rateValidityDate?: string;
+  lastUpdatedDate?: string;
+  iconType?: string;
+  iconBg?: string;
+  iconColor?: string;
+  isActive: boolean;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -127,9 +171,18 @@ export interface OwnerBackgroundRecord {
   buildingName: string;
   propertyAddress: string;
   city: string;
+  state?: string;
+  pincode?: string;
+  latitude?: number;
+  longitude?: number;
+  fullAddress?: string;
   ownerName: string;
   ownerPhone: string;
-  status: 'SUBMITTED' | 'PAYMENT_PENDING' | 'PAID' | 'ADMIN_CHECKING' | 'FIELD_WORK_ASSIGNED' | 'DETAILS_COLLECTED' | 'REPORT_GENERATED' | 'SENT_DIGITALLY' | 'REJECTED';
+  ownerEmail?: string;
+  details?: any;
+  views?: number;
+  leads?: number;
+  status: 'SUBMITTED' | 'PAYMENT_PENDING' | 'PAID' | 'ADMIN_CHECKING' | 'FIELD_WORK_ASSIGNED' | 'DETAILS_COLLECTED' | 'REPORT_GENERATED' | 'SENT_DIGITALLY' | 'COMPLETED' | 'REJECTED';
   paymentAmount: number;
   paymentTxnId?: string;
   ownershipVerified: boolean;
@@ -151,10 +204,149 @@ export interface UserRecord {
   phone: string;
   passwordHash: string;
   role: UserRole;
+  avatarUrl?: string;
+  avatarPublicId?: string;
+  dob?: string;
+  gender?: string;
+  userRole?: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  alternatePhone?: string | null;
+  alternateEmail?: string | null;
+  summary?: {
+    savedCount?: number;
+    activityCount?: number;
+    propertiesCount?: number;
+    servicesCount?: number;
+  };
+  settings?: any;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface TeamMemberRecord {
+  id: string;
+  name: string;
+  role: string;
+  phone: string;
+  zone: string;
+  activeTasks: number;
+  completedThisWeek: number;
+  avgTurnaroundHrs: number;
+  initials: string;
 }
 
 class InMemoryStore {
+  private getPersistPaths(): string[] {
+    const cwd = process.cwd();
+    const candidatePaths = [
+      path.resolve(cwd, 'seedha-mock-store.json'),
+      path.resolve(cwd, 'backend', 'seedha-mock-store.json'),
+      path.resolve(cwd, '..', 'seedha-mock-store.json'),
+    ];
+    return Array.from(new Set(candidatePaths));
+  }
+
+  loadFromDisk() {
+    try {
+      const paths = this.getPersistPaths();
+      for (const p of paths) {
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, 'utf8');
+          const data = JSON.parse(raw);
+          if (data.users?.length) this.users = data.users;
+          if (data.properties?.length) this.properties = data.properties;
+          if (data.siteVisits?.length) this.siteVisits = data.siteVisits;
+          if (data.propertyManagementRequests?.length)
+            this.propertyManagementRequests = data.propertyManagementRequests;
+          if (data.homeLoanRequests?.length) this.homeLoanRequests = data.homeLoanRequests;
+          if (data.rentalAgreementOrders?.length)
+            this.rentalAgreementOrders = data.rentalAgreementOrders;
+          if (data.ownerBackgroundChecks?.length)
+            this.ownerBackgroundChecks = data.ownerBackgroundChecks;
+          if (data.teamMembers?.length) this.teamMembers = data.teamMembers;
+          break;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  saveToDisk() {
+    try {
+      const data = {
+        users: this.users,
+        properties: this.properties,
+        siteVisits: this.siteVisits,
+        propertyManagementRequests: this.propertyManagementRequests,
+        homeLoanRequests: this.homeLoanRequests,
+        rentalAgreementOrders: this.rentalAgreementOrders,
+        ownerBackgroundChecks: this.ownerBackgroundChecks,
+        teamMembers: this.teamMembers,
+      };
+      const jsonStr = JSON.stringify(data, null, 2);
+      for (const p of this.getPersistPaths()) {
+        try {
+          fs.writeFileSync(p, jsonStr, 'utf8');
+        } catch {
+          // ignore individual path write error
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  teamMembers: TeamMemberRecord[] = [
+    {
+      id: 'tm-1',
+      name: 'Kavitha Reddy',
+      role: 'Field Agent',
+      phone: '+91 98490 12345',
+      zone: 'HITEC City & Madhapur',
+      activeTasks: 4,
+      completedThisWeek: 12,
+      avgTurnaroundHrs: 2.8,
+      initials: 'KR',
+    },
+    {
+      id: 'tm-2',
+      name: 'Rajesh Varma',
+      role: 'Verification Exec',
+      phone: '+91 98480 23456',
+      zone: 'Gachibowli & Financial District',
+      activeTasks: 3,
+      completedThisWeek: 9,
+      avgTurnaroundHrs: 3.4,
+      initials: 'RV',
+    },
+    {
+      id: 'tm-3',
+      name: 'Siddharth Rao',
+      role: 'Loan Advisor',
+      phone: '+91 98480 34567',
+      zone: 'Central Hyderabad',
+      activeTasks: 5,
+      completedThisWeek: 15,
+      avgTurnaroundHrs: 4.1,
+      initials: 'SR',
+    },
+    {
+      id: 'tm-4',
+      name: 'Pooja Sharma',
+      role: 'Legal Ops',
+      phone: '+91 98480 45678',
+      zone: 'Secunderabad & Jubilee Hills',
+      activeTasks: 2,
+      completedThisWeek: 18,
+      avgTurnaroundHrs: 1.9,
+      initials: 'PS',
+    },
+  ];
+
   users: UserRecord[] = [
     {
       id: 'usr_admin',
@@ -163,18 +355,53 @@ class InMemoryStore {
       phone: '+919988776655',
       passwordHash: '$2b$10$epNzTj0hF5vG80X0Z3Qd7eZ1O5cO3Zf4i6zP7C5V8B8C9D0E1F2G3', // admin123
       role: UserRole.ADMIN,
+      avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=faces&auto=format',
+      city: 'Hyderabad',
       createdAt: new Date().toISOString(),
     },
     {
       id: 'usr_rahul',
-      name: 'Rahul Sharma',
-      email: 'rahul@example.com',
-      phone: '+919876543210',
+      name: 'Rahul Google User',
+      email: 'rahul.google.test@gmail.com',
+      phone: '+91 98490 63269',
       passwordHash: '$2b$10$epNzTj0hF5vG80X0Z3Qd7eZ1O5cO3Zf4i6zP7C5V8B8C9D0E1F2G3',
       role: UserRole.USER,
+      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces&auto=format',
+      dob: '1990-05-15',
+      gender: 'Male',
+      userRole: 'Owner',
+      streetAddress: 'Plot 42, Road No. 36, Jubilee Hills',
+      city: 'Hyderabad',
+      state: 'Telangana',
+      pincode: '500033',
+      alternatePhone: null,
+      alternateEmail: null,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'usr_dev_praghnesh',
+      name: 'Rahul Google User',
+      email: 'rahul.google.test@gmail.com',
+      phone: '+91 98490 63269',
+      passwordHash: '$2b$10$epNzTj0hF5vG80X0Z3Qd7eZ1O5cO3Zf4i6zP7C5V8B8C9D0E1F2G3',
+      role: UserRole.USER,
+      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces&auto=format',
+      dob: '1990-05-15',
+      gender: 'Male',
+      userRole: 'Owner',
+      streetAddress: 'Plot 42, Road No. 36, Jubilee Hills',
+      city: 'Hyderabad',
+      state: 'Telangana',
+      pincode: '500033',
+      alternatePhone: null,
+      alternateEmail: null,
       createdAt: new Date().toISOString(),
     },
   ];
+
+  constructor() {
+    this.loadFromDisk();
+  }
 
   properties: PropertyRecord[] = [
     {
@@ -320,6 +547,133 @@ class InMemoryStore {
   homeLoanRequests: HomeLoanRecord[] = [];
   rentalAgreementOrders: RentalAgreementRecord[] = [];
   ownerBackgroundChecks: OwnerBackgroundRecord[] = [];
+  bankLoanOffers: BankLoanOfferRecord[] = [
+    {
+      id: 'offer-sbi',
+      bankName: 'State Bank of India (SBI)',
+      bankCode: 'sbi',
+      interestRateMin: 8.40,
+      interestRateMax: 9.05,
+      minLoanAmount: 500000,
+      maxLoanAmount: 150000000,
+      minTenureYears: 5,
+      maxTenureYears: 30,
+      processingFee: 'Nil (Special campaign offer)',
+      processingFeePercent: 0.0,
+      maxLtvRatio: 90.0,
+      badge: 'Lowest Rate',
+      highlights: 'Daily reducing balance calculation, 0.05% concession for women borrowers, zero prepayment penalty.',
+      rateValidityDate: 'Valid through 31 Dec 2026',
+      lastUpdatedDate: '23 Nov 2026',
+      iconType: 'sbi',
+      iconBg: '#E0F2FE',
+      iconColor: '#0284C7',
+      isActive: true,
+      sortOrder: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'offer-hdfc',
+      bankName: 'HDFC Bank',
+      bankCode: 'hdfc',
+      interestRateMin: 8.50,
+      interestRateMax: 9.15,
+      minLoanAmount: 500000,
+      maxLoanAmount: 120000000,
+      minTenureYears: 5,
+      maxTenureYears: 30,
+      processingFee: '0.25% (Min ₹3,000, Max ₹10,000) + GST',
+      processingFeePercent: 0.25,
+      maxLtvRatio: 85.0,
+      badge: 'Fast Sanction',
+      highlights: 'Digital in-principle sanction in 48 hours, doorstep document collection.',
+      rateValidityDate: 'Valid through 31 Dec 2026',
+      lastUpdatedDate: '23 Nov 2026',
+      iconType: 'hdfc',
+      iconBg: '#FEF3C7',
+      iconColor: '#D97706',
+      isActive: true,
+      sortOrder: 2,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'offer-icici',
+      bankName: 'ICICI Bank',
+      bankCode: 'icici',
+      interestRateMin: 8.60,
+      interestRateMax: 9.25,
+      minLoanAmount: 500000,
+      maxLoanAmount: 100000000,
+      minTenureYears: 5,
+      maxTenureYears: 30,
+      processingFee: '0.50% (Min ₹3,500) + GST',
+      processingFeePercent: 0.50,
+      maxLtvRatio: 85.0,
+      badge: 'Pre-Approved',
+      highlights: 'Express home loan pre-approval online with minimal documentation.',
+      rateValidityDate: 'Valid through 31 Dec 2026',
+      lastUpdatedDate: '23 Nov 2026',
+      iconType: 'icici',
+      iconBg: '#F1F5F9',
+      iconColor: '#475569',
+      isActive: true,
+      sortOrder: 3,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'offer-axis',
+      bankName: 'Axis Bank',
+      bankCode: 'axis',
+      interestRateMin: 8.75,
+      interestRateMax: 9.35,
+      minLoanAmount: 500000,
+      maxLoanAmount: 90000000,
+      minTenureYears: 5,
+      maxTenureYears: 30,
+      processingFee: '₹10,000 flat + GST',
+      processingFeePercent: 0.35,
+      maxLtvRatio: 80.0,
+      badge: 'Flexible Tenure',
+      highlights: 'Shubh Aarambh Home Loan: 12 EMIs waived on regular repayment.',
+      rateValidityDate: 'Valid through 31 Dec 2026',
+      lastUpdatedDate: '23 Nov 2026',
+      iconType: 'axis',
+      iconBg: '#FEF9C3',
+      iconColor: '#CA8A04',
+      isActive: true,
+      sortOrder: 4,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'offer-bob',
+      bankName: 'Bank of Baroda',
+      bankCode: 'bob',
+      interestRateMin: 8.45,
+      interestRateMax: 9.10,
+      minLoanAmount: 500000,
+      maxLoanAmount: 100000000,
+      minTenureYears: 5,
+      maxTenureYears: 30,
+      processingFee: '0.25% (Min ₹2,500, Max ₹8,000) + GST',
+      processingFeePercent: 0.25,
+      maxLtvRatio: 90.0,
+      badge: 'Low Processing Fee',
+      highlights: 'Baroda Home Loan linked to BRLLR, concession on green rated buildings.',
+      rateValidityDate: 'Valid through 31 Dec 2026',
+      lastUpdatedDate: '23 Nov 2026',
+      iconType: 'bob',
+      iconBg: '#FFEDD5',
+      iconColor: '#EA580C',
+      isActive: true,
+      sortOrder: 5,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ];
 }
 
 export const mockDb = new InMemoryStore();

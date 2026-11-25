@@ -8,11 +8,12 @@ import { Module } from '@nestjs/common';
 import { PropertiesService } from './properties.service.js';
 import { PropertiesController } from './properties.controller.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module.js';
 let PropertiesModule = class PropertiesModule {
 };
 PropertiesModule = __decorate([
     Module({
-        imports: [AuthModule],
+        imports: [AuthModule, CloudinaryModule],
         controllers: [PropertiesController],
         providers: [PropertiesService],
         exports: [PropertiesService],

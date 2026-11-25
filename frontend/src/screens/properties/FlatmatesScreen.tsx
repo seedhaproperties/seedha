@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,10 +25,13 @@ import {
   AlertCircle,
   ExternalLink,
   X,
+  MessageSquare,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { properties } from '../../data/properties';
 import type { Property } from '../../types';
+import { api } from '../../services/api';
+import { userSocket } from '../../services/socket';
 
 type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest';
 
@@ -53,6 +56,10 @@ export interface FlatmateProperty {
   image: string;
   verified: boolean;
   baseProperty?: Property;
+  distanceKm?: number;
+  distanceLabel?: string;
+  ownerName?: string;
+  ownerPhone?: string;
 }
 
 // 3 sample properties matching the user's explicit specification and screenshot:
@@ -105,6 +112,11 @@ export default function FlatmatesScreen() {
   const [showSortModal, setShowSortModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
 
+  // Live Backend State
+  const [liveListings, setLiveListings] = useState<FlatmateProperty[]>([]);
+  const [isFetchingLive, setIsFetchingLive] = useState(false);
+  const [selectedRadius, setSelectedRadius] = useState<number>(9999);
+
   // GPS / Google Maps Location modal & feedback states
   const [locationStatus, setLocationStatus] = useState<
     'idle' | 'requesting' | 'success' | 'denied' | 'error'
@@ -115,10 +127,88 @@ export default function FlatmatesScreen() {
   );
   const [showGpsModal, setShowGpsModal] = useState(false);
 
+  // Auto-detect geolocation
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCurrentCoords({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          });
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  }, []);
+
+  // Fetch real-time Flatmate properties from backend Supabase PostgreSQL
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveFlatmates = async () => {
+      try {
+        setIsFetchingLive(true);
+        const res = await api.properties.list({
+          type: 'flatmate',
+          userLat: currentCoords?.latitude || 17.4401,
+          userLng: currentCoords?.longitude || 78.3489,
+          radiusKm: selectedRadius,
+          city: selectedLocation !== 'All' ? selectedLocation : undefined,
+        });
+        const list = Array.isArray(res) ? res : res?.data || [];
+        if (isMounted && list.length > 0) {
+          const mapped: FlatmateProperty[] = list.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            location: p.location,
+            city: p.city,
+            price: p.price,
+            priceLabel: p.priceLabel || `₹${p.price?.toLocaleString()}/month`,
+            roomType: p.roomType || (p.title?.toLowerCase().includes('private') ? 'Private room' : 'Shared room'),
+            image: p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600',
+            verified: !!p.verified,
+            distanceKm: p.distanceKm,
+            distanceLabel: p.distanceLabel,
+            ownerName: p.ownerName,
+            ownerPhone: p.ownerPhone,
+            baseProperty: p,
+          }));
+          setLiveListings(mapped);
+        }
+      } catch (err) {
+        console.warn('Live Flatmate properties fetch notice:', err);
+      } finally {
+        if (isMounted) setIsFetchingLive(false);
+      }
+    };
+    fetchLiveFlatmates();
+
+    userSocket.connect();
+    const unsub = userSocket.onStatusUpdated((event) => {
+      if (event.status === 'PUBLISHED' || event.status === 'REJECTED') {
+        fetchLiveFlatmates();
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsub();
+    };
+  }, [currentCoords?.latitude, currentCoords?.longitude, selectedRadius, selectedLocation]);
+
+  // Merge live backend listings with offline catalog
+  const combinedListings = useMemo(() => {
+    if (liveListings.length === 0) return SAMPLE_FLATMATE_PROPERTIES;
+    const existingIds = new Set(liveListings.map((p) => p.id));
+    const offlineUnique = SAMPLE_FLATMATE_PROPERTIES.filter((p) => !existingIds.has(p.id));
+    return [...liveListings, ...offlineUnique];
+  }, [liveListings]);
+
   // Locations for location selection interface
   const locations = useMemo(() => {
     const locSet = new Set<string>();
-    SAMPLE_FLATMATE_PROPERTIES.forEach((p) => {
+    combinedListings.forEach((p) => {
       if (p.city) locSet.add(p.city);
       if (p.location) {
         const parts = p.location.split(',');
@@ -127,11 +217,11 @@ export default function FlatmatesScreen() {
       }
     });
     return ['All', ...Array.from(locSet)];
-  }, []);
+  }, [combinedListings]);
 
   // Filtered and Sorted properties
   const filteredListings = useMemo(() => {
-    return SAMPLE_FLATMATE_PROPERTIES.filter((item) => {
+    return combinedListings.filter((item) => {
       // Room Type Tab filter
       if (selectedTab === 'Private room' && item.roomType !== 'Private room') {
         return false;
@@ -386,6 +476,28 @@ export default function FlatmatesScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ── Radius Selection Bar ── */}
+      <View style={styles.radiusRow}>
+        <Compass size={14} color="#64748B" strokeWidth={2} />
+        <Text style={styles.radiusLabel}>Radius:</Text>
+        {[30, 60, 100].map((r) => {
+          const isSelected = selectedRadius === r;
+          return (
+            <TouchableOpacity
+              key={r}
+              onPress={() => setSelectedRadius(r)}
+              style={[styles.radiusPill, isSelected && styles.radiusPillActive]}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.radiusPillText, isSelected && styles.radiusPillTextActive]}>
+                {r} km
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+        {isFetchingLive && <ActivityIndicator size="small" color="#0F172A" style={{ marginLeft: 6 }} />}
+      </View>
+
       {/* ── 5. Flatmate Property Cards Grid ── */}
       <ScrollView
         style={styles.gridScroll}
@@ -473,6 +585,39 @@ export default function FlatmatesScreen() {
                     </View>
 
                     <Text style={styles.cardPrice}>{item.priceLabel}</Text>
+
+                    <View style={styles.cardActionsRow}>
+                      {item.distanceLabel ? (
+                        <Text style={styles.distanceTag} numberOfLines={1}>
+                          {item.distanceLabel}
+                        </Text>
+                      ) : (
+                        <View />
+                      )}
+                      <TouchableOpacity
+                        style={styles.chatOwnerBtn}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          const propForChat = item.baseProperty || {
+                            id: item.id,
+                            title: item.title,
+                            location: item.location,
+                            city: item.city,
+                            price: item.price,
+                            priceLabel: item.priceLabel,
+                            ownerName: item.ownerName || 'Property Owner',
+                            ownerPhone: item.ownerPhone || '+919876543210',
+                            images: [item.image],
+                            image: item.image,
+                          };
+                          push({ name: 'chat', params: { property: propForChat } });
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <MessageSquare size={11} color="#FFFFFF" strokeWidth={2.2} />
+                        <Text style={styles.chatOwnerBtnText}>Chat</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </TouchableOpacity>
               );
@@ -1214,5 +1359,66 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 13,
     fontWeight: '500',
+  },
+  radiusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    gap: 8,
+  },
+  radiusLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  radiusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+  },
+  radiusPillActive: {
+    backgroundColor: '#0F172A',
+  },
+  radiusPillText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  radiusPillTextActive: {
+    color: '#FFFFFF',
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  distanceTag: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#2563EB',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  chatOwnerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  chatOwnerBtnText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

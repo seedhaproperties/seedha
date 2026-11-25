@@ -7,7 +7,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class SubmitPropertyManagementDto {
     ownerName;
@@ -18,6 +18,7 @@ export class SubmitPropertyManagementDto {
     city;
     locality;
     serviceRequested;
+    photos;
 }
 __decorate([
     ApiProperty({ example: 'Venkatesh Rao' }),
@@ -67,4 +68,10 @@ __decorate([
     IsNotEmpty(),
     __metadata("design:type", String)
 ], SubmitPropertyManagementDto.prototype, "serviceRequested", void 0);
+__decorate([
+    ApiPropertyOptional({ example: ['https://example.com/photo1.jpg'] }),
+    IsOptional(),
+    IsArray(),
+    __metadata("design:type", Array)
+], SubmitPropertyManagementDto.prototype, "photos", void 0);
 //# sourceMappingURL=property-management.dto.js.map

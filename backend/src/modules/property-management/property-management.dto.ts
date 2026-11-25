@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SubmitPropertyManagementDto {
@@ -41,4 +41,9 @@ export class SubmitPropertyManagementDto {
   @IsString()
   @IsNotEmpty()
   serviceRequested!: string;
+
+  @ApiPropertyOptional({ example: ['https://example.com/photo1.jpg'] })
+  @IsOptional()
+  @IsArray()
+  photos?: string[];
 }

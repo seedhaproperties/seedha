@@ -1069,7 +1069,7 @@
 //     fontWeight: '700',
 //   },
 // });
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -1094,6 +1094,7 @@ import {
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { colors } from '../../theme/colors';
+import { api } from '../../services/api';
 
 type Step = 'landing' | 'basic' | 'income' | 'results' | 'lenders' | 'apply';
 
@@ -1196,8 +1197,8 @@ const CustomSlider: React.FC<SliderProps> = ({
   };
 
   const measureTrack = useCallback(() => {
-    if (trackRef.current) {
-      trackRef.current.measure((_x, _y, width, _height, pageX) => {
+    if (trackRef.current && typeof trackRef.current.measure === 'function') {
+      trackRef.current.measure((_x: number, _y: number, width: number, _height: number, pageX: number) => {
         if (width > 0) {
           trackLayoutRef.current = { pageX, width };
           setTrackWidth(width);
@@ -1386,9 +1387,42 @@ export default function HomeLoanScreen() {
     panCard: '',
     aadhaarNumber: '',
     propertyAddress: '',
+    selectedBank: 'SBI Home Loans',
   });
   const [loading, setLoading] = useState(false);
   const [applied, setApplied] = useState(false);
+
+  // Dynamic Bank Offers from Backend
+  const [bankOffers, setBankOffers] = useState<any[]>([]);
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [comparisonHighlights, setComparisonHighlights] = useState<any>(null);
+  const [selectedBankOffer, setSelectedBankOffer] = useState<any>(null);
+
+  const fetchBankOffers = useCallback(async (amount: number, tenure: number) => {
+    setOffersLoading(true);
+    try {
+      const res = await api.homeLoans.compareBanks({
+        loanAmount: amount,
+        tenureYears: tenure,
+      });
+      const offersList = res?.offers || res?.banks || [];
+      if (Array.isArray(offersList) && offersList.length > 0) {
+        setBankOffers(offersList);
+        setComparisonHighlights(res.comparisonHighlights || null);
+      } else {
+        setBankOffers(lenders);
+      }
+    } catch (err: any) {
+      console.warn('[HomeLoanScreen] Bank comparison fetch notice:', err?.message || err);
+      setBankOffers(lenders);
+    } finally {
+      setOffersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBankOffers(loanAmount, tenureYears);
+  }, [loanAmount, tenureYears, fetchBankOffers]);
 
   // Formatting helpers
   const formatIndianCurrency = (amount: number) => {
@@ -1831,54 +1865,119 @@ export default function HomeLoanScreen() {
         {step === 'lenders' && (
           <View style={styles.formContainer}>
             <Text style={styles.formSectionHeader}>Compare Loan Offers</Text>
-            <View style={styles.lendersContainer}>
-              {lenders.map((l) => (
-                <View key={l.name} style={styles.lenderFigmaCard}>
-                  {/* Top Row: Icon + Name/Badge on Left, Rate/Per Annum on Right */}
-                  <View style={styles.lenderHeaderRow}>
-                    <View style={styles.lenderBrandCol}>
-                      <View style={[styles.lenderIconContainer, { backgroundColor: l.iconBg }]}>
-                        {renderLenderIcon(l.iconType, l.iconColor)}
-                      </View>
-                      <View style={styles.lenderNameContainer}>
-                        <Text style={styles.lenderBrandName}>{l.name}</Text>
-                        {l.badge && (
-                          <View style={styles.lenderBadge}>
-                            <Text style={styles.lenderBadgeText}>{l.badge}</Text>
+            <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>
+              Comparing bank offers for {formatIndianCurrency(loanAmount)} over {tenureYears} years
+            </Text>
+
+            {comparisonHighlights && (
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                {comparisonHighlights.lowestInterestRate && (
+                  <View style={{ backgroundColor: '#F0FDF4', borderColor: '#BBF7D0', borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Text style={{ fontSize: 11, color: '#15803D', fontWeight: '600' }}>
+                      Lowest Rate: {typeof comparisonHighlights.lowestInterestRate === 'string' ? comparisonHighlights.lowestInterestRate : comparisonHighlights.lowestInterestRate.formattedRate}
+                    </Text>
+                  </View>
+                )}
+                {comparisonHighlights.lowestMonthlyEmi && (
+                  <View style={{ backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                    <Text style={{ fontSize: 11, color: '#1D4ED8', fontWeight: '600' }}>
+                      Lowest EMI: {typeof comparisonHighlights.lowestMonthlyEmi === 'string' ? comparisonHighlights.lowestMonthlyEmi : comparisonHighlights.lowestMonthlyEmi.formattedEmi}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {offersLoading ? (
+              <View style={{ paddingVertical: 36, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#0F172A" />
+                <Text style={{ marginTop: 8, fontSize: 13, color: '#64748B' }}>Fetching verified bank rates...</Text>
+              </View>
+            ) : (
+              <View style={styles.lendersContainer}>
+                {(bankOffers.length > 0 ? bankOffers : lenders).map((l: any) => {
+                  const name = l.bankName || l.name;
+                  const rate = l.interestRateFormatted || l.rate;
+                  const emi = l.monthlyEmiFormatted || l.emi;
+                  const iconType = l.iconType || 'sbi';
+                  const iconBg = l.iconBg || '#E0F2FE';
+                  const iconColor = l.iconColor || '#0284C7';
+                  const isSelected = selectedBankOffer?.bankName === name || form.selectedBank === name;
+
+                  return (
+                    <View key={name} style={[styles.lenderFigmaCard, isSelected && { borderColor: '#0284C7', borderWidth: 1.5 }]}>
+                      {/* Top Row: Icon + Name/Badge on Left, Rate/Per Annum on Right */}
+                      <View style={styles.lenderHeaderRow}>
+                        <View style={styles.lenderBrandCol}>
+                          <View style={[styles.lenderIconContainer, { backgroundColor: iconBg }]}>
+                            {renderLenderIcon(iconType, iconColor)}
                           </View>
-                        )}
+                          <View style={styles.lenderNameContainer}>
+                            <Text style={styles.lenderBrandName}>{name}</Text>
+                            {l.badge && (
+                              <View style={styles.lenderBadge}>
+                                <Text style={styles.lenderBadgeText}>{l.badge}</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+
+                        <View style={styles.lenderRateCol}>
+                          <Text style={styles.lenderRateText}>{rate}</Text>
+                          <Text style={styles.lenderPerAnnumText}>per annum</Text>
+                        </View>
+                      </View>
+
+                      {/* Processing fee & rate validity */}
+                      {l.processingFee && (
+                        <View style={{ paddingHorizontal: 12, paddingVertical: 4 }}>
+                          <Text style={{ fontSize: 11, color: '#64748B' }}>
+                            Processing Fee: <Text style={{ color: '#0F172A', fontWeight: '500' }}>{l.processingFee}</Text>
+                          </Text>
+                          {l.rateValidUntil && (
+                            <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>
+                              Rate valid until: {l.rateValidUntil} • Last verified: {l.lastUpdatedDate || 'Recent'}
+                            </Text>
+                          )}
+                        </View>
+                      )}
+
+                      {/* Bottom Row: EMI + Max Loan on Left, Apply Button on Right */}
+                      <View style={styles.lenderBottomRow}>
+                        <View style={styles.lenderStatsRow}>
+                          <View style={styles.lenderStatBlock}>
+                            <Text style={styles.lenderStatLabel}>EMI</Text>
+                            <Text style={styles.lenderStatValue}>{emi}</Text>
+                          </View>
+                          <View style={styles.lenderStatBlock}>
+                            <Text style={styles.lenderStatLabel}>Max Loan</Text>
+                            <Text style={styles.lenderStatValue}>{l.maxLoan}</Text>
+                          </View>
+                        </View>
+
+                        <TouchableOpacity
+                          onPress={() => {
+                            setSelectedBankOffer(l);
+                            setForm((f) => ({ ...f, selectedBank: name }));
+                            setStep('apply');
+                          }}
+                          style={[styles.lenderApplyButton, isSelected && { backgroundColor: '#0284C7' }]}
+                          activeOpacity={0.85}
+                        >
+                          <Text style={styles.lenderApplyText}>Apply</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
+                  );
+                })}
+              </View>
+            )}
 
-                    <View style={styles.lenderRateCol}>
-                      <Text style={styles.lenderRateText}>{l.rate}</Text>
-                      <Text style={styles.lenderPerAnnumText}>per annum</Text>
-                    </View>
-                  </View>
-
-                  {/* Bottom Row: EMI + Max Loan on Left, Apply Button on Right */}
-                  <View style={styles.lenderBottomRow}>
-                    <View style={styles.lenderStatsRow}>
-                      <View style={styles.lenderStatBlock}>
-                        <Text style={styles.lenderStatLabel}>EMI</Text>
-                        <Text style={styles.lenderStatValue}>{l.emi}</Text>
-                      </View>
-                      <View style={styles.lenderStatBlock}>
-                        <Text style={styles.lenderStatLabel}>Max Loan</Text>
-                        <Text style={styles.lenderStatValue}>{l.maxLoan}</Text>
-                      </View>
-                    </View>
-
-                    <TouchableOpacity
-                      onPress={() => setStep('apply')}
-                      style={styles.lenderApplyButton}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.lenderApplyText}>Apply</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
+            {/* Non-guaranteed approval disclaimer */}
+            <View style={{ marginTop: 18, padding: 12, backgroundColor: '#F8FAFC', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' }}>
+              <Text style={{ fontSize: 11, color: '#64748B', lineHeight: 16 }}>
+                ⚠️ <Text style={{ fontWeight: '600' }}>Disclaimer:</Text> Calculations are indicative based on reducing balance method. Interest rates and loan terms are subject to borrower eligibility and respective bank/NBFC guidelines. Loan approval and sanction are not guaranteed.
+              </Text>
             </View>
           </View>
         )}
@@ -1967,10 +2066,41 @@ export default function HomeLoanScreen() {
               setStep('apply');
             } else if (step === 'apply') {
               setLoading(true);
-              setTimeout(() => {
-                setLoading(false);
-                setApplied(true);
-              }, 1000);
+              (async () => {
+                try {
+                  const parsedIncome = parseFloat((form.income || '').replace(/,/g, '')) || 85000;
+                  const parsedExistingEmi = parseFloat((form.existingEmis || '').replace(/,/g, '')) || 0;
+                  const parsedPropCost = parseFloat((form.propertyValue || '').replace(/,/g, '')) || Math.round(loanAmount / 0.75);
+                  const bankName = form.selectedBank || selectedBankOffer?.bankName || 'State Bank of India (SBI)';
+
+                  await api.homeLoans.requestAssistance({
+                    userName: form.name || 'Verified Applicant',
+                    applicantName: form.name || 'Verified Applicant',
+                    userPhone: form.phone || '+919876543210',
+                    applicantPhone: form.phone || '+919876543210',
+                    userEmail: form.phone ? `${form.phone.replace(/[^0-9]/g, '')}@applicant.seedhaproperties.com` : 'applicant@seedhaproperties.com',
+                    applicantEmail: 'applicant@seedhaproperties.com',
+                    loanType: 'Home Purchase Loan',
+                    propertyCost: parsedPropCost,
+                    loanAmount: loanAmount,
+                    tenureYears: tenureYears,
+                    monthlyIncome: parsedIncome,
+                    existingEmi: parsedExistingEmi,
+                    calculatedEmi: currentEmi || 43075,
+                    selectedBank: bankName,
+                    employmentType: form.employment,
+                    propertyIdentified: true,
+                    panCard: form.panCard || undefined,
+                    aadhaarNumber: form.aadhaarNumber || undefined,
+                    propertyAddress: form.propertyAddress || undefined,
+                  });
+                } catch (err: any) {
+                  console.warn('[HomeLoanScreen] Assistance API notice:', err?.message || err);
+                } finally {
+                  setLoading(false);
+                  setApplied(true);
+                }
+              })();
             } else {
               setStep('basic');
             }

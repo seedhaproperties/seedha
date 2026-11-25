@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -58,6 +59,21 @@ model User {
   rentalAgreements   RentalAgreementOrder[]
   backgroundChecks   OwnerBackgroundCheck[]
   refreshTokens      RefreshToken[]
+  deviceTokens       DeviceToken[]
+  savedProperties    SavedProperty[]
+  payments           PaymentTransaction[]
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   // 'android' | 'ios' | 'web'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model RefreshToken {
@@ -95,6 +111,9 @@ model Property {
   amenities       String[]       @default([])
   verified        Boolean        @default(false)
   featured        Boolean        @default(false)
+  latitude        Float?
+  longitude       Float?
+  pincode         String?
   
   ownerId         String?
   owner           User?          @relation(fields: [ownerId], references: [id])
@@ -110,6 +129,9 @@ model Property {
   updatedAt       DateTime       @updatedAt
 
   siteVisits      SiteVisit[]
+  savedBy         SavedProperty[]
+  payments        PaymentTransaction[]
+  chatConversations ChatConversation[]
 }
 
 model SiteVisit {
@@ -146,6 +168,7 @@ model PropertyManagementRequest {
   locality           String
   serviceRequested   String
   status             String   @default("SUBMITTED")
+  photos             String[] @default([])
   locationMatched    Boolean  @default(false)
   rejectionMessage   String?
   assignedTeamMember String?
@@ -174,6 +197,32 @@ model HomeLoanRequest {
   contactNotes   String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model BankLoanOffer {
+  id                   String   @id @default(uuid())
+  bankName             String
+  bankCode             String
+  interestRateMin      Float
+  interestRateMax      Float?
+  minLoanAmount        Float    @default(500000)
+  maxLoanAmount        Float    @default(150000000)
+  minTenureYears       Int      @default(5)
+  maxTenureYears       Int      @default(30)
+  processingFee        String
+  processingFeePercent Float?   @default(0.35)
+  maxLtvRatio          Float    @default(85.0)
+  badge                String?
+  highlights           String?
+  rateValidityDate     String?
+  lastUpdatedDate      String?
+  iconType             String?  @default("bank")
+  iconBg               String?  @default("#E0F2FE")
+  iconColor            String?  @default("#0284C7")
+  isActive             Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 model RentalAgreementOrder {
@@ -245,4 +294,70 @@ model AuditLog {
   actorRole  String?
   details    String?
   createdAt  DateTime @default(now())
+}
+
+model SavedProperty {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, propertyId])
+  @@index([userId])
+}
+
+model PaymentTransaction {
+  id            String   @id @default(uuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  propertyId    String?
+  property      Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  amount        Float
+  purpose       String   // 'OWNER_VERIFICATION' | 'RENTAL_AGREEMENT' | 'PROPERTY_VISIT' | 'BOOKING_TOKEN'
+  gateway       String   @default("RAZORPAY_SIMULATION") // 'RAZORPAY' | 'PHONEPE' | 'UPI' | 'CARD'
+  gatewayTxnId  String   @unique
+  paymentStatus String   @default("SUCCESS") // 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED'
+  customerName  String
+  customerPhone String
+  customerEmail String?
+  metadata      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([propertyId])
+}
+
+model ChatConversation {
+  id          String        @id @default(uuid())
+  propertyId  String?
+  property    Property?     @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  userId      String
+  ownerId     String?
+  ownerName   String
+  ownerPhone  String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  messages    ChatMessage[]
+
+  @@index([userId])
+  @@index([propertyId])
+}
+
+model ChatMessage {
+  id              String           @id @default(uuid())
+  conversationId  String
+  conversation    ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId        String
+  senderName      String
+  senderType      String           // 'USER' | 'OWNER' | 'ADMIN' | 'SYSTEM'
+  text            String
+  isPaymentPrompt Boolean          @default(false)
+  paymentAmount   Float?
+  paymentStatus   String?          // 'PENDING' | 'PAID'
+  createdAt       DateTime         @default(now())
+
+  @@index([conversationId])
 }

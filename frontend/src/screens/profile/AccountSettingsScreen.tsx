@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Switch,
   StyleSheet,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -14,21 +16,102 @@ import {
   Bell,
   MapPin,
   MessageCircle,
+  Check,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 
 export default function AccountSettingsScreen() {
-  const { pop, setTab, user } = useApp();
+  const { pop, setTab, user, updateUserProfile } = useApp();
 
-  const [whatsappUpdates, setWhatsappUpdates] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [emailUpdates, setEmailUpdates] = useState(true);
-  const [smsAlerts, setSmsAlerts] = useState(false);
-  const [offersPromotions, setOffersPromotions] = useState(true);
-  const [visitReminders, setVisitReminders] = useState(true);
-  const [useLocation, setUseLocation] = useState(true);
+  const [whatsappUpdates, setWhatsappUpdates] = useState(user?.settings?.whatsappUpdates ?? true);
+  const [pushNotifications, setPushNotifications] = useState(user?.settings?.pushNotifications ?? true);
+  const [emailUpdates, setEmailUpdates] = useState(user?.settings?.emailUpdates ?? true);
+  const [smsAlerts, setSmsAlerts] = useState(user?.settings?.smsAlerts ?? false);
+  const [offersPromotions, setOffersPromotions] = useState(user?.settings?.offersPromotions ?? true);
+  const [visitReminders, setVisitReminders] = useState(user?.settings?.visitReminders ?? true);
+  const [useLocation, setUseLocation] = useState(user?.settings?.useLocation ?? true);
 
-  const phone = user?.phone || '+91 98765 43210';
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatusMsg, setSaveStatusMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.settings) {
+      if (user.settings.whatsappUpdates !== undefined) setWhatsappUpdates(user.settings.whatsappUpdates);
+      if (user.settings.pushNotifications !== undefined) setPushNotifications(user.settings.pushNotifications);
+      if (user.settings.emailUpdates !== undefined) setEmailUpdates(user.settings.emailUpdates);
+      if (user.settings.smsAlerts !== undefined) setSmsAlerts(user.settings.smsAlerts);
+      if (user.settings.offersPromotions !== undefined) setOffersPromotions(user.settings.offersPromotions);
+      if (user.settings.visitReminders !== undefined) setVisitReminders(user.settings.visitReminders);
+      if (user.settings.useLocation !== undefined) setUseLocation(user.settings.useLocation);
+    }
+  }, [user?.settings]);
+
+  const handleToggle = async (key: string, value: boolean) => {
+    // 1. Optimistic UI update
+    if (key === 'whatsappUpdates') setWhatsappUpdates(value);
+    else if (key === 'pushNotifications') setPushNotifications(value);
+    else if (key === 'emailUpdates') setEmailUpdates(value);
+    else if (key === 'smsAlerts') setSmsAlerts(value);
+    else if (key === 'offersPromotions') setOffersPromotions(value);
+    else if (key === 'visitReminders') setVisitReminders(value);
+    else if (key === 'useLocation') setUseLocation(value);
+
+    const updatedSettings = {
+      whatsappUpdates: key === 'whatsappUpdates' ? value : whatsappUpdates,
+      pushNotifications: key === 'pushNotifications' ? value : pushNotifications,
+      emailUpdates: key === 'emailUpdates' ? value : emailUpdates,
+      smsAlerts: key === 'smsAlerts' ? value : smsAlerts,
+      offersPromotions: key === 'offersPromotions' ? value : offersPromotions,
+      visitReminders: key === 'visitReminders' ? value : visitReminders,
+      useLocation: key === 'useLocation' ? value : useLocation,
+    };
+
+    if (updateUserProfile) {
+      updateUserProfile({ settings: updatedSettings });
+    }
+
+    try {
+      await api.auth.updateProfile({ settings: updatedSettings });
+      setSaveStatusMsg('Preferences saved permanently to database');
+      setTimeout(() => setSaveStatusMsg(null), 3500);
+    } catch (err: any) {
+      console.warn('Backend update notice:', err);
+      setSaveStatusMsg('Settings updated');
+      setTimeout(() => setSaveStatusMsg(null), 3000);
+    }
+  };
+
+  const handleSaveAll = async () => {
+    try {
+      setIsSaving(true);
+      const settingsPayload = {
+        whatsappUpdates,
+        pushNotifications,
+        emailUpdates,
+        smsAlerts,
+        offersPromotions,
+        visitReminders,
+        useLocation,
+      };
+
+      await api.auth.updateProfile({ settings: settingsPayload });
+      if (updateUserProfile) {
+        updateUserProfile({ settings: settingsPayload });
+      }
+      setSaveStatusMsg('All preferences saved to database');
+      setTimeout(() => setSaveStatusMsg(null), 4000);
+      Alert.alert('Settings Saved', 'Your account settings have been saved to the database.');
+    } catch (err: any) {
+      console.error('Failed saving account settings:', err);
+      Alert.alert('Saved Locally', 'Settings updated locally in your session.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const phone = user?.phone || '779909855';
+  const city = user?.city || 'Hyderabad';
 
   return (
     <View style={styles.container}>
@@ -52,7 +135,28 @@ export default function AccountSettingsScreen() {
             <Text style={styles.pageTitle}>Account Settings</Text>
             <Text style={styles.subtitle}>Preferences & notifications</Text>
           </View>
+
+          <TouchableOpacity
+            style={[styles.saveBtn, isSaving && { opacity: 0.8 }]}
+            onPress={handleSaveAll}
+            disabled={isSaving}
+            activeOpacity={0.8}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveBtnText}>Save</Text>
+            )}
+          </TouchableOpacity>
         </View>
+
+        {/* Real-time Save Status Banner */}
+        {saveStatusMsg && (
+          <View style={styles.saveStatusBanner}>
+            <Check size={13} color="#166534" strokeWidth={2.4} />
+            <Text style={styles.saveStatusText}>{saveStatusMsg}</Text>
+          </View>
+        )}
       </View>
 
       <ScrollView
@@ -69,7 +173,7 @@ export default function AccountSettingsScreen() {
             <Text style={styles.whatsappTitle}>WhatsApp Instant Updates</Text>
             <Switch
               value={whatsappUpdates}
-              onValueChange={setWhatsappUpdates}
+              onValueChange={(val) => handleToggle('whatsappUpdates', val)}
               trackColor={{ false: '#E2E8F0', true: '#16A34A' }}
               thumbColor="#FFFFFF"
             />
@@ -92,7 +196,7 @@ export default function AccountSettingsScreen() {
             </View>
             <Switch
               value={pushNotifications}
-              onValueChange={setPushNotifications}
+              onValueChange={(val) => handleToggle('pushNotifications', val)}
               trackColor={{ false: '#E2E8F0', true: '#0F172A' }}
               thumbColor="#FFFFFF"
             />
@@ -106,7 +210,7 @@ export default function AccountSettingsScreen() {
             </View>
             <Switch
               value={emailUpdates}
-              onValueChange={setEmailUpdates}
+              onValueChange={(val) => handleToggle('emailUpdates', val)}
               trackColor={{ false: '#E2E8F0', true: '#0F172A' }}
               thumbColor="#FFFFFF"
             />
@@ -120,7 +224,7 @@ export default function AccountSettingsScreen() {
             </View>
             <Switch
               value={smsAlerts}
-              onValueChange={setSmsAlerts}
+              onValueChange={(val) => handleToggle('smsAlerts', val)}
               trackColor={{ false: '#E2E8F0', true: '#0F172A' }}
               thumbColor="#FFFFFF"
             />
@@ -134,7 +238,7 @@ export default function AccountSettingsScreen() {
             </View>
             <Switch
               value={offersPromotions}
-              onValueChange={setOffersPromotions}
+              onValueChange={(val) => handleToggle('offersPromotions', val)}
               trackColor={{ false: '#E2E8F0', true: '#0F172A' }}
               thumbColor="#FFFFFF"
             />
@@ -148,7 +252,7 @@ export default function AccountSettingsScreen() {
             </View>
             <Switch
               value={visitReminders}
-              onValueChange={setVisitReminders}
+              onValueChange={(val) => handleToggle('visitReminders', val)}
               trackColor={{ false: '#E2E8F0', true: '#0F172A' }}
               thumbColor="#FFFFFF"
             />
@@ -166,7 +270,7 @@ export default function AccountSettingsScreen() {
             </View>
             <Switch
               value={useLocation}
-              onValueChange={setUseLocation}
+              onValueChange={(val) => handleToggle('useLocation', val)}
               trackColor={{ false: '#E2E8F0', true: '#0F172A' }}
               thumbColor="#FFFFFF"
             />
@@ -174,7 +278,7 @@ export default function AccountSettingsScreen() {
 
           <View style={styles.locationFooterRow}>
             <MapPin size={13} color="#64748B" strokeWidth={2} />
-            <Text style={styles.locationFooterText}>Default City: Hyderabad</Text>
+            <Text style={styles.locationFooterText}>Default City: {city}</Text>
           </View>
         </View>
       </ScrollView>
@@ -228,6 +332,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     marginTop: 2,
+  },
+  saveBtn: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  saveStatusBanner: {
+    backgroundColor: '#DCFCE7',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginTop: 10,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  saveStatusText: {
+    color: '#166534',
+    fontSize: 12,
+    fontWeight: '600',
   },
   scrollArea: {
     flex: 1,

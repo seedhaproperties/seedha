@@ -173,13 +173,29 @@ export default function OwnerVerificationScreen() {
   };
 
   // Submit Flat & Owner Details -> Proceed to Payment
-  const handleProceedToPayment = () => {
-    if (!flatNumber.trim()) setFlatNumber('402');
-    if (!locality.trim()) setLocality('FGFHG');
-    if (!city.trim()) setCity('Hyderabad');
-    if (!pincode.trim()) setPincode('533261');
-    if (!ownerName.trim()) setOwnerName('FGFJGHJH');
-    if (!ownerPhone.trim()) setOwnerPhone('+91 98850 11223');
+  const handleProceedToPayment = async () => {
+    const fNum = flatNumber.trim() || '402';
+    const bName = buildingName.trim() || 'Greenfield Apartments';
+    const loc = locality.trim() || 'Madhapur';
+    const cName = city.trim() || 'Hyderabad';
+    const oName = ownerName.trim() || 'Property Owner';
+    const oPhone = ownerPhone.trim() || '+91 98850 11223';
+
+    try {
+      const res = await api.ownerBackground.create({
+        flatNumber: fNum,
+        buildingName: bName,
+        propertyAddress: `${loc}, ${cName} - ${pincode || '500081'}`,
+        city: cName,
+        ownerName: oName,
+        ownerPhone: oPhone,
+      });
+      if (res?.request?.id) {
+        setRequestId(res.request.id);
+      }
+    } catch (err) {
+      console.warn('[OwnerVerification] Create request notice:', err);
+    }
 
     setStep('payment');
   };
@@ -189,7 +205,7 @@ export default function OwnerVerificationScreen() {
     if (step !== 'inProgress') return;
     const timer = setTimeout(() => {
       setStep('verificationCompleted');
-    }, 5000);
+    }, 4000);
     return () => clearTimeout(timer);
   }, [step]);
 
@@ -202,11 +218,26 @@ export default function OwnerVerificationScreen() {
 
     setLoading(true);
     try {
-      const id = requestId || `bg-${Date.now()}`;
-      const res: any = await Promise.race([
-        api.ownerBackground.pay(id, `txn_bg_${Date.now()}`, 799),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
-      ]);
+      let activeId = requestId;
+      if (!activeId) {
+        const createRes = await api.ownerBackground.create({
+          flatNumber: flatNumber.trim() || '402',
+          buildingName: buildingName.trim() || 'Greenfield Apartments',
+          propertyAddress: `${locality || 'Madhapur'}, ${city || 'Hyderabad'} - ${pincode || '500081'}`,
+          city: city || 'Hyderabad',
+          ownerName: ownerName || 'Property Owner',
+          ownerPhone: ownerPhone || '+91 98850 11223',
+        });
+        activeId = createRes?.request?.id || `bg-${Date.now()}`;
+        setRequestId(activeId);
+      }
+
+      const targetId = activeId || `bg-${Date.now()}`;
+      const res: any = await api.ownerBackground.pay(
+        targetId,
+        `txn_bg_${Date.now()}`,
+        499,
+      );
       if (res?.record) {
         setReport(res.record);
       }
@@ -490,7 +521,7 @@ export default function OwnerVerificationScreen() {
     );
   }
 
-  
+
   // ─────────────────────────────────────────────────────────────
   // STEP 1C: Verified Owner & Property matching media_1794670551764_4ad681b7.jpg
   // ─────────────────────────────────────────────────────────────
@@ -499,33 +530,33 @@ export default function OwnerVerificationScreen() {
       savedRentalHomes.find((p) => p.id === selectedSavedId) || savedRentalHomes[2];
     const selectedProperty = prepopulated
       ? {
-          id: prepopulated.id || 'prop-selected',
-          title: prepopulated.title || fallbackSaved.title,
-          location: prepopulated.location || `${fallbackSaved.location}, ${fallbackSaved.city}`,
-          city: prepopulated.city || '',
-          priceLabel:
-            prepopulated.priceLabel ||
-            (prepopulated.price
-              ? `₹${Number(prepopulated.price).toLocaleString('en-IN')}/month`
-              : `₹${fallbackSaved.price}/month`),
-          image: prepopulated.image || fallbackSaved.image,
-          ownerName: prepopulated.ownerName || fallbackSaved.ownerName || 'Venkata Rao',
-          ownerPhone: prepopulated.ownerPhone || '9853424560',
-          ownerEmail: prepopulated.ownerEmail || 'venkata.rao@gmail.com',
-          yearBuilt: prepopulated.yearBuilt || 2022,
-        }
+        id: prepopulated.id || 'prop-selected',
+        title: prepopulated.title || fallbackSaved.title,
+        location: prepopulated.location || `${fallbackSaved.location}, ${fallbackSaved.city}`,
+        city: prepopulated.city || '',
+        priceLabel:
+          prepopulated.priceLabel ||
+          (prepopulated.price
+            ? `₹${Number(prepopulated.price).toLocaleString('en-IN')}/month`
+            : `₹${fallbackSaved.price}/month`),
+        image: prepopulated.image || fallbackSaved.image,
+        ownerName: prepopulated.ownerName || fallbackSaved.ownerName || 'Venkata Rao',
+        ownerPhone: prepopulated.ownerPhone || '9853424560',
+        ownerEmail: prepopulated.ownerEmail || 'venkata.rao@gmail.com',
+        yearBuilt: prepopulated.yearBuilt || 2022,
+      }
       : {
-          id: fallbackSaved.id,
-          title: fallbackSaved.title,
-          location: `${fallbackSaved.location}, ${fallbackSaved.city}`,
-          city: fallbackSaved.city,
-          priceLabel: `₹${fallbackSaved.price}/month`,
-          image: fallbackSaved.image,
-          ownerName: fallbackSaved.ownerName || 'Venkata Rao',
-          ownerPhone: '9154475498',
-          ownerEmail: 'venkata.rao@gmail.com',
-          yearBuilt: 2022,
-        };
+        id: fallbackSaved.id,
+        title: fallbackSaved.title,
+        location: `${fallbackSaved.location}, ${fallbackSaved.city}`,
+        city: fallbackSaved.city,
+        priceLabel: `₹${fallbackSaved.price}/month`,
+        image: fallbackSaved.image,
+        ownerName: fallbackSaved.ownerName || 'Venkata Rao',
+        ownerPhone: '9154475498',
+        ownerEmail: 'venkata.rao@gmail.com',
+        yearBuilt: 2022,
+      };
 
     return (
       <SafeAreaView style={styles.container}>
@@ -544,8 +575,8 @@ export default function OwnerVerificationScreen() {
               {isPgFlow
                 ? 'For PG & hostels'
                 : isCommercialFlow
-                ? 'For commercial spaces'
-                : 'For rental homes'}
+                  ? 'For commercial spaces'
+                  : 'For rental homes'}
             </Text>
           </View>
         </View>
@@ -1281,7 +1312,7 @@ export default function OwnerVerificationScreen() {
     );
   }
 
-  
+
   // ─────────────────────────────────────────────────────────────
   // STEP 3B: Verification In Progress matching media_1794670953188_2408c25f.jpg
   // ─────────────────────────────────────────────────────────────
@@ -1478,7 +1509,7 @@ export default function OwnerVerificationScreen() {
   }
 
 
-  
+
   // ─────────────────────────────────────────────────────────────
   // STEP 3C: Verification Completed Report matching media_1794717169784_fbf3c3f3.jpg
   // ─────────────────────────────────────────────────────────────
@@ -1649,7 +1680,7 @@ export default function OwnerVerificationScreen() {
   }
 
 
-  
+
   // ─────────────────────────────────────────────────────────────
   // STEP 4: Background Details Screen matching media_1794717513530_378cbd00.png
   // ─────────────────────────────────────────────────────────────
@@ -1956,7 +1987,7 @@ export default function OwnerVerificationScreen() {
               </View>
             </View>
           </>
-                ) : (
+        ) : (
           /* Tab 2: Property History matching media_1794717782998_f92a0fcf.png */
           <>
             {/* Card 1: Declared by the owner (Not yet verified) */}

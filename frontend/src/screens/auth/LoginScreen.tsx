@@ -35,51 +35,11 @@ export default function LoginScreen() {
       }
     } catch (err: any) {
       console.warn('Backend login attempt failed:', err.message);
-
-      // Offline / fallback handling for quick test demo accounts
-      const lower = cleanIdentity.toLowerCase();
-      if ((lower === 'admin@seedhaproperties.com' || lower === 'admin') && (password === 'admin123' || password === 'admin')) {
-        signIn({
-          id: 'admin_1',
-          name: 'Administrator',
-          email: 'admin@seedhaproperties.com',
-          phone: '+91 98480 11223',
-          role: 'ADMIN',
-          city: 'Hyderabad',
-        }, 'demo_admin_token');
-        return;
-      }
-
-      if ((lower === 'rahul@example.com' || cleanIdentity === '9876543210') && (password === 'password123' || password === 'admin123')) {
-        signIn({
-          id: 'usr_rahul',
-          name: 'Rahul Sharma',
-          email: 'rahul@example.com',
-          phone: '+91 98765 43210',
-          role: 'USER',
-          city: 'Hyderabad',
-        }, 'demo_user_token');
-        return;
-      }
-
       setErrorMessage(
-        err.message?.includes('fetch') || err.message?.includes('Network')
-          ? 'Backend server not responding on port 4000. You can tap Admin or Customer above for instant demo login.'
-          : (err.message || 'Invalid credentials. Please check your email and password.')
+        err.message || 'Invalid credentials. Please check your email/mobile and password.'
       );
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fillQuickDemo = (type: 'admin' | 'user') => {
-    setErrorMessage(null);
-    if (type === 'admin') {
-      setIdentity('admin@seedhaproperties.com');
-      setPassword('admin123');
-    } else {
-      setIdentity('rahul@example.com');
-      setPassword('password123');
     }
   };
 
@@ -102,30 +62,6 @@ export default function LoginScreen() {
         <Text style={styles.welcomeTag}>Welcome back</Text>
         <Text style={styles.mainTitle}>Sign in to Seedha</Text>
         <Text style={styles.subTitle}>Continue your property journey with verified security & real-time authorization.</Text>
-
-        {/* Quick Demo 1-Click Fillers */}
-        <View style={styles.quickFillContainer}>
-          <Text style={styles.quickFillLabel}>⚡ Quick Test Logins:</Text>
-          <View style={styles.quickFillRow}>
-            <TouchableOpacity
-              style={[styles.quickBadge, styles.adminBadge]}
-              onPress={() => fillQuickDemo('admin')}
-              activeOpacity={0.8}
-            >
-              <ShieldCheck size={14} color="#B45309" />
-              <Text style={styles.adminBadgeText}>Admin (Full Queues)</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.quickBadge, styles.userBadge]}
-              onPress={() => fillQuickDemo('user')}
-              activeOpacity={0.8}
-            >
-              <User size={14} color={colors.primary} />
-              <Text style={styles.userBadgeText}>Customer (Rahul)</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         {/* Log in / Sign up Segment Switcher */}
         <View style={styles.segmentContainer}>
@@ -159,7 +95,7 @@ export default function LoginScreen() {
           <User size={18} color={colors.textMuted} style={styles.inputIcon} />
           <TextInput
             style={styles.textInput}
-            placeholder="admin@seedhaproperties.com"
+            placeholder="Enter email or mobile number"
             placeholderTextColor={colors.textMuted}
             value={identity}
             onChangeText={setIdentity}
@@ -173,7 +109,7 @@ export default function LoginScreen() {
           <KeyRound size={18} color={colors.textMuted} style={styles.inputIcon} />
           <TextInput
             style={styles.textInput}
-            placeholder="admin123"
+            placeholder="Enter password"
             placeholderTextColor={colors.textMuted}
             secureTextEntry
             value={password}
@@ -228,7 +164,7 @@ export default function LoginScreen() {
         {/* Social Buttons */}
         <View style={styles.socialGroup}>
           <TouchableOpacity
-            onPress={() => push({ name: 'profileSetup', params: { mode: 'google' } })}
+            onPress={() => push({ name: 'mobileLogin', params: { step: 'google' } })}
             style={styles.socialButton}
             activeOpacity={0.8}
           >
@@ -476,54 +412,6 @@ const styles = StyleSheet.create({
   },
   createAccountText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  quickFillContainer: {
-    backgroundColor: colors.surfaceSoft,
-    padding: 12,
-    borderRadius: colors.radiusMd,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  quickFillLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
-  quickFillRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  quickBadge: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: colors.radiusSm,
-    gap: 6,
-  },
-  adminBadge: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  adminBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#92400E',
-  },
-  userBadge: {
-    backgroundColor: colors.primaryBg,
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
-  },
-  userBadgeText: {
-    fontSize: 11,
     fontWeight: '700',
     color: colors.primary,
   },

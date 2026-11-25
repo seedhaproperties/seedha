@@ -23,6 +23,7 @@ import {
   Send,
   Eye,
   RefreshCw,
+  CreditCard,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
@@ -35,7 +36,8 @@ type AdminQueueTab =
   | 'propertyManagement'
   | 'homeLoans'
   | 'rentalAgreements'
-  | 'ownerBackground';
+  | 'ownerBackground'
+  | 'payments';
 
 export default function AdminPortalScreen() {
   const { pop, user, isAdmin, signIn } = useApp();
@@ -51,11 +53,12 @@ export default function AdminPortalScreen() {
   const [loanRequests, setLoanRequests] = useState<any[]>([]);
   const [agreementOrders, setAgreementOrders] = useState<any[]>([]);
   const [bgChecks, setBgChecks] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [ov, fl, rn, cm, pm, ln, ag, bg] = await Promise.all([
+      const [ov, fl, rn, cm, pm, ln, ag, bg, pay] = await Promise.all([
         api.admin.getOverview().catch(() => null),
         api.admin.getFlatsQueue().catch(() => []),
         api.admin.getRentQueue().catch(() => []),
@@ -64,6 +67,7 @@ export default function AdminPortalScreen() {
         api.admin.getHomeLoansQueue().catch(() => []),
         api.admin.getRentalAgreementsQueue().catch(() => []),
         api.admin.getOwnerBackgroundQueue().catch(() => []),
+        api.payments.all().catch(() => []),
       ]);
       setOverview(ov);
       setFlats(fl || []);
@@ -73,6 +77,7 @@ export default function AdminPortalScreen() {
       setLoanRequests(ln || []);
       setAgreementOrders(ag || []);
       setBgChecks(bg || []);
+      setPayments(pay || []);
     } catch (err: any) {
       console.warn('Admin load data error:', err.message);
     } finally {
@@ -301,6 +306,16 @@ export default function AdminPortalScreen() {
           <UserCheck size={14} color={activeTab === 'ownerBackground' ? colors.textWhite : colors.primary} />
           <Text style={[styles.tabChipText, activeTab === 'ownerBackground' && styles.tabChipTextActive]}>
             7. Background ({bgChecks.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setActiveTab('payments')}
+          style={[styles.tabChip, activeTab === 'payments' && styles.tabChipActive]}
+        >
+          <CreditCard size={14} color={activeTab === 'payments' ? colors.textWhite : colors.primary} />
+          <Text style={[styles.tabChipText, activeTab === 'payments' && styles.tabChipTextActive]}>
+            8. Payments ({payments.length})
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -543,6 +558,84 @@ export default function AdminPortalScreen() {
                 </View>
               </View>
             ))}
+          </View>
+        )}
+
+        {/* ── QUEUE 8: Payments & Escrow Transactions ── */}
+        {activeTab === 'payments' && (
+          <View>
+            <View style={styles.queueHeaderBox}>
+              <Text style={styles.queueTitle}>Payments & Escrow Transactions Queue</Text>
+              <Text style={styles.queueFlowDesc}>
+                All customer-to-owner tokens, agreement fees, and owner verification transactions recorded in database. Escrow protected.
+              </Text>
+            </View>
+
+            {payments.length === 0 ? (
+              <View style={styles.card}>
+                <Text style={styles.cardSubtitle}>No payment transactions recorded yet.</Text>
+              </View>
+            ) : (
+              payments.map((p) => (
+                <View key={p.id} style={styles.card}>
+                  <View style={styles.cardTopRow}>
+                    <Text style={styles.cardTitle}>{p.purpose}</Text>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        {
+                          backgroundColor:
+                            p.paymentStatus === 'PAID'
+                              ? colors.primaryBg
+                              : p.paymentStatus === 'REFUNDED'
+                              ? '#F1F5F9'
+                              : '#FEF3C7',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusText,
+                          {
+                            color:
+                              p.paymentStatus === 'PAID'
+                                ? colors.primary
+                                : p.paymentStatus === 'REFUNDED'
+                                ? '#64748B'
+                                : '#D97706',
+                          },
+                        ]}
+                      >
+                        {p.paymentStatus}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.cardSubtitle}>
+                    <Text style={styles.bold}>Amount:</Text> ₹{Number(p.amount).toLocaleString('en-IN')}
+                  </Text>
+                  <Text style={styles.cardSubtitle}>
+                    <Text style={styles.bold}>Customer:</Text> {p.customerName || 'Verified User'} ({p.customerPhone || 'N/A'})
+                  </Text>
+                  <Text style={styles.cardSubtitle}>
+                    <Text style={styles.bold}>Gateway:</Text> {p.gateway}
+                  </Text>
+                  <Text style={styles.cardSubtitle}>
+                    <Text style={styles.bold}>Txn Ref:</Text> {p.gatewayTxnId || p.id}
+                  </Text>
+                  <Text style={styles.cardSubtitle}>
+                    <Text style={styles.bold}>Date:</Text>{' '}
+                    {new Date(p.createdAt).toLocaleString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
         )}
       </ScrollView>

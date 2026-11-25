@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "258337837438",
+    "project_id": "murali-ef8ef",
+    "storage_bucket": "murali-ef8ef.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:258337837438:android:17abc83d34dbc35e79e32f",
+        "android_client_info": {
+          "package_name": "com.muralikrishnasaripilli.seedhaproperties"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBytyNQ2ZfOttqHhEs7pOxotX0A26AuXrk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

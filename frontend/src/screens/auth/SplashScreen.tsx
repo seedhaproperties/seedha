@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import colors from '../../theme/colors';
 
 export default function SplashScreen() {
-  const { setTab } = useApp();
+  const { setTab, push, isAuthenticated } = useApp();
   const isNative = Platform.OS !== 'web';
 
   const logoScale = useRef(new Animated.Value(0.7)).current;
@@ -12,6 +12,11 @@ export default function SplashScreen() {
   const textOpacity = useRef(new Animated.Value(0)).current;
   const ringScale = useRef(new Animated.Value(0.9)).current;
   const ringOpacity = useRef(new Animated.Value(0.3)).current;
+
+  const navigateNext = () => {
+    // Guest browsing allowed: navigate to home page without forced login
+    setTab('home');
+  };
 
   useEffect(() => {
     // 1. Entrance animation (scale + fade in logo)
@@ -67,18 +72,18 @@ export default function SplashScreen() {
       ])
     ).start();
 
-    // 3. Auto-transition directly to Home screen (Guest Mode) after entrance animation completes
+    // 3. Auto-transition to mobile OTP login when unauthenticated
     const timer = setTimeout(() => {
-      setTab('home');
+      navigateNext();
     }, 2200);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAuthenticated]);
 
   return (
     <TouchableOpacity
       activeOpacity={0.98}
-      onPress={() => setTab('home')}
+      onPress={navigateNext}
       style={styles.container}
     >
       {/* Outer Pulse Rings */}

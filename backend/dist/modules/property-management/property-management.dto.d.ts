@@ -7,4 +7,5 @@ export declare class SubmitPropertyManagementDto {
     city: string;
     locality: string;
     serviceRequested: string;
+    photos?: string[];
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -19,14 +21,19 @@ import {
   Pencil,
   Rocket,
   Trash2,
+  Building,
+  AlertCircle,
 } from 'lucide-react-native';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
+import { userSocket } from '../../services/socket';
 
 export interface MyPropertyItem {
   id: string;
   title: string;
   type: 'Buy' | 'Rent' | 'Commercial';
-  status: 'Live' | 'Under review' | 'Closed';
+  status: 'Live' | 'Under review' | 'Rejected' | 'Closed';
+  rejectionReason?: string;
   location: string;
   price: string;
   image: string;
@@ -35,73 +42,109 @@ export interface MyPropertyItem {
   postedText: string;
 }
 
-const INITIAL_PROPERTIES: MyPropertyItem[] = [
-  {
-    id: 'myprop-1',
-    title: '3 BHK Apartment',
-    type: 'Buy',
-    status: 'Live',
-    location: 'Madhurawada, Vizag',
-    price: '₹85,00,000',
-    image: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?w=400&h=300&fit=crop&auto=format',
-    views: 234,
-    leads: 12,
-    postedText: 'Posted 2 days ago',
-  },
-  {
-    id: 'myprop-2',
-    title: '4 BHK Premium Villa',
-    type: 'Buy',
-    status: 'Under review',
-    location: 'Gachibowli, Hyderabad',
-    price: '₹1,85,00,000',
-    image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=400&h=300&fit=crop&auto=format',
-    views: 0,
-    leads: 0,
-    postedText: 'Submitted today',
-  },
-  {
-    id: 'myprop-3',
-    title: '2 BHK Independent House',
-    type: 'Rent',
-    status: 'Live',
-    location: 'Gajuwaka, Vizag',
-    price: '₹15,000/month',
-    image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&fit=crop&auto=format',
-    views: 148,
-    leads: 9,
-    postedText: 'Posted 1 week ago',
-  },
-  {
-    id: 'myprop-4',
-    title: 'Premium Office Space',
-    type: 'Commercial',
-    status: 'Closed',
-    location: 'HITEC City, Hyderabad',
-    price: '₹45,000/month',
-    image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop&auto=format',
-    views: 88,
-    leads: 4,
-    postedText: 'Posted 2 weeks ago',
-  },
-  {
-    id: 'myprop-5',
-    title: 'Luxury 3 BHK Penthouse',
-    type: 'Buy',
-    status: 'Live',
-    location: 'Madhurawada, Vizag',
-    price: '₹1,25,00,000',
-    image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&h=300&fit=crop&auto=format',
-    views: 312,
-    leads: 18,
-    postedText: 'Posted 3 weeks ago',
-  },
-];
-
 export default function MyPropertiesScreen() {
-  const { pop, push, setTab } = useApp();
+  const { pop, push, setTab, user, updateUserProfile } = useApp();
   const [activeFilter, setActiveFilter] = useState<'all' | 'buy' | 'rent' | 'commercial'>('all');
-  const [propertiesList, setPropertiesList] = useState<MyPropertyItem[]>(INITIAL_PROPERTIES);
+  const [propertiesList, setPropertiesList] = useState<MyPropertyItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchProperties = useCallback(async () => {
+    try {
+      const res = await api.properties.getMyProperties(user?.id);
+      const rawList = res?.properties || (Array.isArray(res) ? res : []);
+      
+      const mapped: MyPropertyItem[] = rawList.map((p: any) => {
+        const type: 'Buy' | 'Rent' | 'Commercial' =
+          p.listingType === 'BUY'
+            ? 'Buy'
+            : p.listingType === 'COMMERCIAL'
+            ? 'Commercial'
+            : 'Rent';
+
+        const status: 'Live' | 'Under review' | 'Rejected' | 'Closed' =
+          p.status === 'REJECTED'
+            ? 'Rejected'
+            : p.status === 'CLOSED'
+            ? 'Closed'
+            : (p.status === 'PUBLISHED' || p.status === 'APPROVED' || p.verified === true)
+            ? 'Live'
+            : 'Under review';
+
+        const image =
+          p.images && p.images.length > 0
+            ? p.images[0]
+            : 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?w=400&h=300&fit=crop&auto=format';
+
+        const postedText = p.createdAt
+          ? `Posted ${new Date(p.createdAt).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+            })}`
+          : 'Submitted today';
+
+        return {
+          id: p.id,
+          title: p.title || 'Seedha Property Listing',
+          type,
+          status,
+          rejectionReason: p.rejectionReason,
+          location: p.location || p.city || 'Hyderabad',
+          price: p.priceLabel || (p.price ? `₹${Number(p.price).toLocaleString('en-IN')}` : 'Price on Request'),
+          image,
+          views: p.views || 0,
+          leads: p.leads || 0,
+          postedText,
+        };
+      });
+
+      setPropertiesList(mapped);
+
+      // Keep user summary count in sync
+      if (updateUserProfile && user?.summary) {
+        if (user.summary.propertiesCount !== mapped.length) {
+          updateUserProfile({
+            summary: {
+              ...user.summary,
+              propertiesCount: mapped.length,
+            },
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[MyPropertiesScreen] Error loading user properties:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?.summary, updateUserProfile]);
+
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
+
+  // Real-time status update synchronization via Socket.IO
+  useEffect(() => {
+    userSocket.connect(user?.id);
+
+    const unsub = userSocket.onStatusUpdated((event) => {
+      fetchProperties();
+      if (Platform.OS === 'web') {
+        console.log(`[Socket.IO] Property "${event.title}": ${event.message}`);
+      } else {
+        Alert.alert('Listing Update', event.message || `Property "${event.title}" status updated to ${event.status}`);
+      }
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [user?.id, fetchProperties]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchProperties();
+  };
 
   const buyCount = propertiesList.filter((p) => p.type === 'Buy').length;
   const rentCount = propertiesList.filter((p) => p.type === 'Rent').length;
@@ -124,8 +167,22 @@ export default function MyPropertiesScreen() {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => {
-            setPropertiesList((prev) => prev.filter((p) => p.id !== id));
+          onPress: async () => {
+            try {
+              await api.properties.remove(id);
+              const updated = propertiesList.filter((p) => p.id !== id);
+              setPropertiesList(updated);
+              if (updateUserProfile && user?.summary) {
+                updateUserProfile({
+                  summary: {
+                    ...user.summary,
+                    propertiesCount: Math.max(0, updated.length),
+                  },
+                });
+              }
+            } catch (err: any) {
+              Alert.alert('Error', err?.message || 'Could not remove property. Please try again.');
+            }
           },
         },
       ]
@@ -247,111 +304,143 @@ export default function MyPropertiesScreen() {
         style={styles.scrollList}
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1E293B']} />}
       >
-        {filteredProperties.map((item) => {
-          const isLive = item.status === 'Live';
-          const isUnderReview = item.status === 'Under review';
-          const isClosed = item.status === 'Closed';
+        {loading && !refreshing ? (
+          <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#1E293B" />
+            <Text style={{ marginTop: 12, fontSize: 13, color: '#64748B' }}>Loading your properties...</Text>
+          </View>
+        ) : (
+          filteredProperties.map((item) => {
+            const isLive = item.status === 'Live';
+            const isUnderReview = item.status === 'Under review';
+            const isRejected = item.status === 'Rejected';
+            const isClosed = item.status === 'Closed';
 
-          return (
-            <View key={item.id} style={styles.card}>
-              {/* Card Header Row: Image & Details */}
-              <View style={styles.cardTopRow}>
-                <Image source={{ uri: item.image }} style={styles.thumbImage} />
+            return (
+              <View key={item.id} style={styles.card}>
+                {/* Card Header Row: Image & Details */}
+                <View style={styles.cardTopRow}>
+                  <Image source={{ uri: item.image }} style={styles.thumbImage} />
 
-                <View style={styles.cardDetails}>
-                  {/* Badges Row */}
-                  <View style={styles.badgesRow}>
-                    <View style={styles.typeBadge}>
-                      <Text style={styles.typeBadgeText}>{item.type}</Text>
+                  <View style={styles.cardDetails}>
+                    {/* Badges Row */}
+                    <View style={styles.badgesRow}>
+                      <View style={styles.typeBadge}>
+                        <Text style={styles.typeBadgeText}>{item.type}</Text>
+                      </View>
+
+                      {isLive && (
+                        <View style={styles.liveBadge}>
+                          <Text style={styles.liveBadgeText}>Live</Text>
+                        </View>
+                      )}
+
+                      {isUnderReview && (
+                        <View style={styles.reviewBadge}>
+                          <Text style={styles.reviewBadgeText}>Under review</Text>
+                        </View>
+                      )}
+
+                      {isRejected && (
+                        <View style={[styles.closedBadge, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}>
+                          <Text style={[styles.closedBadgeText, { color: '#DC2626' }]}>Rejected</Text>
+                        </View>
+                      )}
+
+                      {isClosed && (
+                        <View style={styles.closedBadge}>
+                          <Text style={styles.closedBadgeText}>Closed</Text>
+                        </View>
+                      )}
                     </View>
 
-                    {isLive && (
-                      <View style={styles.liveBadge}>
-                        <Text style={styles.liveBadgeText}>Live</Text>
-                      </View>
-                    )}
+                    {/* Title */}
+                    <Text style={styles.propertyTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
 
-                    {isUnderReview && (
-                      <View style={styles.reviewBadge}>
-                        <Text style={styles.reviewBadgeText}>Under review</Text>
-                      </View>
-                    )}
+                    {/* Location */}
+                    <Text style={styles.locationText} numberOfLines={1}>
+                      {item.location}
+                    </Text>
 
-                    {isClosed && (
-                      <View style={styles.closedBadge}>
-                        <Text style={styles.closedBadgeText}>Closed</Text>
-                      </View>
-                    )}
+                    {/* Price */}
+                    <Text style={styles.priceText}>{item.price}</Text>
+                  </View>
+                </View>
+
+                {/* Rejection notice box if rejected by admin */}
+                {isRejected && (
+                  <View style={styles.rejectionNoticeBox}>
+                    <AlertCircle size={14} color="#DC2626" />
+                    <Text style={styles.rejectionNoticeBoxText}>
+                      Rejection Reason: {item.rejectionReason || 'Property did not meet Seedha physical inspection guidelines.'}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Metrics & Timestamp Row */}
+                <View style={styles.metricsRow}>
+                  <View style={styles.metricItem}>
+                    <Eye size={13} color="#64748B" strokeWidth={2} />
+                    <Text style={styles.metricText}>{item.views} views</Text>
                   </View>
 
-                  {/* Title */}
-                  <Text style={styles.propertyTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
+                  <View style={styles.metricItem}>
+                    <MessageSquare size={13} color="#64748B" strokeWidth={2} />
+                    <Text style={styles.metricText}>{item.leads} leads</Text>
+                  </View>
 
-                  {/* Location */}
-                  <Text style={styles.locationText} numberOfLines={1}>
-                    {item.location}
-                  </Text>
-
-                  {/* Price */}
-                  <Text style={styles.priceText}>{item.price}</Text>
-                </View>
-              </View>
-
-              {/* Metrics & Timestamp Row */}
-              <View style={styles.metricsRow}>
-                <View style={styles.metricItem}>
-                  <Eye size={13} color="#64748B" strokeWidth={2} />
-                  <Text style={styles.metricText}>{item.views} views</Text>
+                  <Text style={styles.postedTimestamp}>{item.postedText}</Text>
                 </View>
 
-                <View style={styles.metricItem}>
-                  <MessageSquare size={13} color="#64748B" strokeWidth={2} />
-                  <Text style={styles.metricText}>{item.leads} leads</Text>
+                {/* Action Buttons Row */}
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => push({ name: 'postProperty' })}
+                    activeOpacity={0.8}
+                  >
+                    <Pencil size={13} color="#1E293B" strokeWidth={2.2} />
+                    <Text style={styles.actionBtnText}>Edit</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => handleBoost(item.title)}
+                    activeOpacity={0.8}
+                  >
+                    <Rocket size={13} color="#1E293B" strokeWidth={2.2} />
+                    <Text style={styles.actionBtnText}>Boost</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionBtnDanger}
+                    onPress={() => handleRemove(item.id, item.title)}
+                    activeOpacity={0.8}
+                  >
+                    <Trash2 size={13} color="#EF4444" strokeWidth={2.2} />
+                    <Text style={styles.actionBtnDangerText}>Remove</Text>
+                  </TouchableOpacity>
                 </View>
-
-                <Text style={styles.postedTimestamp}>{item.postedText}</Text>
               </View>
+            );
+          })
+        )}
 
-              {/* Action Buttons Row */}
-              <View style={styles.actionsRow}>
-                <TouchableOpacity
-                  style={styles.actionBtn}
-                  onPress={() => push({ name: 'postProperty' })}
-                  activeOpacity={0.8}
-                >
-                  <Pencil size={13} color="#1E293B" strokeWidth={2.2} />
-                  <Text style={styles.actionBtnText}>Edit</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.actionBtn}
-                  onPress={() => handleBoost(item.title)}
-                  activeOpacity={0.8}
-                >
-                  <Rocket size={13} color="#1E293B" strokeWidth={2.2} />
-                  <Text style={styles.actionBtnText}>Boost</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.actionBtnDanger}
-                  onPress={() => handleRemove(item.id, item.title)}
-                  activeOpacity={0.8}
-                >
-                  <Trash2 size={13} color="#EF4444" strokeWidth={2.2} />
-                  <Text style={styles.actionBtnDangerText}>Remove</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })}
-
-        {filteredProperties.length === 0 && (
+        {!loading && filteredProperties.length === 0 && (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyTitle}>No properties found</Text>
             <Text style={styles.emptySubtitle}>You haven't posted any properties in this category yet.</Text>
+            <TouchableOpacity
+              style={[styles.postBtn, { marginTop: 16, alignSelf: 'center', paddingHorizontal: 20 }]}
+              onPress={() => push({ name: 'postProperty' })}
+            >
+              <Plus size={16} color="#FFFFFF" />
+              <Text style={styles.postBtnText}>Post a Property</Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -642,5 +731,25 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 4,
     textAlign: 'center',
+  },
+  rejectionNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  rejectionNoticeBoxText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#DC2626',
+    fontWeight: '600',
+    lineHeight: 15,
   },
 });

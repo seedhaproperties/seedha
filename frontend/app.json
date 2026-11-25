@@ -2,6 +2,7 @@
   "expo": {
     "name": "Seedha Properties",
     "slug": "seedha-properties",
+    "scheme": "seedhaproperties",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,13 +13,17 @@
       "backgroundColor": "#15100E"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.muralikrishnasaripilli.seedhaproperties",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#15100E"
-      }
+      },
+      "package": "com.muralikrishnasaripilli.seedhaproperties",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro"
@@ -26,7 +31,24 @@
     "plugins": [
       "expo-asset",
       "expo-font",
-      "expo-status-bar"
-    ]
+      "expo-status-bar",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      "react-native-nitro-google-signin",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "db7748d9-2f0b-4813-b401-a973d191669e"
+      }
+    },
+    "owner": "muralikrishna123"
   }
 }

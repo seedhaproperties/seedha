@@ -11,13 +11,15 @@ export declare enum ListingTypeEnum {
 }
 export declare enum PropertyStatusEnum {
     DRAFT = "DRAFT",
+    PENDING = "PENDING",
     SUBMITTED = "SUBMITTED",
     UNDER_REVIEW = "UNDER_REVIEW",
     VERIFICATION_IN_PROGRESS = "VERIFICATION_IN_PROGRESS",
     APPROVED = "APPROVED",
     PUBLISHED = "PUBLISHED",
     REJECTED = "REJECTED",
-    NEEDS_CORRECTION = "NEEDS_CORRECTION"
+    NEEDS_CORRECTION = "NEEDS_CORRECTION",
+    CLOSED = "CLOSED"
 }
 export declare const SERVICEABLE_LOCALITIES: {
     city: string;

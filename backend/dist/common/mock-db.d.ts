@@ -10,6 +10,11 @@ export interface PropertyRecord {
     priceLabel: string;
     location: string;
     city: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+    fullAddress?: string;
     area: number;
     bedrooms: number;
     bathrooms: number;
@@ -21,12 +26,17 @@ export interface PropertyRecord {
     floor?: string;
     totalFloors?: number;
     images: string[];
+    imagePublicIds?: string[];
     amenities: string[];
     verified: boolean;
     featured?: boolean;
     ownerId?: string;
     ownerName: string;
     ownerPhone: string;
+    ownerEmail?: string;
+    details?: any;
+    views?: number;
+    leads?: number;
     rejectionReason?: string;
     fieldAgentName?: string;
     fieldNotes?: string;
@@ -60,8 +70,14 @@ export interface PropertyManagementRecord {
     flatDetails: string;
     address: string;
     city: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+    fullAddress?: string;
     locality: string;
     serviceRequested: string;
+    photos?: string[];
     status: 'SUBMITTED' | 'ADMIN_REVIEW' | 'LOCATION_CHECK_PASSED' | 'LOCATION_CHECK_REJECTED' | 'ASSIGNED_TEAM' | 'OWNER_CONTACTED' | 'COMPLETED';
     locationMatched: boolean;
     rejectionMessage?: string;
@@ -87,6 +103,31 @@ export interface HomeLoanRecord {
     status: 'REQUESTED' | 'UNDER_REVIEW' | 'TEAM_CONTACTED' | 'DOCUMENTS_COLLECTED' | 'APPROVED' | 'REJECTED';
     assignedStaff?: string;
     contactNotes?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface BankLoanOfferRecord {
+    id: string;
+    bankName: string;
+    bankCode: string;
+    interestRateMin: number;
+    interestRateMax?: number;
+    minLoanAmount: number;
+    maxLoanAmount: number;
+    minTenureYears: number;
+    maxTenureYears: number;
+    processingFee: string;
+    processingFeePercent?: number;
+    maxLtvRatio: number;
+    badge?: string;
+    highlights?: string;
+    rateValidityDate?: string;
+    lastUpdatedDate?: string;
+    iconType?: string;
+    iconBg?: string;
+    iconColor?: string;
+    isActive: boolean;
+    sortOrder: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -121,9 +162,18 @@ export interface OwnerBackgroundRecord {
     buildingName: string;
     propertyAddress: string;
     city: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+    fullAddress?: string;
     ownerName: string;
     ownerPhone: string;
-    status: 'SUBMITTED' | 'PAYMENT_PENDING' | 'PAID' | 'ADMIN_CHECKING' | 'FIELD_WORK_ASSIGNED' | 'DETAILS_COLLECTED' | 'REPORT_GENERATED' | 'SENT_DIGITALLY' | 'REJECTED';
+    ownerEmail?: string;
+    details?: any;
+    views?: number;
+    leads?: number;
+    status: 'SUBMITTED' | 'PAYMENT_PENDING' | 'PAID' | 'ADMIN_CHECKING' | 'FIELD_WORK_ASSIGNED' | 'DETAILS_COLLECTED' | 'REPORT_GENERATED' | 'SENT_DIGITALLY' | 'COMPLETED' | 'REJECTED';
     paymentAmount: number;
     paymentTxnId?: string;
     ownershipVerified: boolean;
@@ -144,16 +194,52 @@ export interface UserRecord {
     phone: string;
     passwordHash: string;
     role: UserRole;
+    avatarUrl?: string;
+    avatarPublicId?: string;
+    dob?: string;
+    gender?: string;
+    userRole?: string;
+    streetAddress?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    alternatePhone?: string | null;
+    alternateEmail?: string | null;
+    summary?: {
+        savedCount?: number;
+        activityCount?: number;
+        propertiesCount?: number;
+        servicesCount?: number;
+    };
+    settings?: any;
     createdAt: string;
+    updatedAt?: string;
+}
+export interface TeamMemberRecord {
+    id: string;
+    name: string;
+    role: string;
+    phone: string;
+    zone: string;
+    activeTasks: number;
+    completedThisWeek: number;
+    avgTurnaroundHrs: number;
+    initials: string;
 }
 declare class InMemoryStore {
+    private getPersistPaths;
+    loadFromDisk(): void;
+    saveToDisk(): void;
+    teamMembers: TeamMemberRecord[];
     users: UserRecord[];
+    constructor();
     properties: PropertyRecord[];
     siteVisits: SiteVisitRecord[];
     propertyManagementRequests: PropertyManagementRecord[];
     homeLoanRequests: HomeLoanRecord[];
     rentalAgreementOrders: RentalAgreementRecord[];
     ownerBackgroundChecks: OwnerBackgroundRecord[];
+    bankLoanOffers: BankLoanOfferRecord[];
 }
 export declare const mockDb: InMemoryStore;
 export {};

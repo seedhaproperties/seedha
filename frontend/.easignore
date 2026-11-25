@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+dist/
+build/
+.cache/
+.git/
+*.log
+*.tsbuildinfo
+android/.gradle/
+android/app/build/
+android/build/
+ios/build/
+ios/Pods/

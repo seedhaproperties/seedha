@@ -11,7 +11,9 @@ import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class RentalAgreementDetailsDto {
     landlordName;
+    ownerName;
     landlordPhone;
+    ownerPhone;
     landlordEmail;
     landlordAddress;
     tenantName;
@@ -20,22 +22,39 @@ export class RentalAgreementDetailsDto {
     tenantAddress;
     propertyAddress;
     monthlyRent;
+    rentAmount;
     securityDeposit;
+    depositAmount;
     leaseTermMonths;
+    durationMonths;
     agreementStartDate;
+    role;
+    stampDutyType;
 }
 __decorate([
-    ApiProperty({ example: 'Suresh Chandra' }),
+    ApiPropertyOptional({ example: 'Suresh Chandra' }),
+    IsOptional(),
     IsString(),
-    IsNotEmpty(),
     __metadata("design:type", String)
 ], RentalAgreementDetailsDto.prototype, "landlordName", void 0);
 __decorate([
-    ApiProperty({ example: '+919849098765' }),
+    ApiPropertyOptional({ example: 'Suresh Chandra' }),
+    IsOptional(),
     IsString(),
-    IsNotEmpty(),
+    __metadata("design:type", String)
+], RentalAgreementDetailsDto.prototype, "ownerName", void 0);
+__decorate([
+    ApiPropertyOptional({ example: '+919849098765' }),
+    IsOptional(),
+    IsString(),
     __metadata("design:type", String)
 ], RentalAgreementDetailsDto.prototype, "landlordPhone", void 0);
+__decorate([
+    ApiPropertyOptional({ example: '+919849098765' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], RentalAgreementDetailsDto.prototype, "ownerPhone", void 0);
 __decorate([
     ApiPropertyOptional({ example: 'suresh@example.com' }),
     IsOptional(),
@@ -43,9 +62,9 @@ __decorate([
     __metadata("design:type", String)
 ], RentalAgreementDetailsDto.prototype, "landlordEmail", void 0);
 __decorate([
-    ApiProperty({ example: 'Plot 45, Jubilee Hills, Hyderabad' }),
+    ApiPropertyOptional({ example: 'Plot 45, Jubilee Hills, Hyderabad' }),
+    IsOptional(),
     IsString(),
-    IsNotEmpty(),
     __metadata("design:type", String)
 ], RentalAgreementDetailsDto.prototype, "landlordAddress", void 0);
 __decorate([
@@ -67,9 +86,9 @@ __decorate([
     __metadata("design:type", String)
 ], RentalAgreementDetailsDto.prototype, "tenantEmail", void 0);
 __decorate([
-    ApiProperty({ example: 'Flat 301, Fortune Heights, Madhapur, Hyderabad' }),
+    ApiPropertyOptional({ example: 'Flat 301, Fortune Heights, Madhapur, Hyderabad' }),
+    IsOptional(),
     IsString(),
-    IsNotEmpty(),
     __metadata("design:type", String)
 ], RentalAgreementDetailsDto.prototype, "tenantAddress", void 0);
 __decorate([
@@ -79,26 +98,59 @@ __decorate([
     __metadata("design:type", String)
 ], RentalAgreementDetailsDto.prototype, "propertyAddress", void 0);
 __decorate([
-    ApiProperty({ example: 35000 }),
+    ApiPropertyOptional({ example: 35000 }),
+    IsOptional(),
     IsNumber(),
     __metadata("design:type", Number)
 ], RentalAgreementDetailsDto.prototype, "monthlyRent", void 0);
 __decorate([
-    ApiProperty({ example: 105000 }),
+    ApiPropertyOptional({ example: 35000 }),
+    IsOptional(),
+    IsNumber(),
+    __metadata("design:type", Number)
+], RentalAgreementDetailsDto.prototype, "rentAmount", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 105000 }),
+    IsOptional(),
     IsNumber(),
     __metadata("design:type", Number)
 ], RentalAgreementDetailsDto.prototype, "securityDeposit", void 0);
 __decorate([
-    ApiProperty({ example: 11 }),
+    ApiPropertyOptional({ example: 105000 }),
+    IsOptional(),
+    IsNumber(),
+    __metadata("design:type", Number)
+], RentalAgreementDetailsDto.prototype, "depositAmount", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 11 }),
+    IsOptional(),
     IsNumber(),
     __metadata("design:type", Number)
 ], RentalAgreementDetailsDto.prototype, "leaseTermMonths", void 0);
 __decorate([
-    ApiProperty({ example: '2026-11-01' }),
+    ApiPropertyOptional({ example: 11 }),
+    IsOptional(),
+    IsNumber(),
+    __metadata("design:type", Number)
+], RentalAgreementDetailsDto.prototype, "durationMonths", void 0);
+__decorate([
+    ApiPropertyOptional({ example: '2026-11-01' }),
+    IsOptional(),
     IsString(),
-    IsNotEmpty(),
     __metadata("design:type", String)
 ], RentalAgreementDetailsDto.prototype, "agreementStartDate", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 'tenant' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], RentalAgreementDetailsDto.prototype, "role", void 0);
+__decorate([
+    ApiPropertyOptional({ example: 'Standard E-Stamp' }),
+    IsOptional(),
+    IsString(),
+    __metadata("design:type", String)
+], RentalAgreementDetailsDto.prototype, "stampDutyType", void 0);
 export class OrderAgreementDto {
     paymentTxnId;
     paymentAmount;

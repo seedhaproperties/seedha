@@ -5,6 +5,7 @@ import { AppModule } from './../src/app.module.js';
 
 describe('Seedha Properties - Workflows E2E Test Suite', () => {
   let app: INestApplication;
+  let userToken: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -19,6 +20,20 @@ describe('Seedha Properties - Workflows E2E Test Suite', () => {
       }),
     );
     await app.init();
+
+    // Authenticate test user for protected workflows via verified OTP flow
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/send-otp')
+      .send({ identifier: '+919999988888' });
+
+    const authRes = await request(app.getHttpServer())
+      .post('/api/v1/auth/verify-otp')
+      .send({
+        identifier: '+919999988888',
+        otp: '123456',
+        name: 'Test Administrator',
+      });
+    userToken = authRes.body.accessToken || authRes.body.token;
   });
 
   afterAll(async () => {
@@ -37,13 +52,14 @@ describe('Seedha Properties - Workflows E2E Test Suite', () => {
     });
 
     it('Flow A & B: Should fetch owner details and book a visit with duplicate prevention', async () => {
-      // 1. Get owner details
+      // 1. Get owner details (protected)
       const ownerRes = await request(app.getHttpServer())
         .get('/api/v1/properties/prop-buy-1/owner')
+        .set('Authorization', `Bearer ${userToken}`)
         .expect(200);
       expect(ownerRes.body.ownerName).toBeDefined();
 
-      // 2. Book visit
+      // 2. Book visit (protected)
       const visitPayload = {
         date: '2026-11-05',
         timeSlot: '11:00 AM - 12:00 PM',
@@ -54,6 +70,7 @@ describe('Seedha Properties - Workflows E2E Test Suite', () => {
 
       const bookRes = await request(app.getHttpServer())
         .post('/api/v1/properties/prop-buy-1/visits')
+        .set('Authorization', `Bearer ${userToken}`)
         .send(visitPayload)
         .expect(201);
 
@@ -63,6 +80,7 @@ describe('Seedha Properties - Workflows E2E Test Suite', () => {
       // 3. Duplicate visit booking attempt should be prevented
       await request(app.getHttpServer())
         .post('/api/v1/properties/prop-buy-1/visits')
+        .set('Authorization', `Bearer ${userToken}`)
         .send(visitPayload)
         .expect(409);
 
@@ -225,6 +243,7 @@ describe('Seedha Properties - Workflows E2E Test Suite', () => {
       // Owner submits a new property listing first
       const createRes = await request(app.getHttpServer())
         .post('/api/v1/properties')
+        .set('Authorization', `Bearer ${userToken}`)
         .send({
           title: 'Brand New 3 BHK in Madhapur',
           description: 'Ready to move flat near Durgam Cheruvu metro',

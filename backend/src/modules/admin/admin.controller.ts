@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AdminService } from './admin.service.js';
 import {
@@ -11,7 +11,7 @@ import {
 } from './admin.dto.js';
 
 @ApiTags('Admin Operations & Queues (Section 2)')
-@Controller('api/v1/admin')
+@Controller(['api/v1/admin', 'admin'])
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
@@ -19,6 +19,41 @@ export class AdminController {
   @ApiOperation({ summary: 'Admin overview summary with counts for all 7 review queues' })
   getOverview() {
     return this.adminService.getOverview();
+  }
+
+  // Unified Request Aggregator for Admin Web Dashboard
+  @Get('requests')
+  @ApiOperation({ summary: 'Get unified requests across all 7 business modules' })
+  getAllRequests(
+    @Query('module') module?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getAllUnifiedRequests({ module, status, search });
+  }
+
+  @Get('requests/:id')
+  @ApiOperation({ summary: 'Get single unified request details across any of the 7 modules' })
+  getRequestById(@Param('id') id: string) {
+    return this.adminService.getUnifiedRequestById(id);
+  }
+
+  @Get('team')
+  @ApiOperation({ summary: 'Get active operations team members' })
+  getTeam() {
+    return this.adminService.getTeamMembers();
+  }
+
+  @Post('team')
+  @ApiOperation({ summary: 'Add a new operations team member' })
+  addTeamMember(@Body() body: { name: string; role?: string; phone: string; zone?: string }) {
+    return this.adminService.addTeamMember(body);
+  }
+
+  @Get('listings')
+  @ApiOperation({ summary: 'Get published live listings on Seedha portal' })
+  getListings() {
+    return this.adminService.getLiveListings();
   }
 
   // Queue 1: Flat/Building (Buy) Listings
@@ -42,6 +77,13 @@ export class AdminController {
     return this.adminService.getCommercialListingsQueue();
   }
 
+  // PG & Hostel Listings Review
+  @Get('pg-review')
+  @ApiOperation({ summary: 'Receive PG & Hostel details' })
+  getPgQueue() {
+    return this.adminService.getPgListingsQueue();
+  }
+
   @Post('properties/:id/assign-field-work')
   @ApiOperation({ summary: 'Team can contact owner or do field work' })
   assignPropertyFieldWork(@Param('id') id: string, @Body() dto: AssignFieldWorkDto) {
@@ -54,10 +96,22 @@ export class AdminController {
     return this.adminService.verifyAndPublishProperty(id);
   }
 
-  @Post('properties/:id/reject')
-  @ApiOperation({ summary: 'Reject property listing with reasons' })
+  @Post(['properties/:id/approve', 'requests/:id/approve'])
+  @ApiOperation({ summary: 'Approve and publish property listing or service request' })
+  approveProperty(@Param('id') id: string) {
+    return this.adminService.approveProperty(id);
+  }
+
+  @Post(['properties/:id/reject', 'requests/:id/reject'])
+  @ApiOperation({ summary: 'Reject property listing or service request with reasons' })
   rejectProperty(@Param('id') id: string, @Body() dto: RejectItemDto) {
     return this.adminService.rejectProperty(id, dto);
+  }
+
+  @Post(['properties/:id/unpublish', 'requests/:id/unpublish'])
+  @ApiOperation({ summary: 'Unpublish property listing back to pending review' })
+  unpublishProperty(@Param('id') id: string, @Body('note') note?: string) {
+    return this.adminService.unpublishProperty(id, note);
   }
 
   // Queue 4: Property Management Requests
@@ -92,6 +146,37 @@ export class AdminController {
     return this.adminService.contactHomeLoanUser(id, dto);
   }
 
+  // Bank Loan Offers Management
+  @Get('loan-offers')
+  @ApiOperation({ summary: 'Admin: Get all bank loan offers' })
+  getLoanOffers(@Query('includeInactive') includeInactive?: string) {
+    return this.adminService.getAllLoanOffers(includeInactive !== 'false');
+  }
+
+  @Post('loan-offers')
+  @ApiOperation({ summary: 'Admin: Create new bank loan offer' })
+  createLoanOffer(@Body() dto: any) {
+    return this.adminService.createLoanOffer(dto);
+  }
+
+  @Put('loan-offers/:id')
+  @ApiOperation({ summary: 'Admin: Update bank loan offer' })
+  updateLoanOffer(@Param('id') id: string, @Body() dto: any) {
+    return this.adminService.updateLoanOffer(id, dto);
+  }
+
+  @Patch('loan-offers/:id/toggle')
+  @ApiOperation({ summary: 'Admin: Toggle bank loan offer active state' })
+  toggleLoanOffer(@Param('id') id: string, @Body('isActive') isActive?: boolean) {
+    return this.adminService.toggleLoanOffer(id, isActive);
+  }
+
+  @Delete('loan-offers/:id')
+  @ApiOperation({ summary: 'Admin: Delete bank loan offer' })
+  deleteLoanOffer(@Param('id') id: string) {
+    return this.adminService.deleteLoanOffer(id);
+  }
+
   // Queue 6: Rental Agreement Requests
   @Get('rental-agreements-review')
   @ApiOperation({ summary: 'Queue 6: Receive Rental Agreement details' })
@@ -122,5 +207,30 @@ export class AdminController {
   @ApiOperation({ summary: 'Collect details -> Admin send details to user through digital' })
   collectAndSendDigital(@Param('id') id: string, @Body() dto: CollectAndSendDigitalDto) {
     return this.adminService.collectAndSendDigitalOwnerDetails(id, dto);
+  }
+
+  // Admin Database Extensions: Users, Reports, Notifications & Property Management
+  @Get('users')
+  @ApiOperation({ summary: 'Get all registered users in database' })
+  getUsers() {
+    return this.adminService.getUsers();
+  }
+
+  @Delete('properties/:id')
+  @ApiOperation({ summary: 'Delete property permanently from database' })
+  deleteProperty(@Param('id') id: string) {
+    return this.adminService.deleteProperty(id);
+  }
+
+  @Get('reports')
+  @ApiOperation({ summary: 'Get real audit logs and platform summary reports' })
+  getReports() {
+    return this.adminService.getReports();
+  }
+
+  @Get('notifications')
+  @ApiOperation({ summary: 'Get real administrative notifications and alerts' })
+  getNotifications() {
+    return this.adminService.getNotifications();
   }
 }

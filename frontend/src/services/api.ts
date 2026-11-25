@@ -1,21 +1,51 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-const debuggerHost = Constants.expoConfig?.hostUri?.split(':')[0];
-const host = debuggerHost || (Platform.OS === 'android' ? '10.0.2.2' : 'localhost');
+export const getHost = () => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    return window.location.hostname;
+  }
+  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
+  const debuggerHost = hostUri?.split(':')[0];
+  // If running via Expo Tunnel (.exp.direct), the tunnel only forwards Metro (port 8081), not port 4000.
+  // We fall back to the LAN IP of the host machine so phones on Wi-Fi can reach the API.
+  if (debuggerHost && !debuggerHost.includes('exp.direct')) {
+    return debuggerHost;
+  }
+  return '192.168.31.145';
+};
 
-const API_BASE =
-  process.env.EXPO_PUBLIC_API_URL ||
-  (Platform.OS === 'web'
-    ? 'http://localhost:4000/api/v1'
-    : `http://${host}:4000/api/v1`);
+export const PRODUCTION_API_URL = 'https://seedha-backend-hpol.onrender.com/api/v1';
+
+export const getApiBaseUrl = () => {
+  // 1. Explicit environment variable takes top precedence
+  if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim() !== '') {
+    const raw = process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
+    if (Platform.OS !== 'web' && (raw.includes('localhost') || raw.includes('127.0.0.1'))) {
+      const host = getHost();
+      return raw.replace('localhost', host).replace('127.0.0.1', host);
+    }
+    return raw;
+  }
+
+  // 2. Web browser on localhost: connect to local backend only if local flag is active
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal && process.env.EXPO_PUBLIC_USE_LOCAL_BACKEND === 'true') {
+      return `http://${window.location.hostname}:4000/api/v1`;
+    }
+  }
+
+  // 3. Fallback to production Render backend
+  return PRODUCTION_API_URL;
+};
 
 let currentAuthToken: string | null = null;
 
 if (typeof window !== 'undefined' && window.localStorage) {
   try {
     currentAuthToken = window.localStorage.getItem('seedha_auth_token');
-  } catch {}
+  } catch { }
 }
 
 export function setAuthToken(token: string | null) {
@@ -27,7 +57,7 @@ export function setAuthToken(token: string | null) {
       } else {
         window.localStorage.removeItem('seedha_auth_token');
       }
-    } catch {}
+    } catch { }
   }
 }
 
@@ -36,22 +66,44 @@ export function getAuthToken(): string | null {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE}${path}`;
+  const url = `${getApiBaseUrl()}${path}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'bypass-tunnel-reminder': 'true',
+    'ngrok-skip-browser-warning': 'true',
     ...(currentAuthToken ? { Authorization: `Bearer ${currentAuthToken}` } : {}),
     ...((options.headers as Record<string, string>) || {}),
   };
 
+  const controller = new AbortController();
+  // 35s timeout to gracefully accommodate Render cold starts & SMTP handshakes
+  const timeoutId = setTimeout(() => controller.abort(), 35000);
+
   try {
-    const res = await fetch(url, { ...options, headers });
-    const data = await res.json();
+    const res = await fetch(url, { ...options, headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+    const text = await res.text();
+    let data: any = {};
+    if (text && text.trim()) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text };
+      }
+    }
     if (!res.ok) {
       throw new Error(data.message || `Request failed with status ${res.status}`);
     }
     return data;
   } catch (err: any) {
-    console.warn(`[API] fetch to ${url} failed:`, err.message);
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Connection timed out. Please check your network and make sure the server is reachable.');
+    }
+    // Suppress console spam for expected 401 checks (e.g. /auth/me for unauthenticated visitors)
+    if (path !== '/auth/me') {
+      console.warn(`[API] fetch to ${url} failed:`, err.message);
+    }
     throw err;
   }
 }
@@ -84,10 +136,65 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ identifier }),
       }),
-    verifyOtp: async (identifier: string, otp: string) => {
+    resendOtp: (identifier: string) =>
+      request<any>('/auth/resend-otp', {
+        method: 'POST',
+        body: JSON.stringify({ identifier }),
+      }),
+    verifyOtp: async (identifier: string, otp: string, name?: string) => {
       const data = await request<any>('/auth/verify-otp', {
         method: 'POST',
-        body: JSON.stringify({ identifier, otp }),
+        body: JSON.stringify({ identifier, otp, ...(name ? { name } : {}) }),
+      });
+      if (data?.accessToken) {
+        setAuthToken(data.accessToken);
+      }
+      return data;
+    },
+    completeSignup: async (payload: { name: string; phone?: string; email?: string }) => {
+      const data = await request<any>('/auth/complete-signup', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (data?.accessToken) {
+        setAuthToken(data.accessToken);
+      }
+      return data;
+    },
+    googleLogin: async (payload: {
+      code?: string;
+      codeVerifier?: string;
+      redirectUri?: string;
+      idToken?: string;
+      accessToken?: string;
+      email?: string;
+      name?: string;
+      googleId?: string;
+      phone?: string;
+    }) => {
+      const data = await request<any>('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (data?.accessToken) {
+        setAuthToken(data.accessToken);
+      }
+      return data;
+    },
+    appleLogin: async (payload: { email: string; name: string; appleId?: string; phone?: string }) => {
+      const data = await request<any>('/auth/apple', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (data?.accessToken) {
+        setAuthToken(data.accessToken);
+      }
+      return data;
+    },
+    refreshToken: async (refreshToken: string) => {
+      const data = await request<any>('/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
       });
       if (data?.accessToken) {
         setAuthToken(data.accessToken);
@@ -99,7 +206,44 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email }),
       }),
-    me: () => request<any>('/auth/me'),
+    me: async () => {
+      const token = getAuthToken();
+      if (!token || token === 'null' || token === 'undefined') {
+        return null;
+      }
+      try {
+        const res = await request<any>('/auth/me');
+        if (!res || res.authenticated === false) {
+          setAuthToken(null);
+          return null;
+        }
+        return res;
+      } catch (err: any) {
+        if (
+          err?.message?.includes('401') ||
+          err?.message?.includes('Unauthorized') ||
+          err?.message?.includes('expired')
+        ) {
+          setAuthToken(null);
+          return null;
+        }
+        return null;
+      }
+    },
+    updateProfile: (payload: any) =>
+      request<any>('/auth/me', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }),
+    uploadAvatar: (payload: { avatarUrl?: string; imageBase64?: string }) =>
+      request<any>('/auth/upload-avatar', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    deleteAvatar: () =>
+      request<any>('/auth/avatar', {
+        method: 'DELETE',
+      }),
     logout: () => {
       setAuthToken(null);
     },
@@ -107,25 +251,178 @@ export const api = {
     getToken: getAuthToken,
   },
 
-  // ── Properties (Buy, Rent, Commercial) ──
+  // ── Properties (Buy, Rent, Commercial, Flatmates, PG) ──
   properties: {
-    list: (params?: { type?: string; location?: string; city?: string; minPrice?: number; maxPrice?: number; bhk?: number }) => {
+    list: (params?: {
+      type?: string;
+      category?: string;
+      location?: string;
+      city?: string;
+      minPrice?: number;
+      maxPrice?: number;
+      bhk?: number;
+      radiusKm?: number;
+      pincode?: string;
+      userLat?: number;
+      userLng?: number;
+    }) => {
       const searchParams = new URLSearchParams();
-      if (params?.type) searchParams.append('type', params.type.toUpperCase());
+      const listingType = params?.type || params?.category;
+      if (listingType) searchParams.append('type', listingType.toUpperCase());
       if (params?.location) searchParams.append('location', params.location);
       if (params?.city) searchParams.append('city', params.city);
       if (params?.bhk) searchParams.append('bhk', String(params.bhk));
       if (params?.minPrice) searchParams.append('minPrice', String(params.minPrice));
       if (params?.maxPrice) searchParams.append('maxPrice', String(params.maxPrice));
+      if (params?.radiusKm) searchParams.append('radiusKm', String(params.radiusKm));
+      if (params?.pincode) searchParams.append('pincode', params.pincode);
+      if (params?.userLat) searchParams.append('userLat', String(params.userLat));
+      if (params?.userLng) searchParams.append('userLng', String(params.userLng));
       const q = searchParams.toString();
       return request<any>(`/properties${q ? `?${q}` : ''}`);
     },
+    getAll: (params?: any) => api.properties.list(params),
     get: (id: string) => request<any>(`/properties/${id}`),
     getOwner: (id: string) => request<any>(`/properties/${id}/owner`),
+    getMyProperties: async (userId?: string) => {
+      const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+      try {
+        return await request<any>(`/properties/user/my-properties${q}`);
+      } catch (err: any) {
+        const msg = String(err?.message || '');
+        if (msg.includes('404') || msg.includes('Cannot GET')) {
+          try {
+            return await request<any>(`/properties/my-properties${q}`);
+          } catch {
+            return await request<any>(`/properties?ownerOnly=true${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`);
+          }
+        }
+        throw err;
+      }
+    },
+    remove: (id: string) =>
+      request<any>(`/properties/${id}`, {
+        method: 'DELETE',
+      }),
+    uploadImage: (payload: { imageBase64?: string; imageUrl?: string; folder?: string }) =>
+      request<any>('/properties/upload-image', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    deleteImage: (propertyId: string, publicId: string) =>
+      request<any>(`/properties/${propertyId}/images?publicId=${encodeURIComponent(publicId)}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ publicId }),
+      }),
     create: (data: any) =>
       request<any>('/properties', {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+    toggleSave: (id: string) =>
+      request<any>(`/properties/${id}/toggle-save`, {
+        method: 'POST',
+      }),
+    getMySaved: () => request<any[]>('/properties/my/saved'),
+    getLocationSuggestions: (query: string) =>
+      request<any[]>(`/properties/suggestions?query=${encodeURIComponent(query || '')}`),
+  },
+
+  // ── Payments & Transactions ──
+  payments: {
+    createOrder: (payload: {
+      amount: number;
+      purpose: string;
+      propertyId?: string;
+      customerName?: string;
+      customerPhone?: string;
+    }) =>
+      request<any>('/payments/create-order', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    verify: (payload: {
+      orderId: string;
+      paymentTxnId: string;
+      gateway: string;
+      amount: number;
+      purpose: string;
+      propertyId?: string;
+      customerName?: string;
+      customerPhone?: string;
+    }) =>
+      request<any>('/payments/verify', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    my: () => request<any[]>('/payments/my'),
+    all: () => request<any[]>('/payments/all'),
+    terms: () => request<any>('/payments/terms-and-conditions'),
+  },
+
+  // ── Chat & Webhooks ──
+  chat: {
+    send: (payload: {
+      propertyId: string;
+      text?: string;
+      message?: string;
+      senderName?: string;
+      senderType?: 'USER' | 'OWNER';
+      senderRole?: 'CUSTOMER' | 'OWNER';
+      ownerName?: string;
+      ownerPhone?: string;
+      isPaymentPrompt?: boolean;
+      paymentAmount?: number;
+    }) =>
+      request<any>('/chat/message', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...payload,
+          text: payload.text || payload.message,
+          message: payload.message || payload.text,
+          senderType: payload.senderType || (payload.senderRole === 'CUSTOMER' ? 'USER' : payload.senderRole) || 'USER',
+        }),
+      }),
+    getConversation: (propertyId: string) =>
+      request<any>(`/chat/conversation/${propertyId}`),
+    getStatus: (propertyId: string) =>
+      request<{ isUnlocked: boolean; unlockFee: number; paidTxnId?: string }>(`/chat/status/${propertyId}`),
+    webhook: (payload: any) =>
+      request<any>('/chat/webhook', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+  },
+
+  // ── Cloudinary Image Uploads ──
+  uploads: {
+    uploadImage: (payload: { imageBase64?: string; imageUrl?: string; folder?: string }) =>
+      request<{
+        success: boolean;
+        url: string;
+        publicId: string;
+        format?: string;
+        width?: number;
+        height?: number;
+      }>('/properties/upload-image', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    uploadImages: (images: string[], folder?: string) =>
+      request<{
+        success: boolean;
+        count: number;
+        images: Array<{ url: string; publicId: string }>;
+        urls: string[];
+        publicIds: string[];
+      }>('/uploads/images', {
+        method: 'POST',
+        body: JSON.stringify({ images, folder }),
+      }),
+    deleteImage: (publicId: string) =>
+      request<any>('/uploads/image', {
+        method: 'DELETE',
+        body: JSON.stringify({ publicId }),
       }),
   },
 
@@ -145,7 +442,16 @@ export const api = {
 
   // ── Property Management (Flow D) ──
   propertyManagement: {
-    submit: (payload: { ownerName: string; ownerPhone: string; flatDetails: string; address: string; city: string; locality: string; serviceRequested: string }) =>
+    submit: (payload: {
+      ownerName: string;
+      ownerPhone: string;
+      flatDetails: string;
+      address: string;
+      city: string;
+      locality: string;
+      serviceRequested: string;
+      photos?: string[];
+    }) =>
       request<any>('/property-management/requests', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -160,7 +466,13 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
-    compareBanks: () => request<any[]>('/home-loans/compare-banks'),
+    compareBanks: (params?: { loanAmount?: number; tenureYears?: number }) => {
+      const queryParts: string[] = [];
+      if (params?.loanAmount) queryParts.push(`loanAmount=${params.loanAmount}`);
+      if (params?.tenureYears) queryParts.push(`tenureYears=${params.tenureYears}`);
+      const qs = queryParts.length ? `?${queryParts.join('&')}` : '';
+      return request<any>(`/home-loans/compare-banks${qs}`);
+    },
     getDocuments: (loanType: string) => request<any>(`/home-loans/documents/${loanType}`),
     requestAssistance: (payload: any) =>
       request<any>('/home-loans/assistance', {
@@ -255,5 +567,37 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ summary, ownershipVerified, legalDisputeClear }),
       }),
+    // Aggregator & Real Admin Database Endpoints
+    getAllRequests: (params?: { module?: string; status?: string; search?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.module && params.module !== 'all') q.set('module', params.module);
+      if (params?.status && params.status !== 'all') q.set('status', params.status);
+      if (params?.search) q.set('search', params.search);
+      const queryStr = q.toString() ? `?${q.toString()}` : '';
+      return request<any[]>(`/admin/requests${queryStr}`);
+    },
+    getRequestById: (id: string) => request<any>(`/admin/requests/${id}`),
+    getTeam: () => request<any[]>('/admin/team'),
+    getListings: () => request<any[]>('/admin/listings'),
+    getUsers: () => request<any[]>('/admin/users'),
+    deleteProperty: (id: string) => request<any>(`/admin/properties/${id}`, { method: 'DELETE' }),
+    getReports: () => request<any>('/admin/reports'),
+    getNotifications: () => request<any[]>('/admin/notifications'),
+  },
+  notifications: {
+    registerDeviceToken: (token: string, platform: string = 'android', userId?: string) =>
+      request<{ success: boolean; message: string }>('/notifications/device-token', {
+        method: 'POST',
+        body: JSON.stringify({ token, platform, userId }),
+      }),
+    unregisterDeviceToken: (token: string) =>
+      request<{ success: boolean; message: string }>('/notifications/device-token/unregister', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
+    getMyDevices: () => request<any[]>('/notifications/my-devices'),
+    checkHealth: () => request<any>('/notifications/health'),
+    getUserNotifications: (userId?: string) =>
+      request<any[]>(`/notifications/feed${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`),
   },
 };

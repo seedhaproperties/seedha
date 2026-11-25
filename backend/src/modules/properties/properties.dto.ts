@@ -41,6 +41,31 @@ export class CreatePropertyDto {
   @IsNotEmpty()
   city!: string;
 
+  @ApiPropertyOptional({ example: 'Telangana' })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiPropertyOptional({ example: '500081' })
+  @IsOptional()
+  @IsString()
+  pincode?: string;
+
+  @ApiPropertyOptional({ example: 17.4482 })
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @ApiPropertyOptional({ example: 78.3756 })
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  @ApiPropertyOptional({ example: 'Hitec City, Madhapur, Hyderabad, Telangana 500081' })
+  @IsOptional()
+  @IsString()
+  fullAddress?: string;
+
   @ApiProperty({ example: 1650 })
   @IsNumber()
   area!: number;
@@ -94,12 +119,54 @@ export class CreatePropertyDto {
   @IsString()
   @IsNotEmpty()
   ownerPhone!: string;
+
+  @ApiPropertyOptional({ example: 'rahul@example.com' })
+  @IsOptional()
+  @IsString()
+  ownerEmail?: string;
+
+  @ApiPropertyOptional({ example: 'East' })
+  @IsOptional()
+  @IsString()
+  facing?: string;
+
+  @ApiPropertyOptional({ example: '4th' })
+  @IsOptional()
+  @IsString()
+  floor?: string;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsNumber()
+  totalFloors?: number;
+
+  @ApiPropertyOptional({ example: {} })
+  @IsOptional()
+  details?: any;
+}
+
+export class UploadPropertyImageDto {
+  @ApiPropertyOptional({ example: 'data:image/jpeg;base64,...' })
+  @IsOptional()
+  @IsString()
+  imageBase64?: string;
+
+  @ApiPropertyOptional({ example: 'https://images.unsplash.com/...' })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 export class QueryPropertyDto {
-  @ApiPropertyOptional({ enum: ListingTypeEnum })
+  @ApiPropertyOptional({ example: 'buy' })
   @IsOptional()
-  type?: ListingTypeEnum;
+  @IsString()
+  type?: string;
+
+  @ApiPropertyOptional({ example: 'BUY' })
+  @IsOptional()
+  @IsString()
+  category?: string;
 
   @ApiPropertyOptional({ example: 'Hyderabad' })
   @IsOptional()
@@ -123,5 +190,26 @@ export class QueryPropertyDto {
 
   @ApiPropertyOptional({ example: 'apartment' })
   @IsOptional()
+  @IsString()
   propertyType?: string;
+
+  @ApiPropertyOptional({ example: 30, description: 'Search radius in km: 30, 60, 100' })
+  @IsOptional()
+  @IsNumber()
+  radiusKm?: number;
+
+  @ApiPropertyOptional({ example: '500081', description: 'Search by postal pincode' })
+  @IsOptional()
+  @IsString()
+  pincode?: string;
+
+  @ApiPropertyOptional({ example: 17.4401 })
+  @IsOptional()
+  @IsNumber()
+  userLat?: number;
+
+  @ApiPropertyOptional({ example: 78.3489 })
+  @IsOptional()
+  @IsNumber()
+  userLng?: number;
 }

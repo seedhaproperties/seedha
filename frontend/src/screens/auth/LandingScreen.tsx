@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Briefcase,
   Building2,
+  ChevronLeft,
   FileSignature,
   HandCoins,
   House,
@@ -134,13 +135,13 @@ const services: ServiceItem[] = [
 ];
 
 export default function LandingScreen() {
-  const { setTab, push, isAuthenticated, requireAuth } = useApp();
+  const { setTab, push, pop, stack, isAuthenticated, requireAuth } = useApp();
   const enterApp = () => {
-    if (!isAuthenticated) {
-      requireAuth(undefined, { name: 'home' }, 'Explore Properties');
-      return;
+    if (stack && stack.length > 1) {
+      pop();
+    } else {
+      setTab('home');
     }
-    setTab('home');
   };
   const isNative = Platform.OS !== 'web';
 
@@ -301,7 +302,14 @@ export default function LandingScreen() {
         <View style={styles.padding}>
           {/* Header */}
           <View style={styles.header}>
-            <SeedhaLogo size="md" />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {stack && stack.length > 1 && (
+                <TouchableOpacity onPress={() => pop()} style={styles.backButton} activeOpacity={0.8}>
+                  <ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2.4} />
+                </TouchableOpacity>
+              )}
+              <SeedhaLogo size="md" />
+            </View>
             <TouchableOpacity onPress={enterApp} style={styles.openAppButton} activeOpacity={0.9}>
               <Text style={styles.openAppButtonText}>Open App</Text>
               <ArrowRight size={14} color={colors.textWhite} strokeWidth={2.5} />
@@ -515,6 +523,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 16,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   openAppButton: {
     flexDirection: 'row',
