@@ -362,10 +362,8 @@ export default function PgHostelsScreen() {
   const activeSortLabel =
     SORT_OPTIONS.find((o) => o.value === selectedSort)?.label || 'Relevance';
 
-  const getBadgeBg = (cat: PgListing['pgCategory']) => {
-    if (cat === 'Girls PG') return '#DB2777';
-    if (cat === 'Co-living') return '#7C3AED';
-    return '#2563EB';
+  const getBadgeBg = (_cat: PgListing['pgCategory']) => {
+    return 'rgba(15, 23, 42, 0.85)';
   };
 
   return (
@@ -918,8 +916,8 @@ const styles = StyleSheet.create({
   },
   pgBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9.5,
+    fontWeight: '600',
   },
   heartCircle: {
     position: 'absolute',
@@ -945,16 +943,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   verifiedText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9.5,
+    fontWeight: '600',
     color: '#0F172A',
   },
   cardContent: {
     padding: 11,
   },
   cardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '600',
     color: '#0F172A',
     marginBottom: 4,
   },
@@ -970,8 +968,8 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   cardPrice: {
-    fontSize: 13.5,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '600',
     color: '#0F172A',
     marginBottom: 6,
   },
@@ -1122,10 +1120,10 @@ const styles = StyleSheet.create({
   },
   distanceTag: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#2563EB',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 5,
+    fontWeight: '500',
+    color: '#475569',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
@@ -1140,7 +1138,7 @@ const styles = StyleSheet.create({
   },
   chatOwnerBtnText: {
     fontSize: 10.5,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
 });

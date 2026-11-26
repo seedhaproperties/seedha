@@ -376,7 +376,7 @@ export default function CommercialSpacesScreen() {
       <View style={styles.radiusContainer}>
         <View style={styles.radiusHeaderRow}>
           <View style={styles.radiusTitleBox}>
-            <Navigation size={13} color="#D97706" />
+            <Navigation size={12} color="#0F172A" />
             <Text style={styles.radiusTitleText}>Commercial Radius:</Text>
           </View>
           <Text style={styles.radiusGpsHint}>
@@ -409,7 +409,7 @@ export default function CommercialSpacesScreen() {
       {/* Auto-expansion banner */}
       {autoExpandedNotice && (
         <View style={styles.autoExpandBanner}>
-          <AlertCircle size={14} color="#D97706" />
+          <AlertCircle size={14} color="#0F172A" />
           <Text style={styles.autoExpandText}>{autoExpandedNotice}</Text>
         </View>
       )}
@@ -457,8 +457,13 @@ export default function CommercialSpacesScreen() {
                       resizeMode="cover"
                     />
 
-                    {/* Top-Left: Orange For Sale / For Rent Badge */}
-                    <View style={styles.commercialBadge}>
+                    {/* Top-Left: Distinct For Sale (Black) / For Rent (Slate) Badge */}
+                    <View
+                      style={[
+                        styles.commercialBadge,
+                        badgeLabel === 'For Rent' && { backgroundColor: 'rgba(51, 65, 85, 0.90)' },
+                      ]}
+                    >
                       <Text style={styles.commercialBadgeText}>{badgeLabel}</Text>
                     </View>
 
@@ -503,7 +508,7 @@ export default function CommercialSpacesScreen() {
 
                     {(item as any).distanceKm !== undefined && (
                       <View style={styles.cardDistanceRow}>
-                        <Compass size={10} color="#D97706" />
+                        <Compass size={10} color="#64748B" />
                         <Text style={styles.cardDistanceText}>
                           {(item as any).distanceKm} km away
                         </Text>
@@ -815,9 +820,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   radiusTitleText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#D97706',
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -838,12 +843,12 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   radiusPillActive: {
-    backgroundColor: '#D97706',
-    borderColor: '#D97706',
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
   },
   radiusPillText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#475569',
   },
   radiusPillTextActive: {
@@ -855,18 +860,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#F1F5F9',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#E2E8F0',
   },
   autoExpandText: {
     flex: 1,
-    fontSize: 11.5,
-    color: '#92400E',
-    fontWeight: '600',
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: '500',
   },
   cardDistanceRow: {
     flexDirection: 'row',
@@ -877,8 +882,8 @@ const styles = StyleSheet.create({
   },
   cardDistanceText: {
     fontSize: 10.5,
-    fontWeight: '600',
-    color: '#D97706',
+    fontWeight: '500',
+    color: '#64748B',
   },
 
   /* ── Grid Cards ── */
@@ -918,17 +923,17 @@ const styles = StyleSheet.create({
   },
   commercialBadge: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: '#D97706',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   commercialBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10.5,
-    fontWeight: '700',
+    fontSize: 9.5,
+    fontWeight: '600',
   },
   heartCircle: {
     position: 'absolute',
@@ -954,16 +959,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   verifiedText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9.5,
+    fontWeight: '600',
     color: '#0F172A',
   },
   cardContent: {
     padding: 12,
   },
   cardTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '600',
     color: '#0F172A',
     marginBottom: 4,
   },
@@ -979,8 +984,8 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   cardPrice: {
-    fontSize: 13.5,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '600',
     color: '#0F172A',
   },
 

@@ -854,9 +854,9 @@ export default function HomeScreen() {
                 <SafeImage source={{ uri: prop.image }} style={styles.featuredCardImage} />
 
                 {/* For Sale / Rent Pill */}
-                <View style={styles.listingTypePill}>
+                <View style={[styles.listingTypePill, prop.listingType === 'rent' && { backgroundColor: 'rgba(51, 65, 85, 0.90)' }]}>
                   <Text style={styles.listingTypeText}>
-                    {prop.listingType === 'rent' ? 'FOR RENT' : 'FOR SALE'}
+                    {prop.listingType === 'rent' ? 'For Rent' : 'For Sale'}
                   </Text>
                 </View>
 
@@ -961,9 +961,9 @@ export default function HomeScreen() {
               <View style={styles.recommendedImageWrapper}>
                 <SafeImage source={{ uri: prop.image }} style={styles.recommendedImage} />
 
-                <View style={styles.listingTypePill}>
+                <View style={[styles.listingTypePill, prop.listingType === 'rent' && { backgroundColor: 'rgba(51, 65, 85, 0.90)' }]}>
                   <Text style={styles.listingTypeText}>
-                    {prop.listingType === 'rent' ? 'FOR RENT' : 'FOR SALE'}
+                    {prop.listingType === 'rent' ? 'For Rent' : 'For Sale'}
                   </Text>
                 </View>
 

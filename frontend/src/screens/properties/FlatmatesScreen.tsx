@@ -1073,15 +1073,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#E11D48', // Vibrant pink badge matching reference
-    paddingHorizontal: 9,
-    paddingVertical: 3.5,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 8,
   },
   roomTypeText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9.5,
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   heartCircle: {
@@ -1119,19 +1119,21 @@ const styles = StyleSheet.create({
   },
   verifiedText: {
     fontSize: 9.5,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#0F172A',
   },
 
   /* Card Content */
   cardContent: {
+    flex: 1,
+    justifyContent: 'space-between',
     paddingHorizontal: 10,
     paddingTop: 10,
     paddingBottom: 12,
   },
   cardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '600',
     color: '#0F172A',
     marginBottom: 4,
   },
@@ -1143,12 +1145,12 @@ const styles = StyleSheet.create({
   },
   cardLocation: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#64748B',
     flex: 1,
   },
   cardPrice: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '600',
     color: '#0F172A',
   },
 
@@ -1400,10 +1402,10 @@ const styles = StyleSheet.create({
   },
   distanceTag: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#2563EB',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 5,
+    fontWeight: '500',
+    color: '#475569',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
@@ -1418,7 +1420,7 @@ const styles = StyleSheet.create({
   },
   chatOwnerBtnText: {
     fontSize: 10.5,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
 });

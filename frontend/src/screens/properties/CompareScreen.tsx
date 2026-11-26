@@ -151,12 +151,12 @@ export default function CompareScreen() {
   // Category Badge matching Image 2 (For Rent purple, For Sale green, Commercial amber)
   const getCategoryBadgeInfo = (p: Property) => {
     if (isFlatmatesCompare || p.listingType === 'rent') {
-      return { label: 'For Rent', bgColor: '#8B5CF6', textColor: '#FFFFFF' };
+      return { label: 'For Rent', bgColor: '#334155', textColor: '#FFFFFF' };
     }
     if (p.listingType === 'commercial') {
-      return { label: 'Commercial', bgColor: '#F59E0B', textColor: '#FFFFFF' };
+      return { label: 'Commercial', bgColor: '#1E293B', textColor: '#FFFFFF' };
     }
-    return { label: 'For Sale', bgColor: '#16A34A', textColor: '#FFFFFF' };
+    return { label: 'For Sale', bgColor: '#0F172A', textColor: '#FFFFFF' };
   };
 
   return (

@@ -21,7 +21,7 @@ export const getApiBaseUrl = () => {
   // 1. Explicit environment variable takes top precedence
   if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim() !== '') {
     const raw = process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
-    if (Platform.OS !== 'web' && (raw.includes('localhost') || raw.includes('127.0.0.1'))) {
+    if (raw.includes('localhost') || raw.includes('127.0.0.1')) {
       const host = getHost();
       return raw.replace('localhost', host).replace('127.0.0.1', host);
     }

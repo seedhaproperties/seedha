@@ -39,8 +39,9 @@ export class AuthService {
     const clean = (identifier || '').trim().toLowerCase();
     if (!clean) return null;
 
-    const digits = clean.replace(/\D/g, '');
-    const last10 = digits.slice(-10);
+    const isEmail = clean.includes('@');
+    const digits = isEmail ? '' : clean.replace(/\D/g, '');
+    const last10 = digits.length >= 10 ? digits.slice(-10) : '';
 
     // 1. Check PostgreSQL via Prisma if connected
     if (this.prisma?.isConnected) {

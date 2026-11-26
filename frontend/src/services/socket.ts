@@ -28,7 +28,12 @@ class UserSocketService {
   public getSocketUrl(): string {
     // 1. Explicit environment variable
     if (process.env.EXPO_PUBLIC_SOCKET_URL && process.env.EXPO_PUBLIC_SOCKET_URL.trim() !== '') {
-      return process.env.EXPO_PUBLIC_SOCKET_URL.replace(/\/+$/, '');
+      const raw = process.env.EXPO_PUBLIC_SOCKET_URL.replace(/\/+$/, '');
+      if (raw.includes('localhost') || raw.includes('127.0.0.1')) {
+        const host = getHost();
+        return raw.replace('localhost', host).replace('127.0.0.1', host);
+      }
+      return raw;
     }
 
     // 2. Localhost web dev with local flag
