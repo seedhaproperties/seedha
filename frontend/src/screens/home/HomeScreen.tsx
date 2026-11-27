@@ -173,51 +173,39 @@ export default function HomeScreen() {
     }
   }, [windowWidth]);
 
-  const spotlightProperty =
-    liveProperties.find((p) => p.featured) || liveProperties[0] || properties[0];
+  // Real database properties for the spotlight movement
+  const spotlightList = useMemo(() => {
+    const dbFeatured = liveProperties.filter((p) => p.featured || p.verified);
+    const pool = dbFeatured.length >= 2 ? dbFeatured : liveProperties;
+    return pool.length > 0 ? pool.slice(0, 5) : properties.slice(0, 5);
+  }, [liveProperties]);
 
-  // All available images for the spotlight property card
-  const spotlightImages = useMemo(() => {
-    const list: string[] = [];
-    if (Array.isArray(spotlightProperty?.images) && spotlightProperty.images.length > 0) {
-      spotlightProperty.images.forEach((img: any) => {
-        if (img && typeof img === 'string') list.push(img);
-      });
-    } else if (spotlightProperty?.image) {
-      list.push(spotlightProperty.image);
-    }
-    // If only 1 image, supplement with other high-res photos so card can slide through views
-    if (list.length === 1 && properties[0]?.images) {
-      properties[0].images.forEach((img) => {
-        if (!list.includes(img) && list.length < 4) list.push(img);
-      });
-    }
-    return list.length > 0 ? list : [FALLBACK_IMAGE_DATA_URI];
-  }, [spotlightProperty]);
-
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [activePropertyIndex, setActivePropertyIndex] = useState(0);
   const imageSlideAnim = useRef(new Animated.Value(0)).current;
+  const currentSpotlightProperty =
+    spotlightList[activePropertyIndex] || spotlightList[0] || properties[0];
+  const spotlightProperty = currentSpotlightProperty;
 
-  // Automatically slide through all available property images every 3 seconds
+  // Automatically move to the next database property every 3 seconds
   useEffect(() => {
-    if (spotlightImages.length <= 1) return;
+    if (spotlightList.length <= 1) return;
 
     const timer = setInterval(() => {
-      setActiveImageIndex((prev) => (prev + 1) % spotlightImages.length);
+      setActivePropertyIndex((prev) => (prev + 1) % spotlightList.length);
     }, 3000);
 
     return () => clearInterval(timer);
-  }, [spotlightImages.length]);
+  }, [spotlightList.length]);
 
-  // Smooth ease-in-out transition between property images
+  // Smooth ease-in-out transition between database properties
   useEffect(() => {
     Animated.timing(imageSlideAnim, {
-      toValue: activeImageIndex,
+      toValue: activePropertyIndex,
       duration: 650,
       easing: Easing.inOut(Easing.cubic),
       useNativeDriver: false,
     }).start();
-  }, [activeImageIndex]);
+  }, [activePropertyIndex]);
 
   const featuredProperties = liveProperties
     .filter((p) => p.id === 'feat-1' || p.id === 'feat-2' || p.featured)
@@ -636,8 +624,8 @@ export default function HomeScreen() {
           }}
           onPress={() =>
             handleProtectedNavigate(
-              { name: 'propertyDetail', params: { property: spotlightProperty } },
-              spotlightProperty?.title || 'Featured Property'
+              { name: 'propertyDetail', params: { property: currentSpotlightProperty } },
+              currentSpotlightProperty?.title || 'Featured Property'
             )
           }
           activeOpacity={0.92}
@@ -647,21 +635,30 @@ export default function HomeScreen() {
             <Animated.View
               style={{
                 flexDirection: 'row',
-                width: cardWidth * spotlightImages.length,
+                width: cardWidth * spotlightList.length,
                 height: '100%',
                 transform: [
                   {
                     translateX: imageSlideAnim.interpolate({
-                      inputRange: spotlightImages.length > 1 ? spotlightImages.map((_, i) => i) : [0, 1],
-                      outputRange: spotlightImages.length > 1 ? spotlightImages.map((_, i) => -i * cardWidth) : [0, 0],
+                      inputRange:
+                        spotlightList.length > 1
+                          ? spotlightList.map((_, i) => i)
+                          : [0, 1],
+                      outputRange:
+                        spotlightList.length > 1
+                          ? spotlightList.map((_, i) => -i * cardWidth)
+                          : [0, 0],
                     }),
                   },
                 ],
               }}
             >
-              {spotlightImages.map((imgUri, imgIdx) => (
-                <View key={imgIdx} style={{ width: cardWidth, height: '100%' }}>
-                  <SafeImage source={{ uri: imgUri }} style={styles.spotlightImage} />
+              {spotlightList.map((item, itemIdx) => (
+                <View key={item.id || itemIdx} style={{ width: cardWidth, height: '100%' }}>
+                  <SafeImage
+                    source={{ uri: item.image || item.images?.[0] }}
+                    style={styles.spotlightImage}
+                  />
                 </View>
               ))}
             </Animated.View>
@@ -679,12 +676,12 @@ export default function HomeScreen() {
 
             {/* Circular Animated Indicator Dots */}
             <View style={styles.carouselDotsRow}>
-              {spotlightImages.map((_, dotIdx) => {
-                const isActive = dotIdx === activeImageIndex;
+              {spotlightList.map((_, dotIdx) => {
+                const isActive = dotIdx === activePropertyIndex;
                 return (
                   <TouchableOpacity
                     key={dotIdx}
-                    onPress={() => setActiveImageIndex(dotIdx)}
+                    onPress={() => setActivePropertyIndex(dotIdx)}
                     activeOpacity={0.7}
                     hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                   >
@@ -710,14 +707,22 @@ export default function HomeScreen() {
               style={styles.spotlightFavButton}
               onPress={(e) => {
                 e.stopPropagation?.();
-                if (spotlightProperty) toggleSaved(spotlightProperty.id);
+                if (currentSpotlightProperty) toggleSaved(currentSpotlightProperty.id);
               }}
               activeOpacity={0.8}
             >
               <Heart
                 size={17}
-                color={spotlightProperty && savedIds.has(spotlightProperty.id) ? '#FF385C' : '#1A1C1A'}
-                fill={spotlightProperty && savedIds.has(spotlightProperty.id) ? '#FF385C' : 'transparent'}
+                color={
+                  currentSpotlightProperty && savedIds.has(currentSpotlightProperty.id)
+                    ? '#FF385C'
+                    : '#1A1C1A'
+                }
+                fill={
+                  currentSpotlightProperty && savedIds.has(currentSpotlightProperty.id)
+                    ? '#FF385C'
+                    : 'transparent'
+                }
                 strokeWidth={2.2}
               />
             </TouchableOpacity>
@@ -728,20 +733,22 @@ export default function HomeScreen() {
             <View style={styles.spotlightMainRow}>
               <View style={styles.spotlightTitleCol}>
                 <Text style={styles.spotlightTitle} numberOfLines={2}>
-                  {spotlightProperty?.title || 'Modern Villa in Jubilee Hills'}
+                  {currentSpotlightProperty?.title || 'Modern Villa in Jubilee Hills'}
                 </Text>
                 <View style={styles.spotlightLocationRow}>
                   <MapPin size={12} color="rgba(255, 255, 255, 0.85)" strokeWidth={2.2} />
                   <Text style={styles.spotlightLocationText} numberOfLines={1}>
-                    {spotlightProperty?.location || 'Jubilee Hills, Hyderabad, Telangana'}
+                    {currentSpotlightProperty?.location || 'Jubilee Hills, Hyderabad, Telangana'}
                   </Text>
                 </View>
               </View>
 
               <Text style={styles.spotlightPrice}>
-                {spotlightProperty?.priceLabel ||
-                  (spotlightProperty?.price
-                    ? `₹${(spotlightProperty.price / 10000000).toFixed(1)} Cr`
+                {currentSpotlightProperty?.priceLabel ||
+                  (currentSpotlightProperty?.price
+                    ? currentSpotlightProperty.price >= 10000000
+                      ? `₹${(currentSpotlightProperty.price / 10000000).toFixed(1)} Cr`
+                      : `₹${currentSpotlightProperty.price.toLocaleString('en-IN')}`
                     : '₹24.5 Cr')}
               </Text>
             </View>
@@ -751,14 +758,14 @@ export default function HomeScreen() {
               <View style={styles.specItem}>
                 <BedDouble size={14} color="#FFDBCC" strokeWidth={2.2} />
                 <Text style={styles.specText}>
-                  {spotlightProperty?.bedrooms ?? (spotlightProperty as any)?.bhk ?? 4} Beds
+                  {currentSpotlightProperty?.bedrooms ?? (currentSpotlightProperty as any)?.bhk ?? 4} Beds
                 </Text>
               </View>
               <View style={styles.specDot} />
               <View style={styles.specItem}>
                 <Bath size={14} color="#FFDBCC" strokeWidth={2.2} />
                 <Text style={styles.specText}>
-                  {spotlightProperty?.bathrooms ?? (spotlightProperty as any)?.baths ?? 5} Baths
+                  {currentSpotlightProperty?.bathrooms ?? (currentSpotlightProperty as any)?.baths ?? 5} Baths
                 </Text>
               </View>
               <View style={styles.specDot} />
@@ -766,7 +773,7 @@ export default function HomeScreen() {
                 <Square size={13} color="#FFDBCC" strokeWidth={2.2} />
                 <Text style={styles.specText}>
                   {Number(
-                    spotlightProperty?.area ?? (spotlightProperty as any)?.sqft ?? 6500
+                    currentSpotlightProperty?.area ?? (currentSpotlightProperty as any)?.sqft ?? 6500
                   ).toLocaleString('en-IN')}{' '}
                   sqft
                 </Text>

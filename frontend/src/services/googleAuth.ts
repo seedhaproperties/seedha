@@ -214,14 +214,23 @@ export async function startGoogleSignIn(): Promise<GoogleAuthResult> {
               error_callback: (err: any) => {
                 clearTimeout(popupTimeout);
                 if (err?.type === 'popup_closed') {
-                  safeResolve({ success: false, canceled: true });
+                  safeResolve({
+                    success: false,
+                    canceled: true,
+                    error:
+                      typeof window !== 'undefined'
+                        ? `Google Sign-In closed. If you saw "Error 400: origin_mismatch", add "${window.location.origin}" to Authorized JavaScript Origins in Google Cloud Console, or log in with Mobile/Email OTP below.`
+                        : 'Google Sign-In was closed. Please try Mobile or Email OTP.',
+                  });
                 } else {
-                    safeResolve({
-                      success: false,
-                      error: err?.message || 'Google Sign-In window was closed',
-                    });
-          }
-                },
+                  safeResolve({
+                    success: false,
+                    error:
+                      err?.message ||
+                      'Google Sign-In window encountered an error. Please try Mobile OTP or Password.',
+                  });
+                }
+              },
       });
 
       tokenClient.requestAccessToken({ prompt: 'select_account' });
