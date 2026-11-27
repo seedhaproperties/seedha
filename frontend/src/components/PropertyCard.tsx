@@ -20,9 +20,9 @@ interface Props {
 }
 
 const getBadge = (type: Property['listingType']) => {
-  if (type === 'buy') return { label: 'For Sale', bg: colors.primary };
-  if (type === 'rent') return { label: 'For Rent', bg: colors.secondary };
-  return { label: 'Commercial', bg: colors.accent };
+  if (type === 'buy') return { label: 'For Sale', bg: '#0F172A' };
+  if (type === 'rent') return { label: 'For Rent', bg: '#334155' };
+  return { label: 'Commercial', bg: '#1E293B' };
 };
 
 export default function PropertyCard({ property, compact = false, horizontal = false }: Props) {
@@ -406,35 +406,39 @@ const styles = StyleSheet.create({
   },
   priceRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 4,
     marginTop: 6,
   },
   verticalPrice: {
     fontFamily: colors.fontFamily,
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.primary,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
   },
   verifiedPill: {
-    backgroundColor: colors.primaryBg,
-    paddingHorizontal: 8,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
+    flexShrink: 0,
   },
   verifiedPillText: {
     fontFamily: colors.fontFamily,
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.primary,
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#0F172A',
   },
   cardFooter: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
-    gap: 6,
+    gap: 8,
   },
 });

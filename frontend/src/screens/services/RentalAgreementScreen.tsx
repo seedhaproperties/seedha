@@ -2586,7 +2586,7 @@ export default function RentalAgreementScreen() {
                                         Courier charges apply outside the property city.
                                       </Text>
                                     </View>
-                                    <Text style={styles.paySpeedPrice}>₹149</Text>
+                                    <Text style={styles.paySpeedPrice}>FREE</Text>
                                   </TouchableOpacity>
 
                                   {/* Next Day Delivery */}
@@ -2645,7 +2645,7 @@ export default function RentalAgreementScreen() {
                                       {deliverySpeed === 'next' ? 'Next day delivery' : 'Standard delivery'}
                                     </Text>
                                     <Text style={styles.paySummaryValue}>
-                                      ₹{deliverySpeed === 'next' ? '499' : '149'}
+                                      {deliverySpeed === 'next' ? '₹499' : 'FREE'}
                                     </Text>
                                   </View>
                                   {extraCopy && (
@@ -2673,7 +2673,7 @@ export default function RentalAgreementScreen() {
                                       ₹{
                                         499 +
                                         parseInt(stampPaperAmount || '100', 10) +
-                                        (deliverySpeed === 'next' ? 499 : 149) +
+                                        (deliverySpeed === 'next' ? 499 : 0) +
                                         (extraCopy ? 249 : 0) +
                                         (notarisedAgreement ? 350 : 0) +
                                         (eSignAgreement ? 249 : 0)
@@ -2757,7 +2757,7 @@ export default function RentalAgreementScreen() {
                                       ₹{
                                         499 +
                                         parseInt(stampPaperAmount || '100', 10) +
-                                        (deliverySpeed === 'next' ? 499 : 149) +
+                                        (deliverySpeed === 'next' ? 499 : 0) +
                                         (extraCopy ? 249 : 0) +
                                         (notarisedAgreement ? 350 : 0) +
                                         (eSignAgreement ? 249 : 0)
@@ -2841,7 +2841,7 @@ export default function RentalAgreementScreen() {
                                   Make payment · ₹{
                                     499 +
                                     parseInt(stampPaperAmount || '100', 10) +
-                                    (deliverySpeed === 'next' ? 499 : 149) +
+                                    (deliverySpeed === 'next' ? 499 : 0) +
                                     (extraCopy ? 249 : 0) +
                                     (notarisedAgreement ? 350 : 0) +
                                     (eSignAgreement ? 249 : 0)
