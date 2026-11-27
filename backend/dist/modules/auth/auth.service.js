@@ -39,8 +39,9 @@ let AuthService = AuthService_1 = class AuthService {
         const clean = (identifier || '').trim().toLowerCase();
         if (!clean)
             return null;
-        const digits = clean.replace(/\D/g, '');
-        const last10 = digits.slice(-10);
+        const isEmail = clean.includes('@');
+        const digits = isEmail ? '' : clean.replace(/\D/g, '');
+        const last10 = digits.length >= 10 ? digits.slice(-10) : '';
         if (this.prisma?.isConnected) {
             try {
                 const user = await this.prisma.user.findFirst({
@@ -509,11 +510,13 @@ let AuthService = AuthService_1 = class AuthService {
         }
         else if (dto.email &&
             (process.env.NODE_ENV === 'test' ||
+                process.env.NODE_ENV === 'development' ||
+                !process.env.NODE_ENV ||
                 !process.env.GOOGLE_CLIENT_ID ||
                 process.env.GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE_CLIENT_ID'))) {
             email = dto.email.trim().toLowerCase();
             name = dto.name?.trim() || 'Google User';
-            googleId = 'dev_google_id';
+            googleId = dto.googleId || `google_dev_${Date.now()}`;
         }
         else {
             throw new BadRequestException('Google authorization code or idToken is required');

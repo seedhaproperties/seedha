@@ -127,9 +127,9 @@ describe('Complete Post Property -> Admin Approval -> Public Listing Workflow', 
   it('5. When Admin reviews and approves the property, status transitions to PUBLISHED and verified=true', async () => {
     const approveResult = await adminService.approveProperty(createdPropId);
     expect(approveResult).toBeDefined();
-    expect(approveResult.property.status).toBe(PropertyStatusEnum.PUBLISHED);
-    expect(approveResult.property.verified).toBe(true);
-    expect(approveResult.property.publishedAt).toBeDefined();
+    expect(approveResult.property?.status).toBe(PropertyStatusEnum.PUBLISHED);
+    expect(approveResult.property?.verified).toBe(true);
+    expect(approveResult.property?.publishedAt).toBeDefined();
   });
 
   it('6. AFTER Admin accepts, the property is IMMEDIATELY visible in public listings and search results for all users', async () => {
@@ -159,9 +159,9 @@ describe('Complete Post Property -> Admin Approval -> Public Listing Workflow', 
     const rejectReason = 'RERA documentation could not be verified with registry';
     const rejectResult = await adminService.rejectProperty(createdPropId, { reason: rejectReason });
 
-    expect(rejectResult.property.status).toBe(PropertyStatusEnum.REJECTED);
-    expect(rejectResult.property.verified).toBe(false);
-    expect(rejectResult.property.rejectionReason).toBe(rejectReason);
+    expect(rejectResult.property?.status).toBe(PropertyStatusEnum.REJECTED);
+    expect(rejectResult.property?.verified).toBe(false);
+    expect(rejectResult.property?.rejectionReason).toBe(rejectReason);
 
     // Ensure it is immediately hidden from public listings
     const publicListAfterReject = await propertiesService.findAll({});

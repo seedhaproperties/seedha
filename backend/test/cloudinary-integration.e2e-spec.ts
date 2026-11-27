@@ -193,6 +193,7 @@ describe('Cloudinary Integration & Image Storage (E2E / Service)', () => {
         phone: '+919876543210',
         passwordHash: 'hash',
         role: 'USER' as any,
+        createdAt: new Date().toISOString(),
       });
 
       const res = await authService.uploadAvatar(testUserId, sampleBase64Png);
